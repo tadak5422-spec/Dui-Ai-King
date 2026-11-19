@@ -77,15 +77,27 @@ jobs:
           import java.io.FileInputStream;
           import java.security.KeyStore;
           public class CheckKey {
-            public static void main(String[] a) throws Exception {
+            static KeyStore open(String storePass) throws Exception {
               KeyStore ks = KeyStore.getInstance("PKCS12");
-              try (FileInputStream in = new FileInputStream(a[0])) { ks.load(in, a[1].toCharArray()); }
-              System.out.println(ks.getKey(a[2], a[3].toCharArray()) == null ? "key password: no key" : "key password: ok");
+              try (FileInputStream in = new FileInputStream("app/release.jks")) { ks.load(in, storePass.toCharArray()); }
+              return ks;
+            }
+            static boolean keyOk(KeyStore ks, String alias, String keyPass) {
+              try { return ks.getKey(alias, keyPass.toCharArray()) != null; } catch (Exception e) { return false; }
+            }
+            public static void main(String[] a) throws Exception {
+              KeyStore ks = open(a[0]);
+              System.out.println("alias exists: " + ks.containsAlias(a[1]));
+              System.out.println("raw key password: " + (keyOk(ks, a[1], a[2]) ? "ok" : "wrong"));
+              String trimmed = a[2].replaceAll("[\\r\\n]+$", "");
+              if (!trimmed.equals(a[2])) {
+                System.out.println("trimmed key password: " + (keyOk(ks, a[1], trimmed) ? "ok" : "wrong"));
+              }
             }
           }
           EOF
-          java /tmp/CheckKey.java app/release.jks "$RELEASE_STORE_PASSWORD" "$RELEASE_KEY_ALIAS" "$RELEASE_KEY_PASSWORD" 2>/dev/null \
-            || echo "key password / alias: WRONG"
+          java /tmp/CheckKey.java "$RELEASE_STORE_PASSWORD" "$RELEASE_KEY_ALIAS" "$RELEASE_KEY_PASSWORD" 2>/dev/null \
+            || echo "keystore check crashed"
 
       - name: Build Release APKs
         env:
