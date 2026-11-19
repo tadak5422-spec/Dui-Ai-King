@@ -1764,6 +1764,13 @@ object LocalEnvironmentManager {
                 Log.w(TAG, "Glibc lib symlink setup: ${e.message}")
             }
         }
+        // The bundled glibc has /data/data/<package>/files/... compiled in (resolv.conf, nsswitch.conf, ...). If it was
+        // built for another package (an older build or another fork), DNS lookups fail with getaddrinfo EAI_AGAIN.
+        try {
+            TermuxRelocation.repairPaths(glibcDir, context.packageName)
+        } catch (e: Exception) {
+            Log.w(TAG, "Glibc path repair failed: ${e.message}")
+        }
         return ldLinux.exists()
     }
 

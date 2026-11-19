@@ -4,6 +4,7 @@ import android.content.Context
 import android.system.Os
 import android.system.OsConstants
 import android.util.Log
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.RandomAccessFile
 
@@ -24,6 +25,16 @@ object TermuxRelocation {
 
     private const val TAG = "TermuxRelocation"
     const val TERMUX_PACKAGE = "com.termux"
+
+    /** Packages an earlier build may have rewritten the files for (all as long as [TERMUX_PACKAGE]). */
+    private val LEGACY_PACKAGES = listOf(TERMUX_PACKAGE, "ai.antigem", "ai.antidev")
+
+    /** [repairPaths] reads a file as a whole; bigger ones are left alone. */
+    private const val MAX_REPAIR_BYTES = 64L * 1024 * 1024
+
+    private val DATA_DATA = "/data/data/".toByteArray(Charsets.US_ASCII)
+    private val DATA_USER_0 = "/data/user/0/".toByteArray(Charsets.US_ASCII)
+    private val FILES = "/files/".toByteArray(Charsets.US_ASCII)
 
     /** Zip-based files keep CRCs and dex files a checksum: rewriting bytes in them would corrupt them, so they are skipped. */
     private val SKIPPED_EXTENSIONS = setOf("apk", "jar", "zip", "aar", "whl", "dex", "jmod")
@@ -52,6 +63,139 @@ object TermuxRelocation {
     fun relocateIfNeeded(context: Context, root: File, onProgress: ((Int) -> Unit)? = null): Stats? {
         val pkg = targetPackage(context) ?: return null
         return relocateTree(root, pkg, onProgress)
+    }
+
+    /**
+     * Rewrites absolute paths of [oldPackages] to [newPackage] in [root] even when the names differ in length, which
+     * the byte-for-byte [relocateTree] cannot do. Text files are rewritten as a whole; in binaries only NUL-terminated
+     * absolute paths are rewritten and padded with NUL bytes, so the file size and every offset inside it stay the
+     * same. Needed for the bundled glibc: it has /data/data/<package>/files/... compiled in (resolv.conf,
+     * nsswitch.conf, locale, ...), and a foreign package name there makes DNS lookups fail with
+     * `getaddrinfo EAI_AGAIN` even though the device's network is fine.
+     */
+    fun repairPaths(root: File, newPackage: String, oldPackages: Collection<String> = LEGACY_PACKAGES): Stats {
+        val stats = Stats()
+        if (!root.exists()) return stats
+        val new = newPackage.toByteArray(Charsets.US_ASCII)
+        val olds = oldPackages.filter { it != newPackage }.map { it.toByteArray(Charsets.US_ASCII) }
+        if (olds.isEmpty()) return stats
+        val dirs = ArrayDeque<File>().apply { add(root) }
+        while (dirs.isNotEmpty()) {
+            val dir = dirs.removeLast()
+            for (f in dir.listFiles() ?: continue) {
+                val mode = try { Os.lstat(f.absolutePath).st_mode } catch (_: Exception) { continue }
+                when {
+                    OsConstants.S_ISDIR(mode) -> dirs.add(f)
+                    OsConstants.S_ISREG(mode) -> {
+                        stats.files++
+                        if (repairFile(f, mode, olds, new)) stats.patchedFiles++
+                    }
+                }
+            }
+        }
+        return stats
+    }
+
+    private fun repairFile(file: File, mode: Int, olds: List<ByteArray>, new: ByteArray): Boolean {
+        if (file.extension.lowercase() in SKIPPED_EXTENSIONS) return false
+        if (try { file.length() } catch (_: Exception) { return false } > MAX_REPAIR_BYTES) return false
+        val data = try { file.readBytes() } catch (_: Exception) { return false }
+        if (data.size < olds.minOf { it.size }) return false
+        val isElf = data.size >= 4 && data[0] == 0x7f.toByte() && data[1] == 'E'.code.toByte() &&
+            data[2] == 'L'.code.toByte() && data[3] == 'F'.code.toByte()
+        val out = (if (isElf) repairElf(data, olds, new) else repairBytes(data, olds, new)) ?: return false
+        val perms = mode and 0xFFF
+        val ownerWritable = (perms and 0x80) != 0 // S_IWUSR
+        if (!ownerWritable) Os.chmod(file.absolutePath, perms or 0x80)
+        try {
+            file.writeBytes(out)
+        } finally {
+            if (!ownerWritable) try { Os.chmod(file.absolutePath, perms) } catch (_: Exception) {}
+        }
+        return true
+    }
+
+    /** Rewrites the whole file, keeping its length (binaries) by padding each shortened path with NUL bytes. */
+    private fun repairElf(data: ByteArray, olds: List<ByteArray>, new: ByteArray): ByteArray? {
+        var out: ByteArray? = null
+        var start = 0
+        while (start < data.size) {
+            var end = start
+            while (end < data.size && data[end] != 0.toByte()) end++
+            if (end > start && isAppPath(data, start, end)) {
+                val rewritten = rewriteSegment(data, start, end, olds, new)
+                if (rewritten != null) {
+                    val buf = out ?: data.copyOf().also { out = it }
+                    System.arraycopy(rewritten, 0, buf, start, rewritten.size)
+                    for (k in start + rewritten.size until end) buf[k] = 0
+                }
+            }
+            start = end + 1
+        }
+        return out
+    }
+
+    /** True when data[start, end) starts with /data/data/ or /data/user/0/ and holds /files/ (an app's prefix). */
+    private fun isAppPath(data: ByteArray, start: Int, end: Int): Boolean {
+        val begins = (start + DATA_DATA.size <= end && matchesAt(data, start, DATA_DATA)) ||
+            (start + DATA_USER_0.size <= end && matchesAt(data, start, DATA_USER_0))
+        if (!begins) return false
+        var i = start
+        while (i + FILES.size <= end) {
+            if (matchesAt(data, i, FILES)) return true
+            i++
+        }
+        return false
+    }
+
+    /** data[start, end) with the old packages replaced; null when unchanged (or no longer fits, which cannot happen). */
+    private fun rewriteSegment(data: ByteArray, start: Int, end: Int, olds: List<ByteArray>, new: ByteArray): ByteArray? {
+        val out = ByteArrayOutputStream(end - start)
+        var i = start
+        var changed = false
+        while (i < end) {
+            val hit = matchOld(data, i, end, olds)
+            if (hit != null) {
+                out.write(new)
+                i += hit.size
+                changed = true
+            } else {
+                out.write(data[i].toInt())
+                i++
+            }
+        }
+        if (!changed) return null
+        val bytes = out.toByteArray()
+        return if (bytes.size <= end - start) bytes else null
+    }
+
+    /** The whole file with the old packages replaced (text/config files, where a shorter name is fine). */
+    private fun repairBytes(data: ByteArray, olds: List<ByteArray>, new: ByteArray): ByteArray? {
+        val out = ByteArrayOutputStream(data.size)
+        var i = 0
+        var changed = false
+        while (i < data.size) {
+            val hit = matchOld(data, i, data.size, olds)
+            if (hit != null) {
+                out.write(new)
+                i += hit.size
+                changed = true
+            } else {
+                out.write(data[i].toInt())
+                i++
+            }
+        }
+        return if (changed) out.toByteArray() else null
+    }
+
+    /** An entry of [olds] at [at] (before [end]) that is followed by "/" or the end of the string. */
+    private fun matchOld(buf: ByteArray, at: Int, end: Int, olds: List<ByteArray>): ByteArray? {
+        for (old in olds) {
+            val after = at + old.size
+            if (after > end || !matchesAt(buf, at, old)) continue
+            if (after == end || buf[after] == SLASH) return old
+        }
+        return null
     }
 
     /**
