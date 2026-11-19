@@ -54,11 +54,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Dui">
-        <!-- The SDK's auto-start provider has no namespace setting. The app starts TelemetryDeck itself. -->
-        <provider
-            android:name="com.telemetrydeck.sdk.TelemetryDeckInitProvider"
-            android:authorities="${applicationId}.TelemetryDeckInitProvider"
-            tools:node="remove" />
         <!-- Crash screen: its own process, so it has fresh memory (works after an out-of-memory crash too) -->
         <activity
             android:name=".crash.CrashActivity"

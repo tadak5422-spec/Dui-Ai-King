@@ -457,10 +457,6 @@ This is not polished app they are only for showcase only not for use and will be
 
 Issues, ideas and pull requests are welcome. For help, join the [WhatsApp community](https://chat.whatsapp.com/IGQX8q9zSVV0RarG70sclV?s=cl&p=a&mlu=4&ilr=4).
 
-## Analytics
-
-DuiAI uses [TelemetryDeck](https://telemetrydeck.com) only to count how many people use the app. It records app opens, an anonymous install ID, session counts, and general device details (phone model, Android version, app version). It does **not** collect chats, prompts, code, files, terminal output, account emails or API keys. Debug builds are marked as test data.
-
 ## Disclaimer
 
 DuiAI is an independent project. It is not affiliated with, endorsed by or sponsored by Google, Anthropic, OpenAI, OpenCode or any other AI provider. Antigravity, Claude, Claude Code, Codex and other product names are trademarks of their owners and are used here only to say which tools the app works with.
