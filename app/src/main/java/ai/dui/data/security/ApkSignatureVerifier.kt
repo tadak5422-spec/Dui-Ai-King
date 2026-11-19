@@ -30,12 +30,12 @@ object ApkSignatureVerifier {
     @Suppress("DEPRECATION")
     fun archiveVersionCode(context: Context, apk: File): Long =
         runCatching { context.packageManager.getPackageArchiveInfo(apk.absolutePath, 0)?.versionCode?.toLong() }
-            .getOrDefault(0L)
+            .getOrNull() ?: 0L
 
     @Suppress("DEPRECATION")
     fun installedVersionCode(context: Context): Long =
         runCatching { context.packageManager.getPackageInfo(context.packageName, 0)?.versionCode?.toLong() }
-            .getOrDefault(0L)
+            .getOrNull() ?: 0L
 
     @Suppress("DEPRECATION")
     private fun certFlags(): Int =
