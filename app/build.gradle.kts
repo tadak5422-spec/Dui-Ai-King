@@ -48,6 +48,17 @@ android {
             keyAlias = System.getenv("RELEASE_KEY_ALIAS")
             keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
         }
+        // CI gives debug builds a stable key (DEBUG_STORE_FILE): the default debug key is generated per build, so a
+        // new APK could not be installed over the running app. Not set: Gradle's own debug key is used.
+        val debugStore = System.getenv("DEBUG_STORE_FILE")
+        if (!debugStore.isNullOrBlank()) {
+            create("debugStable") {
+                storeFile = file(debugStore)
+                storePassword = System.getenv("DEBUG_STORE_PASSWORD") ?: "android"
+                keyAlias = System.getenv("DEBUG_KEY_ALIAS") ?: "androiddebugkey"
+                keyPassword = System.getenv("DEBUG_KEY_PASSWORD") ?: "android"
+            }
+        }
     }
 
     // Local ports differ per app so they can all run side by side: the old com.termux build uses 1234/1235/8765,
@@ -57,6 +68,9 @@ android {
             buildConfigField("int", "BRIDGE_PORT", "1238")
             buildConfigField("int", "HUB_PORT", "1239")
             buildConfigField("int", "BROWSER_MCP_PORT", "8768")
+            System.getenv("DEBUG_STORE_FILE")?.takeIf { it.isNotBlank() }?.let {
+                signingConfig = signingConfigs.getByName("debugStable")
+            }
         }
         release {
             buildConfigField("int", "BRIDGE_PORT", "1236")
