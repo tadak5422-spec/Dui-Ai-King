@@ -1,16 +1,9 @@
 {
-  "version_code": 132,
-  "version_name": "2.0.1",
+  "version_code": 133,
+  "version_name": "2.0.2",
   "min_supported_version_code": 2,
   "changelog": [
-    "Privacy: provider tokens, SSH keys, the security token and PC pairing secrets are now encrypted with a key kept in the Android Keystore",
-    "Privacy: Android cloud backup and device-to-device transfer are turned off for the app and its Linux environment",
-    "Privacy: automatic app and plugin update checks are off by default; turn them on in Settings → About → Software Updates",
-    "Privacy: the Network Inspector no longer records Authorization, cookies or API keys",
-    "Security: the Linux rootfs download is checked against a pinned SHA-256 before it is extracted",
-    "Security: update and Termux:X11 APKs are checked against the expected signing certificate before the installer opens",
-    "X11: corrected the Termux:X11 download link and companion package name; the APK is signature-checked before installing",
-    "Removed the leftover TelemetryDeck device id and timing file from older installs"
+    "Fixed the Linux environment and STEM bundle downloads that pointed to a repository address that does not exist (HTTP 404)"
   ],
   "is_critical": false
 }

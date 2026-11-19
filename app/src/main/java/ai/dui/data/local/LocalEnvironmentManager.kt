@@ -70,7 +70,7 @@ object LocalEnvironmentManager {
     // Minimum 10 MB required for a real Termux bootstrap archive
     private const val MIN_BOOTSTRAP_SIZE_BYTES = 10 * 1024 * 1024L
 
-    const val HARDCODED_ROOTFS_URL = "https://github.com/Santoshkurmi/dui/releases/download/rootfs-v2/bootrapz_2026-11-19.zip"
+    const val HARDCODED_ROOTFS_URL = "https://github.com/Santoshkurmi/antigem/releases/download/rootfs-v2/bootrapz_2026-11-19.zip"
     const val HARDCODED_ROOTFS_TAG = "rootfs-v2"
     const val HARDCODED_ROOTFS_ASSET = "bootrapz_2026-11-19.zip"
     const val HARDCODED_ROOTFS_SIZE_BYTES = 400_054_861L
@@ -78,7 +78,7 @@ object LocalEnvironmentManager {
     const val HARDCODED_ROOTFS_SHA256 = "1fbf9c908375184a8c33c1ea6defbe9f74291488efee74f2760a08604a6f354b"
     const val HUGGINGFACE_ROOTFS_URL = "https://huggingface.co/datasets/santoshkurmi/rootfs-v2/resolve/main/bootrapz_2026-11-19.zip"
     // pages where the user can download the same zip by hand (then install it with "From a ZIP file")
-    const val GITHUB_ROOTFS_PAGE = "https://github.com/Santoshkurmi/dui/releases/tag/rootfs-v2"
+    const val GITHUB_ROOTFS_PAGE = "https://github.com/Santoshkurmi/antigem/releases/tag/rootfs-v2"
     const val HUGGINGFACE_ROOTFS_PAGE = "https://huggingface.co/datasets/santoshkurmi/rootfs-v2/tree/main"
 
     fun rootfsUrl(mirror: RootfsMirror): String = when (mirror) {
