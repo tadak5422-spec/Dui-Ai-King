@@ -714,11 +714,16 @@ class OpenCodeChatBackend(
             val slashName = Regex("^/([A-Za-z0-9_.:-]+)(\\s|$)").find(typed)?.groupValues?.get(1)
             if (slashName != null && slashName in commandNames) {
                 val args = typed.removePrefix("/$slashName").trim()
-                val r = client.post("/session/${conv.id}/command", buildJsonObject {
+                // OpenCode v2: "steer" joins the running turn at its next step instead of waiting for the whole
+                // reply. Old servers don't know the field, so retry without it before giving up.
+                fun commandBody(steer: Boolean) = buildJsonObject {
                     put("name", slashName)
                     put("text", (listOf(args) + notes).filter { it.isNotBlank() }.joinToString("\n\n"))
                     if (files.isNotEmpty()) put("files", JsonArray(files))
-                })
+                    if (steer) put("delivery", "steer")
+                }
+                var r = client.post("/session/${conv.id}/command", commandBody(busy))
+                if (r.isFailure && busy) r = client.post("/session/${conv.id}/command", commandBody(false))
                 if (r.isFailure) fail(msgId, "OpenCode did not run /$slashName", r.exceptionOrNull())
                 else {
                     transcript.dropLocal(msgId)
@@ -726,12 +731,16 @@ class OpenCodeChatBackend(
                 }
                 return@launch
             }
-            val r = client.post("/session/${conv.id}/prompt", buildJsonObject {
+            fun promptBody(steer: Boolean) = buildJsonObject {
                 put("id", msgId)
                 put("text", promptText.ifBlank { "See the attached file." })
                 if (files.isNotEmpty()) put("files", JsonArray(files))
                 if (slashName != null && slashName in skillIds) put("skills", buildJsonArray { add(buildJsonObject { put("id", slashName) }) })
-            })
+                // A note typed while OpenCode is building an app must be read mid-run, not after the run ends.
+                if (steer) put("delivery", "steer")
+            }
+            var r = client.post("/session/${conv.id}/prompt", promptBody(busy))
+            if (r.isFailure && busy) r = client.post("/session/${conv.id}/prompt", promptBody(false))
             if (r.isFailure) fail(msgId, "OpenCode did not take the message", r.exceptionOrNull())
         }
     }

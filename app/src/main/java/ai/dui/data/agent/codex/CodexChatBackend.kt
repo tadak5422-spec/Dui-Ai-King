@@ -706,21 +706,36 @@ class CodexChatBackend(
             val skill = Regex("^/([A-Za-z0-9_.:-]+)(\\s|$)").find(ai.dui.data.remote.PromptExpansion.collapse(text).trim())?.groupValues?.get(1)?.let { n -> skillPaths[n]?.let { n to it } }
             val skillInput = skill?.let { (n, path) -> buildJsonObject { put("type", "skill"); put("name", n); put("path", path) } }
             val input = JsonArray(listOf(textInput(promptText)) + listOfNotNull(skillInput) + inputs)
-            if (busy) {
-                // Codex is working on this chat: the message waits in Codex's queue and runs after the current turn
-                // (its project checkpoint, when on, is marked mid-turn and never holds the reply up)
-                ai.dui.data.checkpoint.ProjectCheckpoints.beforeTurnInBackground(AgentKind.CODEX, conv.id, updated.workspaceUri, clientId, text)
-                sentTo.add(conv.id)
-                client.rpc("thread/queue/add", buildJsonObject {
-                    put("threadId", conv.id); put("input", input); put("clientUserMessageId", clientId)
-                }).onSuccess {
-                    if (!transcript.isTurnActive) client.rpc("thread/queue/start", buildJsonObject { put("threadId", conv.id) })
-                    refreshQueue(conv.id)
-                }.onFailure { _toasts.tryEmit("Could not queue the message: ${it.message}") }
-                return@launch
-            }
             // images show as previews, other files sent by the app by name; files by path come from the text's list
             val images = atts.filter { it.isImage && !it.base64.isNullOrBlank() }
+            if (busy) {
+                // Codex is mid-turn (e.g. building an app): steer that running turn so the note is read at its next
+                // step. The process keeps going — only its plan changes, like Claude's mid-tool queue.
+                ai.dui.data.checkpoint.ProjectCheckpoints.beforeTurnInBackground(AgentKind.CODEX, conv.id, updated.workspaceUri, clientId, text)
+                sentTo.add(conv.id)
+                transcript.addLocalPrompt(
+                    clientId, text, atts.filter { !it.reference && it !in images }.map { it.name },
+                    startsTurn = false, images = images
+                )
+                emitNow()
+                fun queueFallback() {
+                    client.rpc("thread/queue/add", buildJsonObject {
+                        put("threadId", conv.id); put("input", input); put("clientUserMessageId", clientId)
+                    }).onSuccess {
+                        if (!transcript.isTurnActive) client.rpc("thread/queue/start", buildJsonObject { put("threadId", conv.id) })
+                        refreshQueue(conv.id)
+                    }.onFailure { e -> _toasts.tryEmit("Could not queue the message: ${e.message}") }
+                }
+                val turnId = transcript.activeTurnId
+                if (turnId == null) queueFallback()
+                else client.rpc("turn/steer", buildJsonObject {
+                    put("threadId", conv.id)
+                    put("expectedTurnId", turnId)
+                    put("input", input)
+                    put("clientUserMessageId", clientId)
+                }).onFailure { queueFallback() } // the turn ended in between: never lose the note
+                return@launch
+            }
             transcript.addLocalPrompt(
                 clientId, text, atts.filter { !it.reference && it !in images }.map { it.name }, startsTurn = true, images = images
             )
