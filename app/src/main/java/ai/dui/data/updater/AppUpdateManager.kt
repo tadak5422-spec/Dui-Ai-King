@@ -174,6 +174,25 @@ class AppUpdateManager(private val context: Context) {
                 }
             }
 
+            val expectedSigner = ai.dui.data.security.ApkSignatureVerifier.installedSignerSha256(context)
+            val actualSigner = ai.dui.data.security.ApkSignatureVerifier.signerSha256(context, targetFile)
+            val archivePackage = ai.dui.data.security.ApkSignatureVerifier.archivePackageName(context, targetFile)
+            val archiveVersion = ai.dui.data.security.ApkSignatureVerifier.archiveVersionCode(context, targetFile)
+            val installedVersion = ai.dui.data.security.ApkSignatureVerifier.installedVersionCode(context)
+            if (archivePackage != context.packageName ||
+                expectedSigner == null || actualSigner == null ||
+                !actualSigner.equals(expectedSigner, ignoreCase = true)
+            ) {
+                targetFile.delete()
+                return@withContext Result.failure(
+                    Exception("The downloaded file is not a correctly signed ${context.packageName} update.")
+                )
+            }
+            if (archiveVersion == 0L || archiveVersion < installedVersion) {
+                targetFile.delete()
+                return@withContext Result.failure(Exception("The downloaded update is not newer than the installed app."))
+            }
+
             Result.success(targetFile)
         } catch (e: Exception) {
             Log.e(TAG, "Download APK error: ${e.message}", e)

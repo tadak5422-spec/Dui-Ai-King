@@ -8420,6 +8420,12 @@ private fun AboutSubScreen(
     var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
     var updateCheckResultText by remember { mutableStateOf<String?>(null) }
     var isUpdateCheckError by remember { mutableStateOf(false) }
+    var autoUpdateChecks by remember {
+        mutableStateOf(ai.dui.data.updater.UpdateCheckWorker.isEnabled(context))
+    }
+    var autoPluginUpdateChecks by remember {
+        mutableStateOf(ai.dui.data.updater.PluginUpdateCheckWorker.isEnabled(context))
+    }
 
     // Bridge file tracking in public Downloads directory
     val downloadDir = remember { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) }
@@ -8648,6 +8654,61 @@ private fun AboutSubScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 16.sp
                 )
+
+                // Both background checks are opt-in: nothing is fetched until one of these is on.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Check for app updates automatically",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "One version.json request to GitHub every 12 hours. Off by default.",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = autoUpdateChecks,
+                        onCheckedChange = { enabled ->
+                            autoUpdateChecks = enabled
+                            ai.dui.data.updater.UpdateCheckWorker.setEnabled(context, enabled)
+                        }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Check installed plugins automatically",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Reads the plugin repositories you added every 12 hours. Off by default.",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = autoPluginUpdateChecks,
+                        onCheckedChange = { enabled ->
+                            autoPluginUpdateChecks = enabled
+                            ai.dui.data.updater.PluginUpdateCheckWorker.setEnabled(context, enabled)
+                        }
+                    )
+                }
 
                 if (updateCheckResultText != null) {
                     Surface(

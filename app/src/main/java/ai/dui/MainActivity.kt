@@ -171,8 +171,11 @@ class MainActivity : ComponentActivity() {
             val updateManager = remember { ai.dui.data.updater.AppUpdateManager(this@MainActivity) }
 
             LaunchedEffect(Unit) {
-                updateManager.checkForUpdates().onSuccess { info ->
-                    pendingUpdateInfo = info
+                // opt-in: the launch-time check is the same background fetch, so it only runs when enabled
+                if (ai.dui.data.preferences.AuthPreferences.isAutoUpdateCheckEnabled(this@MainActivity)) {
+                    updateManager.checkForUpdates().onSuccess { info ->
+                        pendingUpdateInfo = info
+                    }
                 }
             }
 

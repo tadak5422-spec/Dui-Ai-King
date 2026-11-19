@@ -31,6 +31,8 @@ private const val KEY_LAST_NOTIFIED = "last_notified_version_code"
 class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
+        // opt-in: no network call at all unless the user enabled background update checks
+        if (!isEnabled(applicationContext)) return Result.success()
         // Failures (offline, rate limit) are ignored; the next 12h run tries again.
         val info = AppUpdateManager(applicationContext).checkForUpdates().getOrNull() ?: return Result.success()
 
@@ -80,7 +82,19 @@ class UpdateCheckWorker(context: Context, params: WorkerParameters) : CoroutineW
     }
 
     companion object {
+        fun isEnabled(context: Context): Boolean =
+            ai.dui.data.preferences.AuthPreferences.isAutoUpdateCheckEnabled(context)
+
+        fun setEnabled(context: Context, enabled: Boolean) {
+            ai.dui.data.preferences.AuthPreferences.setAutoUpdateCheckEnabled(context, enabled)
+            schedule(context)
+        }
+
         fun schedule(context: Context) {
+            if (!isEnabled(context)) {
+                WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+                return
+            }
             val request = PeriodicWorkRequestBuilder<UpdateCheckWorker>(12, TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()

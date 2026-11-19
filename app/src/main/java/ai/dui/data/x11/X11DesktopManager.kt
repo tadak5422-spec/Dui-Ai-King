@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit
  *
  * It uses DuiAI's own Termux:X11 build (github.com/Santoshkurmi/termux-x11), package ai.dui.x11, signed
  * with DuiAI's key. That app joins DuiAI's UID (sharedUserId ai.dui) and process, so Android keeps the
- * desktop at full speed while it is on screen. Its companion package is dui-termux-x11 from the same
+ * desktop at full speed while it is on screen. Its companion package is antigem-termux-x11 from the same
  * release; the official termux-x11-nightly's loader only starts the official Termux:X11, so it is replaced when
  * found. The fork keeps its Java names (com.termux.x11.*): its intent actions below are those.
  */
@@ -46,13 +46,15 @@ object X11DesktopManager {
 
     /** DuiAI's Termux:X11: this app's package name + ".x11". */
     const val X11_PACKAGE = "${BuildConfig.APPLICATION_ID}.x11"
-    const val COMPANION_DUIAI = "dui-termux-x11"
+    const val COMPANION_DUIAI = "antigem-termux-x11"
     const val COMPANION_OFFICIAL = "termux-x11-nightly"
 
     private const val FORK_REPO = "Santoshkurmi/termux-x11"
     const val FORK_RELEASES_PAGE = "https://github.com/$FORK_REPO/releases/latest"
-    private const val FORK_APK_URL = "https://github.com/$FORK_REPO/releases/latest/download/dui-termux-x11-sharedUid.apk"
+    private const val FORK_APK_URL = "https://github.com/$FORK_REPO/releases/latest/download/antigem-termux-x11-sharedUid.apk"
     private const val FORK_RELEASE_API = "https://api.github.com/repos/$FORK_REPO/releases/latest"
+    /** Signing certificate of the fork's X11 APK (verified 2026-11-19); a different signer is refused. */
+    private const val X11_APK_SIGNER_SHA256 = "ccf2c681063ba941641519e4eac7f024e92880ccd06eed5070daa9717380f315"
 
     private const val DISPLAY = ":0"
     private const val LOG_FILE = "dui-x11.log"
@@ -105,7 +107,7 @@ object X11DesktopManager {
         val bootstrapInstalled: Boolean = false,
         /** Null when Termux:X11 is not installed. */
         val app: AppInfo? = null,
-        /** The installed companion package (dui-termux-x11 or termux-x11-nightly), or null. */
+        /** The installed companion package (antigem-termux-x11 or termux-x11-nightly), or null. */
         val companion: String? = null,
         val dbusInstalled: Boolean = false,
         val installedDesktops: Set<Desktop> = emptySet(),
@@ -284,6 +286,23 @@ object X11DesktopManager {
         val apk = File(dir, "termux-x11.apk")
         download(url, apk) { pct -> _state.update { it.copy(progress = "Downloading Termux:X11… $pct") } }
         appendLog("✓ Downloaded ${apk.length() / 1024} KB")
+
+        val signer = ai.dui.data.security.ApkSignatureVerifier.signerSha256(appContext, apk)
+        val archivePackage = ai.dui.data.security.ApkSignatureVerifier.archivePackageName(appContext, apk)
+        if (signer == null || !signer.equals(X11_APK_SIGNER_SHA256, ignoreCase = true)) {
+            apk.delete()
+            report("The downloaded Termux:X11 APK is not signed by the expected key; install cancelled.", isError = true)
+            return@runTask
+        }
+        if (archivePackage != X11_PACKAGE) {
+            apk.delete()
+            report(
+                "This Termux:X11 build is for $archivePackage, not $X11_PACKAGE. The fork needs a build for this app.",
+                isError = true
+            )
+            return@runTask
+        }
+
         val opened = withContext(Dispatchers.Main) { AppUpdateManager(appContext).installApk(apk) }
         if (opened) {
             appendLog("Opened the installer. Confirm the install there.")

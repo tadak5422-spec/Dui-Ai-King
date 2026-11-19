@@ -157,9 +157,25 @@ class NetworkInspectorInterceptor(
         val map = mutableMapOf<String, String>()
         for (i in 0 until headers.size) {
             val name = headers.name(i)
-            val value = headers.value(i)
-            map[name] = value
+            map[name] = if (isSensitiveHeader(name)) REDACTED else headers.value(i)
         }
         return map
+    }
+
+    /**
+     * The inspector is a developer tool, but its log is still readable on screen and in screenshots. Credentials are
+     * recorded as [REDACTED] so a shared inspector capture never contains a live key.
+     */
+    private fun isSensitiveHeader(name: String): Boolean {
+        val n = name.lowercase()
+        return n == "authorization" || n == "proxy-authorization" || n == "cookie" || n == "set-cookie" ||
+            n == ai.dui.data.preferences.AuthPreferences.currentEdgeHeaderName.lowercase() ||
+            n == "key" || n.endsWith("-key") ||
+            n.contains("token") || n.contains("secret") || n.contains("password") || n.contains("passwd") ||
+            n.contains("api-key") || n.contains("apikey")
+    }
+
+    private companion object {
+        const val REDACTED = "[redacted]"
     }
 }

@@ -44,7 +44,9 @@
 
     <application
         android:name=".DuiAIApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:largeHeap="true"
         android:hasFragileUserData="true"
         android:manageSpaceActivity="ai.dui.ui.settings.ManageSpaceActivity"

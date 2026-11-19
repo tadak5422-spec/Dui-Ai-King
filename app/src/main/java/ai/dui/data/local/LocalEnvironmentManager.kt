@@ -74,6 +74,8 @@ object LocalEnvironmentManager {
     const val HARDCODED_ROOTFS_TAG = "rootfs-v2"
     const val HARDCODED_ROOTFS_ASSET = "bootrapz_2026-11-19.zip"
     const val HARDCODED_ROOTFS_SIZE_BYTES = 400_054_861L
+    /** SHA-256 of the rootfs zip (the Hugging Face LFS oid). A mirror that serves a different file is refused. */
+    const val HARDCODED_ROOTFS_SHA256 = "1fbf9c908375184a8c33c1ea6defbe9f74291488efee74f2760a08604a6f354b"
     const val HUGGINGFACE_ROOTFS_URL = "https://huggingface.co/datasets/santoshkurmi/rootfs-v2/resolve/main/bootrapz_2026-11-19.zip"
     // pages where the user can download the same zip by hand (then install it with "From a ZIP file")
     const val GITHUB_ROOTFS_PAGE = "https://github.com/Santoshkurmi/dui/releases/tag/rootfs-v2"
@@ -550,6 +552,23 @@ object LocalEnvironmentManager {
 
 
 
+    /**
+     * The rootfs is a pinned artifact: a partial download, a rebuilt mirror or a replaced release is refused instead
+     * of being extracted over the user's Linux environment.
+     */
+    private fun verifyRootfsSha256(file: File): Boolean = runCatching {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered(1024 * 1024).use { input ->
+            val buffer = ByteArray(1024 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        digest.digest().joinToString("") { "%02x".format(it) } == HARDCODED_ROOTFS_SHA256
+    }.getOrDefault(false)
+
     fun calculateDirectorySize(dir: File): Long {
         var size = 0L
         val files = dir.listFiles() ?: return 0L
@@ -787,11 +806,17 @@ object LocalEnvironmentManager {
                             }
 
                             finalDownloadedSize = tempZipFile.length()
-                            if (finalDownloadedSize >= MIN_BOOTSTRAP_SIZE_BYTES && validateArchiveIntegrity(tempZipFile)) {
+                            val complete = finalDownloadedSize >= MIN_BOOTSTRAP_SIZE_BYTES &&
+                                validateArchiveIntegrity(tempZipFile)
+                            if (complete && verifyRootfsSha256(tempZipFile)) {
                                 downloadSucceeded = true
                             } else {
                                 tempZipFile.delete()
-                                val errorMsg = "Downloaded rootfs archive was incomplete or corrupted."
+                                val errorMsg = if (complete) {
+                                    "The downloaded rootfs is not the pinned file (SHA-256 mismatch); install cancelled."
+                                } else {
+                                    "Downloaded rootfs archive was incomplete or corrupted; install cancelled."
+                                }
                                 updateInstallNotification(appContext, "Installation Failed", errorMsg, -2, ongoing = false, force = true)
                                 _installerState.value = LocalInstallerState.Error(errorMessage = errorMsg, canRetry = true)
                                 return@withContext false

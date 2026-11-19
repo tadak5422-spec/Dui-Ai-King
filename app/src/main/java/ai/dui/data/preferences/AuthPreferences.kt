@@ -4,10 +4,15 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import ai.dui.data.security.SecretCipher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 private val Context.dataStore by preferencesDataStore(name = "auth_prefs")
 
@@ -98,6 +103,33 @@ class AuthPreferences(private val context: Context) {
         val HAS_SEEN_TERMINAL_LAUNCHER_ONBOARDING = androidx.datastore.preferences.core.booleanPreferencesKey("has_seen_terminal_launcher_onboarding")
         val TERMINAL_LAUNCHER_STYLE = stringPreferencesKey("terminal_launcher_style") // "ANTITERM" or "TERMUX"
         val IS_TERMINAL_LAUNCHER_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("is_terminal_launcher_enabled")
+
+        /** Background update checks are off until the user turns them on (Settings > About > Software Updates). */
+        const val PREFS_NAME = "anti_gem_sync_prefs"
+        const val AUTO_UPDATE_CHECK = "auto_update_check"
+        const val AUTO_PLUGIN_UPDATE_CHECK = "auto_plugin_update_check"
+
+        fun isAutoUpdateCheckEnabled(context: Context): Boolean =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(AUTO_UPDATE_CHECK, false)
+
+        fun setAutoUpdateCheckEnabled(context: Context, enabled: Boolean) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean(AUTO_UPDATE_CHECK, enabled).apply()
+        }
+
+        fun isAutoPluginUpdateCheckEnabled(context: Context): Boolean =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(AUTO_PLUGIN_UPDATE_CHECK, false)
+
+        fun setAutoPluginUpdateCheckEnabled(context: Context, enabled: Boolean) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().putBoolean(AUTO_PLUGIN_UPDATE_CHECK, enabled).apply()
+        }
+
+        /** Encrypting the token values already on disk; DataStore edits are serialized, so a repeated run is harmless. */
+        private val secretMigrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val secretMigrationStarted = java.util.concurrent.atomic.AtomicBoolean(false)
 
         const val DEFAULT_BRIDGE_BINARY_PATH = "~/../usr/bin/agy_ide_bridge"
         const val DEFAULT_AGY_BINARY_PATH = "~/.local/bin/agy"
@@ -318,7 +350,7 @@ class AuthPreferences(private val context: Context) {
         }
     }
 
-    private val syncPrefs = context.getSharedPreferences("anti_gem_sync_prefs", Context.MODE_PRIVATE)
+    private val syncPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     init {
         val savedHub = syncPrefs.getString("agy_hub_url", null)
@@ -332,20 +364,50 @@ class AuthPreferences(private val context: Context) {
 
         currentRemoteMode = syncPrefs.getBoolean("remote_mode", false)
         currentRemoteTunnel = syncPrefs.getBoolean("remote_tunnel", false)
-        currentSshPrivateKey = syncPrefs.getString("ssh_private_key", "") ?: ""
-        currentSshKeyPassphrase = syncPrefs.getString("ssh_key_passphrase", "") ?: ""
+        currentSshPrivateKey = secret("ssh_private_key")
+        currentSshKeyPassphrase = secret("ssh_key_passphrase")
 
-        var token = syncPrefs.getString("security_token", null)
-        if (token.isNullOrBlank() || token.length != TOKEN_LENGTH) {
+        var token = secret("security_token")
+        if (token.isBlank() || token.length != TOKEN_LENGTH) {
             token = generateRandomToken()
-            syncPrefs.edit().putString("security_token", token).apply()
+            storeSecret("security_token", token)
         }
         currentSecurityToken = token
         currentEdgeHeaderName = syncPrefs.getString("edge_header_name", null)?.takeIf { it.isNotBlank() } ?: DEFAULT_EDGE_HEADER_NAME
-        currentEdgeHeaderValue = syncPrefs.getString("edge_header_value", "") ?: ""
+        currentEdgeHeaderValue = secret("edge_header_value")
         // the PC in use (Connect to PC), unless one is set already: its address and token may have been refreshed since
         val pc = runCatching { ai.dui.data.pc.PcConnect.loadOverride(syncPrefs) }.getOrNull()
         if (pc == null || pcOverride?.pcId != pc.pcId) pcOverride = pc
+        migrateSecrets()
+    }
+
+    /** Reads an encrypted SharedPreferences value and rewrites legacy plaintext in place. */
+    private fun secret(key: String): String {
+        val raw = syncPrefs.getString(key, null) ?: return ""
+        val plain = SecretCipher.decrypt(raw)
+        if (raw.isNotEmpty() && !SecretCipher.isEncrypted(raw)) {
+            syncPrefs.edit().putString(key, SecretCipher.encryptNonEmpty(plain)).apply()
+        }
+        return plain
+    }
+
+    private fun storeSecret(key: String, value: String) {
+        syncPrefs.edit().putString(key, SecretCipher.encryptNonEmpty(value)).apply()
+    }
+
+    /** Encrypts token values written by older builds; repeated calls are harmless. */
+    fun migrateSecrets() {
+        if (!secretMigrationStarted.compareAndSet(false, true)) return
+        secretMigrationScope.launch {
+            runCatching {
+                context.dataStore.edit { prefs ->
+                    for (key in listOf(ACCESS_TOKEN, REFRESH_TOKEN, TERMUX_SSH_PASS, SECURITY_TOKEN)) {
+                        val value = prefs[key] ?: continue
+                        if (!SecretCipher.isEncrypted(value)) prefs[key] = SecretCipher.encrypt(value)
+                    }
+                }
+            }
+        }
     }
 
     fun getEdgeHeaderSync(): Pair<String, String> = currentEdgeHeaderName to currentEdgeHeaderValue
@@ -353,7 +415,10 @@ class AuthPreferences(private val context: Context) {
     fun saveEdgeHeaderSync(name: String, value: String) {
         currentEdgeHeaderName = name.trim().ifBlank { DEFAULT_EDGE_HEADER_NAME }
         currentEdgeHeaderValue = value.trim()
-        syncPrefs.edit().putString("edge_header_name", currentEdgeHeaderName).putString("edge_header_value", currentEdgeHeaderValue).commit()
+        syncPrefs.edit()
+            .putString("edge_header_name", currentEdgeHeaderName)
+            .putString("edge_header_value", SecretCipher.encryptNonEmpty(currentEdgeHeaderValue))
+            .commit()
     }
 
     val groupChatsByWorkspace: Flow<Boolean> = context.dataStore.data.map { it[GROUP_CHATS_BY_WORKSPACE] ?: false }
@@ -380,8 +445,8 @@ class AuthPreferences(private val context: Context) {
         pcOverride?.hubUrl ?: url
     }
 
-    val accessToken: Flow<String?> = context.dataStore.data.map { it[ACCESS_TOKEN] }
-    val refreshToken: Flow<String?> = context.dataStore.data.map { it[REFRESH_TOKEN] }
+    val accessToken: Flow<String?> = context.dataStore.data.map { it[ACCESS_TOKEN]?.let { v -> SecretCipher.decrypt(v) }?.takeIf { t -> t.isNotBlank() } }
+    val refreshToken: Flow<String?> = context.dataStore.data.map { it[REFRESH_TOKEN]?.let { v -> SecretCipher.decrypt(v) }?.takeIf { t -> t.isNotBlank() } }
     val expiresAt: Flow<Long?> = context.dataStore.data.map { it[EXPIRES_AT] }
     val projectId: Flow<String?> = context.dataStore.data.map { it[PROJECT_ID] ?: "rising-fact-p41fc" }
     val subscriptionTier: Flow<String?> = context.dataStore.data.map { it[SUBSCRIPTION_TIER] ?: "pro" }
@@ -468,7 +533,7 @@ class AuthPreferences(private val context: Context) {
     val termuxSshHost: Flow<String> = context.dataStore.data.map { pcOverride?.host ?: it[TERMUX_SSH_HOST] ?: "127.0.0.1" }
     val termuxSshPort: Flow<Int> = context.dataStore.data.map { pcOverride?.sshPort ?: it[TERMUX_SSH_PORT]?.toIntOrNull() ?: 8022 }
     val termuxSshUser: Flow<String> = context.dataStore.data.map { pcOverride?.user ?: it[TERMUX_SSH_USER] ?: "root" }
-    val termuxSshPass: Flow<String> = context.dataStore.data.map { if (pcOverride != null) "" else it[TERMUX_SSH_PASS] ?: "root" }
+    val termuxSshPass: Flow<String> = context.dataStore.data.map { if (pcOverride != null) "" else it[TERMUX_SSH_PASS]?.let { v -> SecretCipher.decrypt(v) } ?: "root" }
     val isTerminalToolEnabled: Flow<Boolean> = context.dataStore.data.map { it[IS_TERMINAL_TOOL_ENABLED] ?: false }
     val isAutoExecuteTerminal: Flow<Boolean> = context.dataStore.data.map { it[AUTO_EXECUTE_TERMINAL] ?: true }
 
@@ -567,7 +632,7 @@ class AuthPreferences(private val context: Context) {
             prefs[TERMUX_SSH_HOST] = host
             prefs[TERMUX_SSH_PORT] = port.toString()
             prefs[TERMUX_SSH_USER] = user
-            prefs[TERMUX_SSH_PASS] = pass
+            prefs[TERMUX_SSH_PASS] = SecretCipher.encrypt(pass)
             prefs[IS_TERMINAL_TOOL_ENABLED] = enabled
             prefs[AUTO_EXECUTE_TERMINAL] = autoExecute
         }
@@ -590,7 +655,7 @@ class AuthPreferences(private val context: Context) {
             prefs[TERMUX_SSH_HOST] = host
             prefs[TERMUX_SSH_PORT] = port.toString()
             prefs[TERMUX_SSH_USER] = user
-            prefs[TERMUX_SSH_PASS] = pass
+            prefs[TERMUX_SSH_PASS] = SecretCipher.encrypt(pass)
         }
     }
 
@@ -612,9 +677,9 @@ class AuthPreferences(private val context: Context) {
 
     suspend fun saveTokens(accessToken: String, refreshToken: String?, email: String? = null, expiresInSeconds: Long? = 3600) {
         context.dataStore.edit { prefs ->
-            prefs[ACCESS_TOKEN] = accessToken
+            prefs[ACCESS_TOKEN] = SecretCipher.encrypt(accessToken)
             if (refreshToken != null) {
-                prefs[REFRESH_TOKEN] = refreshToken
+                prefs[REFRESH_TOKEN] = SecretCipher.encrypt(refreshToken)
             }
             if (email != null) {
                 prefs[USER_EMAIL] = email
@@ -721,8 +786,8 @@ class AuthPreferences(private val context: Context) {
         currentSshPrivateKey = privateKey.trim()
         currentSshKeyPassphrase = passphrase
         syncPrefs.edit()
-            .putString("ssh_private_key", currentSshPrivateKey)
-            .putString("ssh_key_passphrase", passphrase)
+            .putString("ssh_private_key", SecretCipher.encryptNonEmpty(currentSshPrivateKey))
+            .putString("ssh_key_passphrase", SecretCipher.encryptNonEmpty(passphrase))
             .commit()
     }
 
@@ -1045,14 +1110,14 @@ class AuthPreferences(private val context: Context) {
     }
 
     val securityToken: Flow<String> = context.dataStore.data.map {
-        it[SECURITY_TOKEN] ?: getSecurityTokenSync()
+        it[SECURITY_TOKEN]?.let { v -> SecretCipher.decrypt(v) }?.takeIf { token -> token.isNotBlank() } ?: getSecurityTokenSync()
     }
 
     fun getSecurityTokenSync(): String {
-        var token = syncPrefs.getString("security_token", null)
-        if (token.isNullOrBlank() || token.length != TOKEN_LENGTH) {
+        var token = secret("security_token")
+        if (token.isBlank() || token.length != TOKEN_LENGTH) {
             token = generateRandomToken()
-            syncPrefs.edit().putString("security_token", token).apply()
+            storeSecret("security_token", token)
         }
         currentSecurityToken = token
         return token
@@ -1061,9 +1126,9 @@ class AuthPreferences(private val context: Context) {
     suspend fun saveSecurityToken(token: String) {
         val clean = token.trim()
         val validToken = if (clean.length == TOKEN_LENGTH) clean else generateRandomToken()
-        syncPrefs.edit().putString("security_token", validToken).apply()
+        storeSecret("security_token", validToken)
         currentSecurityToken = validToken
-        context.dataStore.edit { it[SECURITY_TOKEN] = validToken }
+        context.dataStore.edit { it[SECURITY_TOKEN] = SecretCipher.encrypt(validToken) }
     }
 
     fun getDefaultBridgeBinaryPath(): String =

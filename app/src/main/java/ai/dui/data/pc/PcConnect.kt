@@ -8,6 +8,7 @@ import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.util.Log
 import ai.dui.data.preferences.AuthPreferences
+import ai.dui.data.security.SecretCipher
 import ai.dui.data.ssh.SshSessionFactory
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
@@ -135,6 +136,19 @@ object PcConnect {
         if (appContext != null) return
         appContext = context.applicationContext
         reload()
+        migrateSecrets()
+    }
+
+    /** Older builds wrote the bridge token and this phone's private key in plain text; rewrite them once. */
+    private fun migrateSecrets() {
+        val p = prefs() ?: return
+        val rawKey = p.getString(KEY_CLIENT_PRIVATE, null)
+        if (!rawKey.isNullOrEmpty() && !SecretCipher.isEncrypted(rawKey)) {
+            p.edit().putString(KEY_CLIENT_PRIVATE, SecretCipher.encrypt(rawKey)).commit()
+        }
+        if (_pcs.value.any { it.token.isNotEmpty() } && !p.getString(KEY_PCS, "").orEmpty().contains("enc:v1:")) {
+            writePcs(_pcs.value)
+        }
     }
 
     private fun reload() {
@@ -147,10 +161,14 @@ object PcConnect {
     private fun readPcs(p: SharedPreferences): List<PairedPc> = runCatching {
         val arr = JSONArray(p.getString(KEY_PCS, "[]"))
         (0 until arr.length()).mapNotNull { PairedPc.fromJson(arr.getJSONObject(it)) }
+            .map { it.copy(token = SecretCipher.decrypt(it.token)) }
     }.getOrDefault(emptyList())
 
     private fun writePcs(list: List<PairedPc>) {
-        prefs()?.edit()?.putString(KEY_PCS, JSONArray(list.map { it.toJson() }).toString())?.commit()
+        val json = JSONArray(list.map { pc ->
+            pc.toJson().put("token", SecretCipher.encryptNonEmpty(pc.token))
+        })
+        prefs()?.edit()?.putString(KEY_PCS, json.toString())?.commit()
         _pcs.value = list
     }
 
@@ -162,7 +180,7 @@ object PcConnect {
         if (!p.getBoolean(KEY_ENABLED, false)) return null
         val id = p.getString(KEY_ACTIVE, null)?.takeIf { it.isNotBlank() } ?: return null
         val pc = readPcs(p).firstOrNull { it.id == id } ?: return null
-        val key = p.getString(KEY_CLIENT_PRIVATE, null)?.takeIf { it.isNotBlank() } ?: return null
+        val key = p.getString(KEY_CLIENT_PRIVATE, null)?.let { v -> SecretCipher.decrypt(v) }?.takeIf { it.isNotBlank() } ?: return null
         return overrideFor(pc, key)
     }
 
@@ -250,7 +268,7 @@ object PcConnect {
     @Synchronized
     fun clientKey(): Pair<String, String> {
         val p = prefs() ?: throw IllegalStateException("App not ready")
-        val priv = p.getString(KEY_CLIENT_PRIVATE, null)
+        val priv = p.getString(KEY_CLIENT_PRIVATE, null)?.let { v -> SecretCipher.decrypt(v) }
         val pub = p.getString(KEY_CLIENT_PUBLIC, null)
         if (!priv.isNullOrBlank() && !pub.isNullOrBlank()) return priv to pub
         val kp = KeyPair.genKeyPair(JSch(), KeyPair.ECDSA, 256)
@@ -259,7 +277,7 @@ object PcConnect {
             val pubOut = ByteArrayOutputStream().also { kp.writePublicKey(it, "dui-phone:${phoneId()}") }
             val newPriv = privOut.toString("UTF-8").trim()
             val newPub = pubOut.toString("UTF-8").trim()
-            p.edit().putString(KEY_CLIENT_PRIVATE, newPriv).putString(KEY_CLIENT_PUBLIC, newPub).commit()
+            p.edit().putString(KEY_CLIENT_PRIVATE, SecretCipher.encrypt(newPriv)).putString(KEY_CLIENT_PUBLIC, newPub).commit()
             return newPriv to newPub
         } finally {
             kp.dispose()

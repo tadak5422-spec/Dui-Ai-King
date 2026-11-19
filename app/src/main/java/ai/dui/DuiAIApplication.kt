@@ -31,6 +31,9 @@ class DuiAIApplication : Application(), coil.ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // the old build reported installs to TelemetryDeck; its device id and timing file have no reason to stay
+        runCatching { deleteSharedPreferences("telemetry_device_prefs") }
+        runCatching { java.io.File(filesDir, "telemetrydeckduration").delete() }
         // a crash opens the crash screen (with the report) instead of the app just vanishing
         ai.dui.crash.CrashHandler.install(this)
         // the crash screen's own process needs none of the startup below

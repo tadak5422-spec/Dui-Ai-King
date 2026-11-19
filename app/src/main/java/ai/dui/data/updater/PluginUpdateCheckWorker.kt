@@ -35,6 +35,8 @@ class PluginUpdateCheckWorker(context: Context, params: WorkerParameters) : Coro
 
     override suspend fun doWork(): Result {
         val context = applicationContext
+        // opt-in: no repository calls at all unless the user enabled background plugin checks
+        if (!isEnabled(context)) return Result.success()
         PluginRepositories.init(context)
         // Both need the IDE bridge; when it is not running, the next 12h run tries again.
         val installed = runCatching { BrowserExtensionManager.instance.loadExtensions() }.getOrNull() ?: return Result.success()
@@ -93,7 +95,19 @@ class PluginUpdateCheckWorker(context: Context, params: WorkerParameters) : Coro
     }
 
     companion object {
+        fun isEnabled(context: Context): Boolean =
+            ai.dui.data.preferences.AuthPreferences.isAutoPluginUpdateCheckEnabled(context)
+
+        fun setEnabled(context: Context, enabled: Boolean) {
+            ai.dui.data.preferences.AuthPreferences.setAutoPluginUpdateCheckEnabled(context, enabled)
+            schedule(context)
+        }
+
         fun schedule(context: Context) {
+            if (!isEnabled(context)) {
+                WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+                return
+            }
             val request = PeriodicWorkRequestBuilder<PluginUpdateCheckWorker>(12, TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()
