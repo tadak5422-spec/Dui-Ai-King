@@ -1451,7 +1451,7 @@ fun ChatScreen(
             )
         }
     ) {
-        ai.dui.ui.agents.BridgeVersionDialog()
+        // IDE bridge version update dialog disabled on request.
         if (pendingLoginUrl != null) {
             val targetUrl = pendingLoginUrl!!
             val remoteSignIn = AuthPreferences.currentRemoteMode
