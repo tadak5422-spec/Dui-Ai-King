@@ -718,22 +718,29 @@ class CodexChatBackend(
                     startsTurn = false, images = images
                 )
                 emitNow()
-                fun queueFallback() {
-                    client.rpc("thread/queue/add", buildJsonObject {
+                suspend fun queueFallback() {
+                    val queued = client.rpc("thread/queue/add", buildJsonObject {
                         put("threadId", conv.id); put("input", input); put("clientUserMessageId", clientId)
-                    }).onSuccess {
+                    })
+                    if (queued.isSuccess) {
                         if (!transcript.isTurnActive) client.rpc("thread/queue/start", buildJsonObject { put("threadId", conv.id) })
                         refreshQueue(conv.id)
-                    }.onFailure { e -> _toasts.tryEmit("Could not queue the message: ${e.message}") }
+                    } else {
+                        _toasts.tryEmit("Could not queue the message: ${queued.exceptionOrNull()?.message}")
+                    }
                 }
                 val turnId = transcript.activeTurnId
-                if (turnId == null) queueFallback()
-                else client.rpc("turn/steer", buildJsonObject {
-                    put("threadId", conv.id)
-                    put("expectedTurnId", turnId)
-                    put("input", input)
-                    put("clientUserMessageId", clientId)
-                }).onFailure { queueFallback() } // the turn ended in between: never lose the note
+                if (turnId == null) {
+                    queueFallback()
+                } else {
+                    val steered = client.rpc("turn/steer", buildJsonObject {
+                        put("threadId", conv.id)
+                        put("expectedTurnId", turnId)
+                        put("input", input)
+                        put("clientUserMessageId", clientId)
+                    })
+                    if (steered.isFailure) queueFallback() // the turn ended in between: never lose the note
+                }
                 return@launch
             }
             transcript.addLocalPrompt(
