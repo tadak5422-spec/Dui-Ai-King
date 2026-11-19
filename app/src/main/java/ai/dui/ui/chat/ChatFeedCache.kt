@@ -48,8 +48,12 @@ sealed class ChatFeedItem(val key: String, val contentType: String) {
 object ChatFeedCache {
     val cache = ConcurrentHashMap<String, List<ChatFeedItem>>()
 
+    /** The model's internal reasoning is intentionally not shown: the feed renders only its answer. */
+    private fun List<MarkdownBlock>.withoutThinking(): List<MarkdownBlock> =
+        filterNot { it is MarkdownBlock.AgentThought }
+
     fun getOrParse(msg: ChatMessage): List<ChatFeedItem> {
-        val cacheKey = "${msg.id}_${msg.content.hashCode()}_${msg.toolCalls.hashCode()}_${msg.thoughtText?.hashCode() ?: 0}_${msg.tokenUsage?.hashCode() ?: 0}"
+        val cacheKey = "${msg.id}_${msg.content.hashCode()}_${msg.toolCalls.hashCode()}_${msg.tokenUsage?.hashCode() ?: 0}"
         val cached = cache[cacheKey]
         if (cached != null) return cached
 
@@ -69,23 +73,17 @@ object ChatFeedCache {
                 }
             }
             MessageRole.ASSISTANT -> {
-                val durTag = if (msg.thoughtDurationMs != null && msg.thoughtDurationMs > 0) ":${msg.thoughtDurationMs}" else ""
-                val contentToParse = if (!msg.thoughtText.isNullOrEmpty() && !msg.content.contains("<!-- thought") && !msg.content.contains("<thought")) {
-                    "<!-- thought$durTag -->\n${msg.thoughtText}\n<!-- /thought -->\n${msg.content}"
-                } else {
-                    msg.content
-                }
-                if (contentToParse.isNotEmpty() || msg.toolCalls.isNotEmpty()) {
-                    val blocks = parseMarkdownBlocks(contentToParse, msg.toolCalls)
-                    for (i in blocks.indices) {
-                        msgItems.add(ChatFeedItem.AssistantBlock(
-                            messageId = msg.id,
-                            blockIndex = i,
-                            block = blocks[i],
-                            isFirst = i == 0,
-                            isLast = i == blocks.lastIndex
-                        ))
-                    }
+                // Parse only what the model wrote for the user. Any reasoning the agent stored separately or inline
+                // as <!-- thought … --> / <thought> tags is dropped before it can reach the chat UI.
+                val blocks = parseMarkdownBlocks(msg.content, msg.toolCalls).withoutThinking()
+                for (i in blocks.indices) {
+                    msgItems.add(ChatFeedItem.AssistantBlock(
+                        messageId = msg.id,
+                        blockIndex = i,
+                        block = blocks[i],
+                        isFirst = i == 0,
+                        isLast = i == blocks.lastIndex
+                    ))
                 }
                 if (msg.content.isNotEmpty()) {
                     msgItems.add(ChatFeedItem.AssistantFooter(msg))
@@ -212,18 +210,9 @@ object ChatFeedCache {
                 val hasActiveRunningTool = msg.toolCalls.any {
                     it.status == "RUNNING" || it.status == "PENDING_APPROVAL" || it.status == "AWAITING_CHOICE"
                 }
-                val durTag = if (msg.thoughtDurationMs != null && msg.thoughtDurationMs > 0) ":${msg.thoughtDurationMs}" else ""
-                val contentToParse = if (!msg.thoughtText.isNullOrEmpty() && !msg.content.contains("<!-- thought") && !msg.content.contains("<thought")) {
-                    if (msg.content.isBlank()) {
-                        "<!-- thought:streaming$durTag -->\n${msg.thoughtText}"
-                    } else {
-                        "<!-- thought:streaming$durTag -->\n${msg.thoughtText}\n<!-- /thought -->\n${msg.content}"
-                    }
-                } else {
-                    msg.content
-                }
-                if (contentToParse.isNotEmpty() || msg.toolCalls.isNotEmpty()) {
-                    val blocks = parseMarkdownBlocks(contentToParse, msg.toolCalls)
+                // Same rule while streaming: reasoning never becomes a visible "Thinking…" block.
+                val blocks = parseMarkdownBlocks(msg.content, msg.toolCalls).withoutThinking()
+                if (blocks.isNotEmpty()) {
                     for (i in blocks.indices) {
                         addItem(ChatFeedItem.AssistantBlock(
                             messageId = msg.id,

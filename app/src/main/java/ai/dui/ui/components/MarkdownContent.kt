@@ -502,7 +502,8 @@ fun MarkdownContent(
     val t0 = System.nanoTime()
     val blocks = remember(content, toolCalls) {
         val bStart = System.nanoTime()
-        val parsed = parseMarkdownBlocks(content, toolCalls)
+        // The model's private reasoning is never rendered: only the answer it wrote for the user is shown.
+        val parsed = parseMarkdownBlocks(content, toolCalls).filterNot { it is MarkdownBlock.AgentThought }
         val bDt = (System.nanoTime() - bStart) / 1_000_000.0
         Log.d("PERF_TRACE", "  🔨 [Markdown Parse] len=${content.length}, blocks=${parsed.size}, took=${"%.2f".format(bDt)}ms")
         parsed

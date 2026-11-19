@@ -120,16 +120,6 @@ fun MessageBubble(
     ) {
         val hasActiveRunningTool = message.toolCalls.any { it.status == "RUNNING" || it.status == "PENDING_APPROVAL" || it.status == "AWAITING_CHOICE" }
 
-        // Thinking block (for assistant responses)
-        if (!isUser && !message.thoughtText.isNullOrEmpty()) {
-            ThinkingAccordion(
-                thoughtText = message.thoughtText,
-                durationMs = message.thoughtDurationMs,
-                isStreaming = message.isStreaming && !hasActiveRunningTool
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-
         // Context Compaction / Summary Banner (if this turn contains a summary)
         if (!message.contextSummary.isNullOrBlank() && message.contextSummary != "null") {
             ContextSummaryCheckpointBanner(summaryText = message.contextSummary)
