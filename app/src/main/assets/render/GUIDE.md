@@ -1,6 +1,6 @@
-# AntiGem STEM & diagram blocks (bundle render-v1)
+# DuiAI STEM & diagram blocks (bundle render-v1)
 
-How AntiGem's chat draws these blocks. Each one is a fenced code block with the language name shown; anything the app can't draw stays visible as code, so a mistake never hides content. Pick the simplest block that does the job.
+How DuiAI's chat draws these blocks. Each one is a fenced code block with the language name shown; anything the app can't draw stays visible as code, so a mistake never hides content. Pick the simplest block that does the job.
 
 | Block | Library (exact version) | Best for |
 |---|---|---|

@@ -1,5 +1,5 @@
 name: 💥 Crash
-description: The app closed by itself or showed the "AntiGem stopped" crash screen.
+description: The app closed by itself or showed the "DuiAI stopped" crash screen.
 title: "Crash: "
 labels: ["bug"]
 body:
@@ -14,7 +14,7 @@ body:
     attributes:
       label: Before you start
       options:
-        - label: I searched the [existing issues](https://github.com/Santoshkurmi/antigem/issues?q=is%3Aissue+crash) for this crash.
+        - label: I searched the [existing issues](https://github.com/Santoshkurmi/dui/issues?q=is%3Aissue+crash) for this crash.
           required: true
 
   - type: textarea

@@ -1,6 +1,6 @@
 # Developing on a PC
 
-The phone is the runtime: a mini app only runs inside AntiGem on Android. From a PC you can still do most of the work. You can write the code there and keep it in git, sign and check packages with the Node tool `agapp.mjs` (same format and same keys as the phone), and let an agent on the PC build and test apps on the phone through the Mini App Developer MCP. This page covers the tool, sharing one key between the phone and the PC, and the ways to get files onto the phone.
+The phone is the runtime: a mini app only runs inside DuiAI on Android. From a PC you can still do most of the work. You can write the code there and keep it in git, sign and check packages with the Node tool `agapp.mjs` (same format and same keys as the phone), and let an agent on the PC build and test apps on the phone through the Mini App Developer MCP. This page covers the tool, sharing one key between the phone and the PC, and the ways to get files onto the phone.
 
 ## What runs where
 
@@ -18,8 +18,8 @@ The phone is the runtime: a mini app only runs inside AntiGem on Android. From a
 
 A single file, Node 18 or newer, no dependencies. Get it from:
 
-- the phone: `~/mini-apps/tools/agapp.mjs` (AntiGem puts it there and updates it with every AntiGem version, so copy it again after an update);
-- the AntiGem source tree: `app/src/main/assets/mini-apps/tools/agapp.mjs`.
+- the phone: `~/mini-apps/tools/agapp.mjs` (DuiAI puts it there and updates it with every DuiAI version, so copy it again after an update);
+- the DuiAI source tree: `app/src/main/assets/mini-apps/tools/agapp.mjs`.
 
 Copy it anywhere on the PC.
 
@@ -89,10 +89,10 @@ The phone's key backup and `agapp.mjs` use the same `.agkey` file format, so one
 
 **Phone → PC:**
 
-1. On the phone: Mini Apps → key icon → **Back up now**. The file goes to `Download/AntiGem/antigem-key-<name>-<8 hex>.agkey` and the share sheet opens.
+1. On the phone: Mini Apps → key icon → **Back up now**. The file goes to `Download/DuiAI/dui-key-<name>-<8 hex>.agkey` and the share sheet opens.
 2. Send it to the PC (USB, Drive, email to yourself).
-3. `node agapp.mjs info antigem-key-….agkey` and compare the fingerprint.
-4. Sign with `--key antigem-key-….agkey` and the backup's password.
+3. `node agapp.mjs info dui-key-….agkey` and compare the fingerprint.
+4. Sign with `--key dui-key-….agkey` and the backup's password.
 
 **PC → phone:**
 
@@ -106,16 +106,16 @@ Keep `.agkey` files out of git (add `*.agkey` to `.gitignore`). In CI, pass `AGA
 
 An agent on the PC can't run mini apps, but it can drive the phone through the **Mini App Developer MCP**: its tools write files into the phone's `~/mini-apps`, open the app, reload it, read the console, run JavaScript in the page, take screenshots, validate, sign and install. The development loop is in [getting-started.md](getting-started.md#the-dev-loop-with-the-mini-app-developer-mcp) and the tools in [developer-mcp.md](developer-mcp.md).
 
-**With AntiGem's Remote / Server mode.** When the agents run on your server or PC (**Settings → Servers & Connectivity**, **Server** or **SSH tunnel**), their own file tools write on that machine, not on the phone. Over the SSH connection AntiGem forwards the server's `127.0.0.1:8765` (`127.0.0.1:8767` in the `com.antigem` build) back to the phone's tool server, so the phone's MCP presets work for agents on the server too. Add the **Mini App Developer** preset in that agent's MCP settings and ask for the app as usual; every file it writes through the MCP lands on the phone, and you see the app hot-reload there.
+**With DuiAI's Remote / Server mode.** When the agents run on your server or PC (**Settings → Servers & Connectivity**, **Server** or **SSH tunnel**), their own file tools write on that machine, not on the phone. Over the SSH connection DuiAI forwards the server's `127.0.0.1:8765` (`127.0.0.1:8767` in the `com.dui` build) back to the phone's tool server, so the phone's MCP presets work for agents on the server too. Add the **Mini App Developer** preset in that agent's MCP settings and ask for the app as usual; every file it writes through the MCP lands on the phone, and you see the app hot-reload there.
 
-**With another client on the PC** (an agent AntiGem didn't start): connect the phone over USB, run `adb forward tcp:8765 tcp:8765`, and add an HTTP MCP server with the same URL and `X-Device-Id` header that the Mini App Developer preset fills in ([developer-mcp.md](developer-mcp.md#adding-it); open the preset in any agent's MCP settings on the phone to see the exact values). AntiGem must be running on the phone.
+**With another client on the PC** (an agent DuiAI didn't start): connect the phone over USB, run `adb forward tcp:8765 tcp:8765`, and add an HTTP MCP server with the same URL and `X-Device-Id` header that the Mini App Developer preset fills in ([developer-mcp.md](developer-mcp.md#adding-it); open the preset in any agent's MCP settings on the phone to see the exact values). DuiAI must be running on the phone.
 
 ## Getting files onto the phone
 
 | What | How |
 |---|---|
 | A development app, while you work on it | Through the Mini App Developer MCP: files are written straight into `~/mini-apps/<folder>/` and the app reloads. |
-| A development folder made on the PC | `adb push my-app /sdcard/Download/my-app`, then in AntiGem's terminal `cp -r /sdcard/Download/my-app ~/mini-apps/` (AntiGem needs its storage permission). `adb` can't write into `~/mini-apps` directly: it is inside AntiGem's private home. |
+| A development folder made on the PC | `adb push my-app /sdcard/Download/my-app`, then in DuiAI's terminal `cp -r /sdcard/Download/my-app ~/mini-apps/` (DuiAI needs its storage permission). `adb` can't write into `~/mini-apps` directly: it is inside DuiAI's private home. |
 | A signed package | `adb push my-app-1.0.0.agapp /sdcard/Download/`, then tap it in a file manager, or Mini Apps → install icon → **Install from a file**. Or send it through any chat or email app, or host it and use **Install from a link**. |
 
 Remember the id rule: a package can't take the id of a development folder that exists on the phone ("A development app with the id … is in ~/mini-apps/…"). To test the installed copy on the phone you develop on, give the development folder another id or remove it first.

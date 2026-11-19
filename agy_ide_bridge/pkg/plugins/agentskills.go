@@ -51,7 +51,7 @@ const (
 	maxRepoSkills = 300
 )
 
-// SkillSource is written as .antigem-source.json into every skill folder added from GitHub.
+// SkillSource is written as .dui-source.json into every skill folder added from GitHub.
 type SkillSource struct {
 	Repo        string `json:"repo"`
 	Ref         string `json:"ref"`
@@ -709,7 +709,7 @@ func describeRepoSkills(snap repoSnapshot, r Repo, dirs []string, fixed map[stri
 }
 
 func (a *AgentSkills) tmpDir() (string, error) {
-	root := filepath.Join(a.home, ".antigem", "tmp")
+	root := filepath.Join(a.home, ".dui", "tmp")
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return "", err
 	}

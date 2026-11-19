@@ -35,7 +35,7 @@ export function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normaliz
     for(let n=0;n<files.length;n++){
       const file=files[n],ext=file.type==='video'?'mp4':'jpg';
       const name=args.filename&&files.length===1?args.filename:`${String(index+1).padStart(3,'0')}_${args.tag_filenames?safeName(args.prompt?.match(/#([\w-]+)/)?.[1]||'scene'):file.media_id}${files.length>1?'_'+(n+1):''}.${ext}`;
-      const saved=await chrome.antigem.copyFile({from:file.path,to:`~/${folder}/${safeName(name)}`});output.push({...file,path:saved.path});
+      const saved=await chrome.dui.copyFile({from:file.path,to:`~/${folder}/${safeName(name)}`});output.push({...file,path:saved.path});
     }
     return output;
   }
@@ -91,7 +91,7 @@ export function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normaliz
           throw new Error('Character Studio Send is not ready');
         },[args]);
         if(args.dry_run){parent.stage='dry run: Character Studio prepared without sending';parent.request_sent={validated_ui:true,character_name:args.character_name,sent:false};return;}
-        parent.abort.signal.throwIfAborted();await chrome.antigem.automation({tabId,tap:prepared});parent.stage='waiting for character candidates';
+        parent.abort.signal.throwIfAborted();await chrome.dui.automation({tabId,tap:prepared});parent.stage='waiting for character candidates';
         await client.wait(async()=>client.evaluate(tabId,()=>!!document.querySelector('flow-character-candidate,.character-candidate-card,.candidate-item,input.name-input,input.editable-text-input,input[aria-label="Character name"]')),180000,500,parent.abort.signal);
         const result=await client.evaluate(tabId,async(name,before)=>{
           const candidate=document.querySelector('flow-character-candidate,.character-candidate-card,.candidate-item');if(candidate)candidate.click();
@@ -109,7 +109,7 @@ export function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normaliz
     });
   }
   async function analyze(args) {
-    const files=[];for(const dir of args.asset_dirs||['~/assets']){try{files.push(...await chrome.antigem.listFiles({path:dir,recursive:true,limit:1000}));}catch(error){if(args.asset_dirs)throw error;}}
+    const files=[];for(const dir of args.asset_dirs||['~/assets']){try{files.push(...await chrome.dui.listFiles({path:dir,recursive:true,limit:1000}));}catch(error){if(args.asset_dirs)throw error;}}
     setLocalAssetIndex(files);
     return analyzeAndBreakdownScript({...args,raw_input:args.raw_input||args.script_text});
   }
@@ -221,7 +221,7 @@ export function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normaliz
     if(canonical==='flow_attach_references')return client.exclusive(async()=>{
       const tab=await client.tab();await client.begin(tab);try{const project=await client.project(tab,args.project_id);if(args.clear_stale)await client.clear(tab);const values=args.references||args.asset_names||[args.asset_name].filter(Boolean);if(!values.length)throw new Error('references or asset_name is required');const library=await client.contents(tab,project,true);for(const value of values){let id=await client.referenceResolver(value);if(id===value&&!/^[a-f\d-]{30,}$/i.test(value)&&!value.includes('/')){const matches=library.filter(m=>handleOf(m.title)===handleOf(value));if(matches.length!==1)throw new Error('Reference name is missing or ambiguous; use its media ID: '+value);id=matches[0].mediaId;}else id=await client.resolveReference(tab,id);const media=library.find(m=>m.mediaId===id)||await client.media(tab,id);await client.attach(tab,id,media.title||id,args.slot||null);}return {project_id:project,media_ids:await client.js(tab,'s.chipIds()')};}finally{await client.end(tab);}});
     if(canonical==='flow_download_media'){
-      if(!args.media_id&&!args.url)throw new Error('media_id or url is required');const tab=await client.tab();const file=args.media_id?await client.file(tab,args.media_id):{...(await chrome.antigem.download({url:args.url,path:`~/${args.folder||'flow-media'}/${safeName(args.filename||'download.mp4')}`,reuse:true})),type:args.url.includes('.mp4')?'video':'image'};return (await downloadFiles([file],{filename:args.filename,download_folder:args.folder||args.download_folder},0))[0];
+      if(!args.media_id&&!args.url)throw new Error('media_id or url is required');const tab=await client.tab();const file=args.media_id?await client.file(tab,args.media_id):{...(await chrome.dui.download({url:args.url,path:`~/${args.folder||'flow-media'}/${safeName(args.filename||'download.mp4')}`,reuse:true})),type:args.url.includes('.mp4')?'video':'image'};return (await downloadFiles([file],{filename:args.filename,download_folder:args.folder||args.download_folder},0))[0];
     }
     if(canonical==='flow_eval_script'){
       const script=args.script||args.expression||args.code;if(typeof script!=='string'||!script.trim())throw new Error('script is required');const tab=await client.tab();return client.exclusive(()=>client.evaluate(tab,source=>(0,eval)(source),[script]));

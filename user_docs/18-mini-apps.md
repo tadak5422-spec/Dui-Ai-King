@@ -1,16 +1,16 @@
 # 18 — Mini Apps
 
-**Mini apps** are small apps that run inside AntiGem but look and behave like real Android apps: each opens full screen, has its own card in Recents, can have its own home-screen icon, and uses native dialogs, notifications, reminders, files and storage. An agent can build one for you in a few minutes from a sentence like *"make me a habit tracker with a daily reminder"*, and you can install apps other people made from a single `.agapp` file, the way you install an APK.
+**Mini apps** are small apps that run inside DuiAI but look and behave like real Android apps: each opens full screen, has its own card in Recents, can have its own home-screen icon, and uses native dialogs, notifications, reminders, files and storage. An agent can build one for you in a few minutes from a sentence like *"make me a habit tracker with a daily reminder"*, and you can install apps other people made from a single `.agapp` file, the way you install an APK.
 
 Like Android apps, mini apps only get what you allow: each one asks before it uses the internet, your folders, notifications or other permissions, and you can change your answers at any time in **App info**.
 
-> Developers: the full technical guide (manifest, permissions, API, signing) is in the `mini_app_docs` folder of the AntiGem repository. Agents with the Mini App Developer MCP get it from the MCP.
+> Developers: the full technical guide (manifest, permissions, API, signing) is in the `mini_app_docs` folder of the DuiAI repository. Agents with the Mini App Developer MCP get it from the MCP.
 
 ---
 
 ## 🚀 Quick start
 
-1. **Open Mini Apps**: open the chat drawer and tap the **Mini Apps** icon (the grid of squares, next to the Themes palette). AntiGem comes with sample apps to try: Habits, Pocket Notes, Focus, Gallery, Sky, Explorer, Dev Toolbox and Showcase.
+1. **Open Mini Apps**: open the chat drawer and tap the **Mini Apps** icon (the grid of squares, next to the Themes palette). DuiAI comes with sample apps to try: Habits, Pocket Notes, Focus, Gallery, Sky, Explorer, Dev Toolbox and Showcase.
 2. **Connect the Mini App Developer MCP** to your agent: in the agent's MCP settings, tap the **Mini App Developer** tile in *Quick presets* ([section 2](#-2-asking-an-agent-to-build-an-app)).
 3. **Ask in chat**, for example `/mini_app a water reminder that notifies me every 2 hours`, or just *"Build me a mini app that …"*.
 4. **Open the new app** in Mini Apps. Changes the agent makes show up in the open app straight away.
@@ -109,12 +109,12 @@ Turning off a required permission asks first (*"<App> needs this"*, **Turn off**
 
 - **First launch:** a dialog titled **<App> wants to** lists what the app asks for, each with a switch. Turn off what you don't want and tap **Continue**, or **Deny all**. *"You can change these later in App info."*
 - **Later:** an app can ask again for one permission: **Allow <App> to use this?** with **Allow** / **Don't allow**.
-- **Camera and microphone:** asked the first time the app uses them, for example when it opens the camera to take a photo; Android may then ask for AntiGem's own camera or microphone permission.
+- **Camera and microphone:** asked the first time the app uses them, for example when it opens the camera to take a photo; Android may then ask for DuiAI's own camera or microphone permission.
 - **Required permissions:** some apps can't work without a permission. In the permission dialog, the button to refuse then reads **Don't allow (app can't run)**. If you don't allow it, the app shows **<App> can't run without** with **Review permissions** and **Close**.
 - **All your files, or your whole home or storage folder:** these switches start off and need you to **type a confirmation phrase** under a red warning before they turn on. Only do this for an app you trust completely; a narrower folder is almost always enough.
 - **When an app is updated** and asks for more (another website, another folder, more access), you are asked again for just that. If it asks for less, your answers stay.
 
-A mini app can never reach other apps' data, AntiGem's own settings and keys, or hidden folders like `~/.ssh`, whatever you allow.
+A mini app can never reach other apps' data, DuiAI's own settings and keys, or hidden folders like `~/.ssh`, whatever you allow.
 
 ---
 
@@ -123,7 +123,7 @@ A mini app can never reach other apps' data, AntiGem's own settings and keys, or
 Apps from other people come as one **`.agapp`** file. Get it any way you like and open it:
 
 - **Tap the file** in WhatsApp, Telegram, Gmail, Files or your browser's downloads, and pick **Mini app installer** if Android asks.
-- In AntiGem's **Files**, tap the file → **Install mini app**.
+- In DuiAI's **Files**, tap the file → **Install mini app**.
 - **Share** the file to **Mini app**.
 - In Mini Apps: install icon → **Install from a file**, or **Install from a link** and paste an `https://` link to the `.agapp` (for example from a GitHub release).
 
@@ -144,7 +144,7 @@ An installed app is checked every time it loads: if its files are changed afterw
 ## 📤 7. Sharing apps
 
 - **An app you installed:** App info → **Share app**. It sends the exact package you installed, still signed by its developer.
-- **An app you (or your agent) made:** App info → **Export signed package**. AntiGem signs it with your developer key, saves it in `~/mini-apps-dist/`, and opens the share sheet. You need a developer key first ([section 9](#-9-your-developer-key-and-its-backup)).
+- **An app you (or your agent) made:** App info → **Export signed package**. DuiAI signs it with your developer key, saves it in `~/mini-apps-dist/`, and opens the share sheet. You need a developer key first ([section 9](#-9-your-developer-key-and-its-backup)).
 
 Before sharing a new version, make sure its version number was raised (ask the agent to bump it).
 
@@ -163,21 +163,21 @@ If you only use apps from other people, you can turn it off.
 
 ## 🔑 9. Your developer key and its backup
 
-To share apps you made, AntiGem signs them with **your developer key**. People who install your app can then only update it with a package signed by the same key, so nobody else can replace your app.
+To share apps you made, DuiAI signs them with **your developer key**. People who install your app can then only update it with a package signed by the same key, so nobody else can replace your app.
 
 **Create the key:** Mini Apps → key icon → **Create**, and enter your name or team (shown to people who install your apps).
 
-**Back it up right away.** The key lives inside AntiGem. If you uninstall AntiGem, clear its data or lose the phone without a backup, **your apps can never be updated again**. AntiGem asks you to back up right after creating the key (**Back up your new key**):
+**Back it up right away.** The key lives inside DuiAI. If you uninstall DuiAI, clear its data or lose the phone without a backup, **your apps can never be updated again**. DuiAI asks you to back up right after creating the key (**Back up your new key**):
 
 1. Choose a password (8 characters or more) and type it twice.
-2. Tap **Back up**. AntiGem saves a locked `.agkey` file in your phone's **Download/AntiGem** folder. That folder stays even if AntiGem is uninstalled.
+2. Tap **Back up**. DuiAI saves a locked `.agkey` file in your phone's **Download/DuiAI** folder. That folder stays even if DuiAI is uninstalled.
 3. The share sheet opens: also save a copy in Google Drive or email it to yourself.
 
 Until the key is backed up, Mini Apps shows **Your developer key isn't backed up**. Tap **Back up** there, or use the key icon → **Back up now**.
 
-The password is typed only on your phone. The AI agent never sees your key or your password, even when it asks AntiGem to show you the backup screen. Nobody can recover a forgotten password, so keep it somewhere safe.
+The password is typed only on your phone. The AI agent never sees your key or your password, even when it asks DuiAI to show you the backup screen. Nobody can recover a forgotten password, so keep it somewhere safe.
 
-**Restore the key** on a new phone or after reinstalling AntiGem: Mini Apps → key icon → **Import**, pick the `.agkey` file and type its password. Importing replaces the key on this phone. The same file also lets a developer sign apps on a PC.
+**Restore the key** on a new phone or after reinstalling DuiAI: Mini Apps → key icon → **Import**, pick the `.agkey` file and type its password. Importing replaces the key on this phone. The same file also lets a developer sign apps on a PC.
 
 ---
 
@@ -196,7 +196,7 @@ The password is typed only on your phone. The AI agent never sees your key or yo
 | A `DEV` app says it needs Developer mode | Tap `</>` in Mini Apps to turn Developer mode on. |
 | *"<App> can't run without …"* | Tap **Review permissions** and allow what it needs, or turn it on in App info. |
 | A feature doesn't work and the app says it isn't allowed | Turn the permission on in App info, or tap **Reset permissions** to be asked again. |
-| Reminders come late | App info → Background → **Fix** to give AntiGem *Alarms & reminders* access, and **Allow** to stop battery optimization. |
+| Reminders come late | App info → Background → **Fix** to give DuiAI *Alarms & reminders* access, and **Allow** to stop battery optimization. |
 | Background updates don't happen | Battery saver skips them; check App info → Background for the last run and its reason. |
 | The app shows **modified** | Its files were changed after installing. Uninstall it and install it again from the developer. |
 | *"This package is signed by a different developer…"* | Only the original developer can update the app. Uninstall the old one first if you trust the new one (its data is deleted). |

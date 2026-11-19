@@ -14,7 +14,7 @@ import (
 func setup(t *testing.T) (*Manager, string) {
 	t.Helper()
 	home := t.TempDir()
-	project := filepath.Join(home, "work", "antigem")
+	project := filepath.Join(home, "work", "dui")
 	if err := os.MkdirAll(project, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func exists(path string) bool {
 const tick = "```"
 
 func memBlock(lines ...string) string {
-	return tick + "antigem-memory\n" + strings.Join(lines, "\n") + "\n" + tick
+	return tick + "dui-memory\n" + strings.Join(lines, "\n") + "\n" + tick
 }
 
 func TestFindBlocksTopLevelOnly(t *testing.T) {
@@ -49,7 +49,7 @@ func TestFindBlocksTopLevelOnly(t *testing.T) {
 		"````markdown",
 		memBlock("file: example.md", "---", "Example"),
 		"````",
-		tick + "antigem-memory",
+		tick + "dui-memory",
 		"file: unfinished.md",
 	}, "\n")
 	got := FindBlocks(reply)
@@ -214,7 +214,7 @@ func TestContext(t *testing.T) {
 	if strings.Contains(res.Text, "secret-plan") {
 		t.Fatal("another project's memory leaked into the context")
 	}
-	if !strings.Contains(res.Text, "this project's is "+projectDir(project)+"/") || !strings.Contains(res.Text, tick+"antigem-memory") {
+	if !strings.Contains(res.Text, "this project's is "+projectDir(project)+"/") || !strings.Contains(res.Text, tick+"dui-memory") {
 		t.Fatalf("history note or block rules missing:\n%s", res.Text)
 	}
 	if res := m.Context(ContextRequest{Project: project, History: false}); strings.Contains(res.Text, "### Past chats") {

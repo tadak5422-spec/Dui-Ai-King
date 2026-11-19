@@ -1,5 +1,5 @@
 /*
- * AntiGem Mini Apps SDK: worker core. Runs first in every worker / thread of a mini app (the runtime injects it).
+ * DuiAI Mini Apps SDK: worker core. Runs first in every worker / thread of a mini app (the runtime injects it).
  * Workers can't reach native code directly, so calls travel over a private MessageChannel to the page that
  * created the worker, which forwards them (core.js attachWorker). Same internal API as the page: __AG.call/send/on.
  * fetch, XHR, WebSocket, EventSource and indexedDB then work exactly as in the page (net.js, idb.js).
@@ -110,7 +110,7 @@
     configurable: false, enumerable: false, writable: false
   });
 
-  // ------------------------------------------------------------------ AntiGem (what makes sense off the UI thread)
+  // ------------------------------------------------------------------ DuiAI (what makes sense off the UI thread)
   function payload(data) {
     if (typeof data === 'string') return Promise.resolve({ text: data });
     if (data instanceof Blob) return data.arrayBuffer().then(function (b) { return { b64: b64encode(b) }; });
@@ -130,7 +130,7 @@
     mkdir: function (path) { return call('fs.mkdir', { path: path }).then(function () {}); },
     delete: function (path, o) { return call('fs.delete', { path: path, recursive: !!(o && o.recursive) }).then(function () {}); },
     move: function (from, to) { return call('fs.move', { from: from, to: to }).then(function () {}); },
-    url: function (path, o) { return location.origin + '/_antigem/fs?p=' + encodeURIComponent(path) + (o && o.thumb ? '&thumb=' + Math.round(o.thumb) : ''); },
+    url: function (path, o) { return location.origin + '/_dui/fs?p=' + encodeURIComponent(path) + (o && o.thumb ? '&thumb=' + Math.round(o.thumb) : ''); },
     folders: function () { return call('fs.folders'); }
   };
   // Dates become epoch ms, as in the page SDK (structured clone would turn them into strings the native side can't read)
@@ -143,7 +143,7 @@
     if (Array.isArray(o.messages)) o.messages = o.messages.map(function (m) { return Object.assign({}, m, m.time instanceof Date ? { time: m.time.getTime() } : {}); });
     return o;
   }
-  define(G, 'AntiGem', {
+  define(G, 'DuiAI', {
     sdk: BOOT.sdk || 1,
     worker: true,
     app: Object.freeze(Object.assign({}, BOOT.app)),

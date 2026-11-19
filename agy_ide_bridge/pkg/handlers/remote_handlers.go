@@ -143,7 +143,7 @@ func (h *Handler) ForwardLoginCallbackHandler(w http.ResponseWriter, r *http.Req
 var cloneNameRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
 // GitCloneHandler clones a public https repository into the projects folder of THIS machine and streams git's output
-// line by line, ending with `ANTIGEM_CLONED_PATH=<dir>` (success) or `ANTIGEM_EXIT=<code>`. It is what the app's
+// line by line, ending with `DUIAI_CLONED_PATH=<dir>` (success) or `DUIAI_EXIT=<code>`. It is what the app's
 // "Clone repository" does when the bridge runs on a server and not on the phone.
 func (h *Handler) GitCloneHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -188,19 +188,19 @@ func (h *Handler) GitCloneHandler(w http.ResponseWriter, r *http.Request) {
 	say("Target     : " + target)
 	if _, err := exec.LookPath("git"); err != nil {
 		say("❌ Error: git is not installed on the server.")
-		say("ANTIGEM_EXIT=1")
+		say("DUIAI_EXIT=1")
 		return
 	}
 	if fi, err := os.Stat(target); err == nil {
 		if !fi.IsDir() {
 			say("❌ Error: '" + target + "' already exists and is not a folder.")
-			say("ANTIGEM_EXIT=1")
+			say("DUIAI_EXIT=1")
 			return
 		}
 		entries, _ := os.ReadDir(target)
 		if len(entries) > 0 {
 			say("❌ Error: Folder '" + target + "' already exists and is not empty. Choose another project name.")
-			say("ANTIGEM_EXIT=1")
+			say("DUIAI_EXIT=1")
 			return
 		}
 		_ = os.Remove(target)
@@ -214,14 +214,14 @@ func (h *Handler) GitCloneHandler(w http.ResponseWriter, r *http.Request) {
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		say("❌ Error: " + err.Error())
-		say("ANTIGEM_EXIT=1")
+		say("DUIAI_EXIT=1")
 		return
 	}
 	cmd.Stderr = cmd.Stdout
 	say("[git] git clone --progress " + repo + " " + target)
 	if err := cmd.Start(); err != nil {
 		say("❌ Error: " + err.Error())
-		say("ANTIGEM_EXIT=1")
+		say("DUIAI_EXIT=1")
 		return
 	}
 	// git draws progress with carriage returns: split them into lines
@@ -249,9 +249,9 @@ func (h *Handler) GitCloneHandler(w http.ResponseWriter, r *http.Request) {
 			code = ee.ExitCode()
 		}
 		say(fmt.Sprintf("❌ Error: git clone failed (exit %d).", code))
-		say(fmt.Sprintf("ANTIGEM_EXIT=%d", code))
+		say(fmt.Sprintf("DUIAI_EXIT=%d", code))
 		return
 	}
 	say("✅ Cloned into " + target)
-	say("ANTIGEM_CLONED_PATH=" + target)
+	say("DUIAI_CLONED_PATH=" + target)
 }

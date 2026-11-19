@@ -1,12 +1,12 @@
 # 01 — Getting Started & First Launch
 
-This guide walks you through opening AntiGem for the first time, granting system permissions, choosing your coding agents, setting up the local Linux environment, and configuring your launcher icon.
+This guide walks you through opening DuiAI for the first time, granting system permissions, choosing your coding agents, setting up the local Linux environment, and configuring your launcher icon.
 
 ---
 
-## 🚀 1. Welcome to AntiGem & Permissions (`AppPermissionsDialog`)
+## 🚀 1. Welcome to DuiAI & Permissions (`AppPermissionsDialog`)
 
-When you open AntiGem for the first time, a full-screen prompt titled **Welcome to AntiGem** appears (*"Allow a few things so AntiGem can run in the background and work with your files."*).
+When you open DuiAI for the first time, a full-screen prompt titled **Welcome to DuiAI** appears (*"Allow a few things so DuiAI can run in the background and work with your files."*).
 
 At the top, a progress indicator displays:
 - **Permissions**: *"$allowedCount of 3 allowed"*
@@ -14,7 +14,7 @@ At the top, a progress indicator displays:
 Below the progress bar are the three permission options:
 
 1. **Notifications** (*"Keeps the background service running and shows progress"*):
-   - **Required**. AntiGem runs background services (such as AI generation, local development servers, and shell commands). Without this permission, Android may terminate AntiGem's background process when you switch apps or lock your phone.
+   - **Required**. DuiAI runs background services (such as AI generation, local development servers, and shell commands). Without this permission, Android may terminate DuiAI's background process when you switch apps or lock your phone.
    - Tap **Allow**. If not yet granted, a prompt reads *"Allow notifications to continue"*. Once granted, the button switches to **Allowed** with a checkmark.
 2. **Files** (*"Open projects and files on your storage"*):
    - **Optional**. Allows the AI agents, the built-in IDE, and the File Explorer to open, edit, and save project files in your device storage and Downloads directory. Tap **Allow** to grant access.
@@ -57,16 +57,16 @@ You can reconfigure your active agents at any time in **Settings → Agents**:
 
 ## 📦 3. Setting Up the Local Linux Environment (`FullScreenLocalToolsInstaller`)
 
-AntiGem checks whether the local Linux runtime is installed on your phone.
+DuiAI checks whether the local Linux runtime is installed on your phone.
 
 ### Titles & Options:
 - Title: **Set up your Linux environment**
-- Subtitle: *"AntiGem runs its terminal, IDE and agents on a local Linux system. Choose how to install it."*
+- Subtitle: *"DuiAI runs its terminal, IDE and agents on a local Linux system. Choose how to install it."*
 - **Option 1: Full environment** (Tag: *"Recommended · ~350 MB"*): *"Verified rootfs with the tools and environment preconfigured."*
 - **Option 2: Minimal** (Tag: *"~33 MB"*): *"Clean Termux base for your device architecture: core utilities and the package manager."*
-- **Option 3: From a ZIP file**: *"A bootstrap backup or custom rootfs on this phone."* (Tap **Choose file** / **Choose another file** to select an archive). This is also how you move from the old `com.termux` build of AntiGem: restore the backup made there (Settings → Backups & Restore → Back up environment). Its `com.termux` paths are rewritten for `ai.antigem` while it is restored.
+- **Option 3: From a ZIP file**: *"A bootstrap backup or custom rootfs on this phone."* (Tap **Choose file** / **Choose another file** to select an archive). This is also how you move from the old `com.termux` build of DuiAI: restore the backup made there (Settings → Backups & Restore → Back up environment). Its `com.termux` paths are rewritten for `ai.dui` while it is restored.
 
-The Linux system is made of Termux packages, rewritten for AntiGem's package name (`ai.antigem`) as they are installed. For a full Ubuntu, run `pkg install proot-distro && proot-distro install ubuntu` in the terminal.
+The Linux system is made of Termux packages, rewritten for DuiAI's package name (`ai.dui`) as they are installed. For a full Ubuntu, run `pkg install proot-distro && proot-distro install ubuntu` in the terminal.
 
 ### Installation Flow & Buttons:
 - Tap **Install (~350 MB)**, **Install minimal (~33 MB)**, **Install from ZIP**, or **Install Ubuntu base** (standalone).
@@ -75,17 +75,17 @@ The Linux system is made of Termux packages, rewritten for AntiGem's package nam
 - **Installing**: *"This takes a few minutes. You can keep using the app meanwhile."* (Progresses through Downloading, Extracting, Configuring, and Verifying). Tap **Continue in background** to let installation proceed while you use the app.
 - **Setup didn't finish**: If an error occurs, the screen shows *"You can try again, or install from a ZIP file instead."* with buttons **Try again**, **Change source**, and **Skip**.
 - **You're all set**: Once complete, the screen confirms *"The shell, core tools and AGY tools are installed."* (or *"Ubuntu, bash, glibc and AGY tools are installed."* in standalone). Tap **Get started** to finish.
-- **Skip Button**: Located in the top right corner. It allows bypassing local installation if you only plan to connect AntiGem to an external computer (see [Server Mode & Remote Access](12-server-mode-and-remote-access.md)). It is automatically hidden while downloading, extracting, or after success.
+- **Skip Button**: Located in the top right corner. It allows bypassing local installation if you only plan to connect DuiAI to an external computer (see [Server Mode & Remote Access](12-server-mode-and-remote-access.md)). It is automatically hidden while downloading, extracting, or after success.
 - **Installer Logs**: Tap **Show details** / **Hide details** to inspect live download and extraction stdout logs.
 
 ### 32-Bit Processor Notice:
 If your phone has an older 32-bit processor:
 - Title: **Not available on this phone**
 - Description: *"Your phone has a 32-bit processor. The local Linux environment (terminal, IDE backend and agents running on the phone) needs a 64-bit one, so it can't be installed here."*
-- Card: **You can still use AntiGem**:
+- Card: **You can still use DuiAI**:
   - *"Server mode: run the agents on a computer or server and connect to it"*
   - *"SSH: work in a terminal on another machine"*
-- Action: Tap **Continue to AntiGem**.
+- Action: Tap **Continue to DuiAI**.
 
 ---
 
@@ -94,7 +94,7 @@ If your phone has an older 32-bit processor:
 When step 2 of setup appears (or if triggered from settings), the dialog titled **Terminal App Setup** opens (*"Choose how you want to open the Linux command line on your device."*):
 
 - **HOME SCREEN PREVIEW Card**:
-  - Shows the main **AntiGem** app icon labeled *"Chat & IDE"*.
+  - Shows the main **DuiAI** app icon labeled *"Chat & IDE"*.
   - Beside it, the terminal app preview icon:
     - When the toggle is OFF: Shows **Hidden** in red with *"In-App only"* underneath.
     - When the toggle is ON: Shows **Termux** or **AntiTerm** with *"Terminal"* underneath.
@@ -103,7 +103,7 @@ When step 2 of setup appears (or if triggered from settings), the dialog titled 
   - OFF by default.
 - **Icon Style Picker (`Select Icon & App Name:`)**:
   - Visible when the toggle is enabled:
-    - **AntiTerm**: *"Modern unified icon matching AntiGem"* (styled to match the app).
+    - **AntiTerm**: *"Modern unified icon matching DuiAI"* (styled to match the app).
     - **Termux**: *"Classic terminal >_ prompt icon & familiar name"* (traditional black Termux icon).
 - **Actions**:
   - Tap **Save & Continue**.
@@ -115,7 +115,7 @@ When step 2 of setup appears (or if triggered from settings), the dialog titled 
 ## 🧭 5. Navigating with the Floating App Switcher
 
 After completing onboarding, you arrive at the **Chat** screen. A compact, floating dock hovers on your screen:
-- **What it is**: The **Floating App Switcher** (`FloatingSwitcherWidget`), providing 1-tap navigation between all AntiGem workspaces:
+- **What it is**: The **Floating App Switcher** (`FloatingSwitcherWidget`), providing 1-tap navigation between all DuiAI workspaces:
   - 💬 **Chat**: Returns to your conversation with the AI.
   - 💻 **IDE**: Opens the code editor, project files, and Git tab.
   - ⌨️ **Terminal**: Opens your Linux command prompt.
@@ -129,7 +129,7 @@ After completing onboarding, you arrive at the **Chat** screen. A compact, float
 
 ## 🫧 6. Android System Floating Bubble (Floating Chat)
 
-Beyond the in-app switcher dock, AntiGem includes an Android system-level **Floating Bubble**:
+Beyond the in-app switcher dock, DuiAI includes an Android system-level **Floating Bubble**:
 - **What it is**: An overlay bubble that hovers on top of *any* Android application on your device (browser, documentation viewer, chat, or social media).
 - **Permission**: Requires Android's **Display over other apps** permission.
 - **Interactions**:
@@ -141,7 +141,7 @@ Beyond the in-app switcher dock, AntiGem includes an Android system-level **Floa
 
 ## 🔄 7. App Updates (`AppUpdateDialog`)
 
-When a newer version of AntiGem is released:
+When a newer version of DuiAI is released:
 - A prompt titled **"New update available"** appears showing the newest version tag, release date, and a scrollable **"What's new"** release changelog.
 - **Actions**:
   - **Update now**: Downloads the APK directly with live progress (*"Downloading update…"*) and prompts Android Package Installer (*"Installing update…"*) to update the app in-place.
@@ -154,14 +154,14 @@ When a newer version of AntiGem is released:
 
 ### ❌ Symptom: Only one setup step appeared during onboarding.
 - **What to check**: Check whether one of the steps was previously completed.
-- **Explanation**: The onboarding header displays **STEP 1 OF 2** only when both the agent choice and the terminal icon setup are pending. If one was already completed earlier, AntiGem shows only the remaining step as a single, unnumbered step.
+- **Explanation**: The onboarding header displays **STEP 1 OF 2** only when both the agent choice and the terminal icon setup are pending. If one was already completed earlier, DuiAI shows only the remaining step as a single, unnumbered step.
 
 ### ❌ Symptom: I picked the wrong agents during first launch.
 - **How to fix**:
   1. Open **Settings → Agents**.
   2. Tick or untick your desired agents (**Antigravity**, **Claude Code**, or **OpenCode**).
   3. Tap **Apply and restart app**.
-  4. Confirm the prompt: **Restart to apply?** by tapping **Restart app**. AntiGem will cleanly restart the internal servers with your new agent selection.
+  4. Confirm the prompt: **Restart to apply?** by tapping **Restart app**. DuiAI will cleanly restart the internal servers with your new agent selection.
 
 ### ❌ Symptom: I skipped local tools setup by mistake.
 - **How to fix**:
@@ -170,9 +170,9 @@ When a newer version of AntiGem is released:
   3. Tap it to re-open the full-screen installer and complete the setup.
 
 ### ❌ Symptom: The notification permission prompt does not appear, or background tasks stop when the screen turns off.
-- **What to check**: Check Android battery optimization settings. Android may be aggressively putting AntiGem to sleep.
+- **What to check**: Check Android battery optimization settings. Android may be aggressively putting DuiAI to sleep.
 - **How to fix**:
-  1. Open your phone’s system **Settings → Apps → AntiGem**.
+  1. Open your phone’s system **Settings → Apps → DuiAI**.
   2. Tap **Battery** (or **App battery usage**).
   3. Select **Unrestricted** (or turn off *Battery Optimization*).
   4. Ensure **Notifications** are set to **Allowed**.
@@ -182,8 +182,8 @@ When a newer version of AntiGem is released:
 - **How to fix**:
   1. Check your phone storage in Android Settings to ensure you have at least 2 GB of free space.
   2. Tap **Retry** on the installer screen.
-  3. If it remains stuck, restart the app, tap **Skip for now**, open **Android Settings → Apps → AntiGem → Storage → "Manage space" → AntiGem Space Manager**, tap **Clear Temporary Cache**, and then go to **Settings → Terminal & Shell → Download & Install Local Tools**.
+  3. If it remains stuck, restart the app, tap **Skip for now**, open **Android Settings → Apps → DuiAI → Storage → "Manage space" → DuiAI Space Manager**, tap **Clear Temporary Cache**, and then go to **Settings → Terminal & Shell → Download & Install Local Tools**.
 
 ### ❌ Symptom: The screen is completely blank on first launch.
 - **What to check**: The app may still be extracting internal startup assets into its private app directory.
-- **How to fix**: Wait 15 seconds. If it does not load, swipe AntiGem away from your Android Recent Apps list and open it once more.
+- **How to fix**: Wait 15 seconds. If it does not load, swipe DuiAI away from your Android Recent Apps list and open it once more.

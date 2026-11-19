@@ -261,7 +261,7 @@ func (m *HubManager) FetchCsrfToken() string {
 		log.Printf("[FetchCsrfToken] NewRequest error: %v", err)
 		return ""
 	}
-	req.Header.Set("User-Agent", "antiGem-Go-Supervisor")
+	req.Header.Set("User-Agent", "DuiAI-Go-Supervisor")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -497,11 +497,11 @@ func (m *HubManager) Start() error {
 	}
 	// files the app copied from the phone for its chats: readable even when outside-workspace access asks first
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		if uploads := filepath.Join(home, ".antigem", "uploads"); os.MkdirAll(uploads, 0o700) == nil {
+		if uploads := filepath.Join(home, ".dui", "uploads"); os.MkdirAll(uploads, 0o700) == nil {
 			args = append(args, "--add-dir="+uploads)
 		}
 		// Agent memory: memory files and past chats the agent reads when the app tells it about them
-		if mem := filepath.Join(home, ".antigem", "memory"); os.MkdirAll(mem, 0o700) == nil {
+		if mem := filepath.Join(home, ".dui", "memory"); os.MkdirAll(mem, 0o700) == nil {
 			args = append(args, "--add-dir="+mem)
 		}
 	}

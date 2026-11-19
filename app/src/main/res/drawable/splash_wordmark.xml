@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- "ANTIGEM" splash wordmark (Android 12+ windowSplashScreenBrandingImage, and the bottom of splash_background.xml).
+<!-- "DUIAI" splash wordmark (Android 12+ windowSplashScreenBrandingImage, and the bottom of splash_background.xml).
      Inter SemiBold capitals with wide tracking, converted to paths; the I is split by a small gap, like the gem.
      200x80 is the size Android reserves for the splash branding image. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"

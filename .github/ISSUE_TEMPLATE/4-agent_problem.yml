@@ -6,15 +6,15 @@ body:
   - type: markdown
     attributes:
       value: |
-        Many agent problems come from the provider, not from AntiGem (an expired key, no quota, a model the provider removed, a region block).
-        Please check that your account / key works **outside AntiGem** first, and tell us below.
+        Many agent problems come from the provider, not from DuiAI (an expired key, no quota, a model the provider removed, a region block).
+        Please check that your account / key works **outside DuiAI** first, and tell us below.
 
   - type: checkboxes
     id: checks
     attributes:
       label: Before you start
       options:
-        - label: I searched the [existing issues](https://github.com/Santoshkurmi/antigem/issues?q=is%3Aissue) and this is not a duplicate.
+        - label: I searched the [existing issues](https://github.com/Santoshkurmi/dui/issues?q=is%3Aissue) and this is not a duplicate.
           required: true
         - label: I removed every API key, token and password from what I paste here.
           required: true
@@ -82,19 +82,19 @@ body:
       options:
         - On this phone (default)
         - Server mode (SSH tunnel or domain)
-        - Connected to a PC (AntiGem for VS Code)
+        - Connected to a PC (DuiAI for VS Code)
     validations:
       required: true
 
   - type: dropdown
     id: works_elsewhere
     attributes:
-      label: Does the same account / key / model work outside AntiGem?
+      label: Does the same account / key / model work outside DuiAI?
       description: For example the same CLI on a PC, the provider's website, or a curl request.
       options:
-        - Yes, it works on PC / elsewhere, only AntiGem fails
+        - Yes, it works on PC / elsewhere, only DuiAI fails
         - No, it fails there too
-        - I haven't tested it outside AntiGem
+        - I haven't tested it outside DuiAI
     validations:
       required: true
 

@@ -4,7 +4,7 @@ Common problems with mini apps, what causes them and how to fix them: apps that 
 
 ## The app doesn't appear in Mini Apps
 
-Mini Apps lists every folder `~/mini-apps/<folder>/` that has a `manifest.json` AntiGem can read. A folder with a `manifest.json` that isn't an app right now is listed in red on the Mini Apps screen with the reason (also on the empty screen), as `~/mini-apps/<folder> isn't an app: …` or `~/mini-apps/<folder> doesn't run: …`. Read that line first.
+Mini Apps lists every folder `~/mini-apps/<folder>/` that has a `manifest.json` DuiAI can read. A folder with a `manifest.json` that isn't an app right now is listed in red on the Mini Apps screen with the reason (also on the empty screen), as `~/mini-apps/<folder> isn't an app: …` or `~/mini-apps/<folder> doesn't run: …`. Read that line first.
 
 | Cause | Fix |
 |---|---|
@@ -21,7 +21,7 @@ These folders are skipped without a red line:
 | The folder name starts with `.` | Rename it. |
 | The file is not exactly `manifest.json` at the top of the folder | Move or rename it. |
 
-Then tap the refresh icon in Mini Apps (it also rescans each time you come back to the screen). The Mini App Developer MCP's `miniapp_validate` reports the same problems. If you need more detail, the reason is also written to Android's log with the tag `MiniApps` ("Bad manifest in <folder>: …"): `logcat -s MiniApps` in AntiGem's terminal shows it. This is optional; the Mini Apps screen and the app's console come first.
+Then tap the refresh icon in Mini Apps (it also rescans each time you come back to the screen). The Mini App Developer MCP's `miniapp_validate` reports the same problems. If you need more detail, the reason is also written to Android's log with the tag `MiniApps` ("Bad manifest in <folder>: …"): `logcat -s MiniApps` in DuiAI's terminal shows it. This is optional; the Mini Apps screen and the app's console come first.
 
 ## A DEV app won't open
 
@@ -40,20 +40,20 @@ Every permission problem rejects with a `DOMException` named `NotAllowedError`. 
 | Message | Fix |
 |---|---|
 | `"<name>" permission is undeclared` | Add it to `permissions` in the manifest. Check the spelling: an unknown name is ignored, and the console shows a warning `manifest.json: Unknown permission "<name>" ignored …`. `"storage"` in the list form and `"mcp": true` are ignored too ([manifest.md](manifest.md#manifest-warnings)). |
-| `"<name>" permission is prompt` | Not decided yet (new, or its declaration was widened). Call `AntiGem.permissions.request(name)` first. |
+| `"<name>" permission is prompt` | Not decided yet (new, or its declaration was widened). Call `DuiAI.permissions.request(name)` first. |
 | `"<name>" permission is denied` | The user said no. Ask again with `request()`, or the user turns it on in App info. |
 | `Network request to <host> blocked: the app has no "network" permission` | Declare `network` and get it granted. |
 | `… <host> is not in the manifest's network hosts` | Add the host. `*.example.com` doesn't cover `example.com`. Images, fonts and scripts from other hosts need their hosts too (CDNs: `cdn.jsdelivr.net`, `fonts.gstatic.com`, …), and so do hosts a request redirects to. |
 | `… the manifest's network hosts list is empty` | `"hosts": []` allows no host. List the hosts, or leave `hosts` out for any host. |
 | `… the app has no "localhost" permission` / `localhost port <n> is not in the manifest` | Declare `localhost` with that port. The phone's own Wi-Fi address, and names that point to the phone, need it too. |
 | `… the manifest's localhost ports list is empty` | `"ports": []` allows no port. List the ports, or leave `ports` out for any port. |
-| `… port <n> belongs to AntiGem` | AntiGem's own ports are never reachable. Use another port. |
+| `… port <n> belongs to DuiAI` | DuiAI's own ports are never reachable. Use another port. |
 | `Reading or writing <path> needs a "storage" folder in the manifest` | Declare the folder in `storage.folders`, or use `data/…`. |
 | `<path> is not in a folder you allowed this app` | The folder isn't declared, or the user denied it. |
 | `<path>: the app may only read there` (or `write`) | Change the folder's `access`. |
 | `<path> is protected` | Never reachable: hidden home folders, other apps' code and data, anything outside home and `/sdcard` ([permissions.md](permissions.md#never-reachable)). |
 | `The manifest doesn't allow picking folders (permissions.storage.pick)` | Add `"pick"` to `storage`. |
-| `Notifications are turned off for AntiGem in Android settings` | Turn on AntiGem's notifications in Android settings. |
+| `Notifications are turned off for DuiAI in Android settings` | Turn on DuiAI's notifications in Android settings. |
 | `The user did not open the link` | The app has no `network` permission, so opening a link asked first, and the user cancelled. |
 
 Requests blocked inside the page (an `<img>` or `<script>` from a host the app may not reach) don't throw: the console shows `Blocked <url>: <reason>`. A `fetch` whose redirect goes to a host the app may not reach, or whose address turns out to be this phone without `localhost`, fails with `TypeError` ("Failed to fetch: Blocked: …").
@@ -76,20 +76,20 @@ Requests blocked inside the page (an `<img>` or `<script>` from a host the app m
 | The file is in a folder starting with `.` or in `node_modules`, or ends in `~`, `.swp`, `.tmp` | These are ignored by hot reload. |
 | You edited a different folder | App info shows the app's folder: `Development app (unsigned) · ~/mini-apps/<folder>`. |
 | The `id` changed while the app was open | Close the app and open the new one from Mini Apps. |
-| A service worker or your own cache | Mini apps don't need service workers; AntiGem serves files without caching. Remove your own caching. |
+| A service worker or your own cache | Mini apps don't need service workers; DuiAI serves files without caching. Remove your own caching. |
 
 Use developer bubble → **Reload** to force a reload.
 
 ## Reminders come late
 
-On Android 12 and newer, on-time reminders need AntiGem's **Alarms & reminders** access. Without it Android fires them within a window, and App info → Background says "Reminders may come late: AntiGem has no "Alarms & reminders" access." Tap **Fix** and allow it.
+On Android 12 and newer, on-time reminders need DuiAI's **Alarms & reminders** access. Without it Android fires them within a window, and App info → Background says "Reminders may come late: DuiAI has no "Alarms & reminders" access." Tap **Fix** and allow it.
 
 Also check:
 
-- **Battery optimization:** App info → Background shows "Android may delay or skip background tasks while AntiGem's battery use is optimized." when it applies. Tap **Allow**. Some phone makers add their own battery savers: set AntiGem to "unrestricted" or "no restrictions" in Android's battery settings.
+- **Battery optimization:** App info → Background shows "Android may delay or skip background tasks while DuiAI's battery use is optimized." when it applies. Tap **Allow**. Some phone makers add their own battery savers: set DuiAI to "unrestricted" or "no restrictions" in Android's battery settings.
 - `exact: false` lets Android batch a reminder on purpose.
 - Reminders missed while the phone was off are shown when it starts again, if they are less than 6 hours late; older ones are skipped.
-- Force-stopping AntiGem stops all reminders until AntiGem is opened again.
+- Force-stopping DuiAI stops all reminders until DuiAI is opened again.
 
 ## A background task doesn't run
 
@@ -112,7 +112,7 @@ Other limits: `every` must be at least 15 minutes and Android runs these roughly
 
 - **No sound or pop-up:** the notification is `ongoing` or `silent`, or uses a channel with low importance. A channel made with `importance: "low"` lands in the Silent section.
 - **Changing a channel doesn't help:** Android keeps a channel's importance and sound once it is created, and the user's choices win. Use a new channel id. Users can tune each app's channels in Android settings under "Mini app: <name>".
-- **Nothing shows:** AntiGem's notifications are off in Android settings, or the app already has 12 notifications showing (the limit; dismiss some first).
+- **Nothing shows:** DuiAI's notifications are off in Android settings, or the app already has 12 notifications showing (the limit; dismiss some first).
 - **Bundled together:** only notifications with the same `group` are bundled. Without `group` each notification stands alone and is never mixed with other apps'.
 
 See [notifications.md](notifications.md).
@@ -126,7 +126,7 @@ Problems found before the install screen show **Can't install** with one of thes
 | This file isn't a mini app package (.agapp) | Not a ZIP with `META-INF/AGAPP.json`. Wrong file, or a download page instead of the file. |
 | Not an .agapp package (not a zip) | The file is damaged or not a ZIP. |
 | Not signed: the certificate is missing / the signature is missing | The package is incomplete. Sign it again. |
-| Unknown signature algorithm | Not made by AntiGem or `agapp.mjs`. |
+| Unknown signature algorithm | Not made by DuiAI or `agapp.mjs`. |
 | The signature is not valid | Changed after signing, or a broken file. |
 | <file> was changed after signing | That file's content doesn't match the signed hash. |
 | <file> is not covered by the signature | A file was added after signing. |
@@ -149,8 +149,8 @@ An installed app labeled **modified** (dimmed, in red) has files that no longer 
 
 | Log | Where |
 |---|---|
-| Console of an app (page, workers, background tasks, runtime messages) | `~/.antigem/mini-apps/<id>/console.log`, previous part in `console.log.1` (rotated at 1 MB) |
-| The same, live, last 1000 lines | Developer bubble → **Console**, or `AntiGem.dev.console()` |
+| Console of an app (page, workers, background tasks, runtime messages) | `~/.dui/mini-apps/<id>/console.log`, previous part in `console.log.1` (rotated at 1 MB) |
+| The same, live, last 1000 lines | Developer bubble → **Console**, or `DuiAI.dev.console()` |
 | Background runs and skips | App info → **Background**, and the console log |
 | Why a folder is not listed | The red lines on the Mini Apps screen. Optional, more detail: Android's log, tag `MiniApps` (`logcat -s MiniApps`) |
 | Ignored or suspicious manifest entries | The app's console (`manifest.json: …` warnings), and `miniapp_validate` |

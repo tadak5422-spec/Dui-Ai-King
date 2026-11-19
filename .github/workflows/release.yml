@@ -22,8 +22,8 @@ jobs:
           # full history: the app's "What's new" page is generated from every commit of version.json
           fetch-depth: 0
 
-      # termux-am (termux/TermuxAm): am.apk is built from it for ai.antigem. Only this submodule: the other folders
-      # (termux-api, termux-x11, antigem_plugins) are embedded repos without a .gitmodules entry.
+      # termux-am (termux/TermuxAm): am.apk is built from it for ai.dui. Only this submodule: the other folders
+      # (termux-api, termux-x11, dui_plugins) are embedded repos without a .gitmodules entry.
       - name: Fetch the termux-am submodule
         run: git submodule update --init --depth 1 termux-am
 

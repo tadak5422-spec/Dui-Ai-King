@@ -1,6 +1,6 @@
 # Mini App Developer MCP
 
-The Mini App Developer MCP lets an AI agent build, run, debug, sign and install mini apps on the phone, the way the Plugin Developer MCP does for AntiGem plugins. AntiGem serves it itself, so the agent can be AntiGem's Antigravity, Claude Code, Codex or OpenCode on the phone, or an agent on a PC that reaches the phone through Remote / Server mode. The guide you are reading is bundled with AntiGem and served by the MCP's `miniapp_guide` tool, so it always matches the AntiGem version on the phone.
+The Mini App Developer MCP lets an AI agent build, run, debug, sign and install mini apps on the phone, the way the Plugin Developer MCP does for DuiAI plugins. DuiAI serves it itself, so the agent can be DuiAI's Antigravity, Claude Code, Codex or OpenCode on the phone, or an agent on a PC that reaches the phone through Remote / Server mode. The guide you are reading is bundled with DuiAI and served by the MCP's `miniapp_guide` tool, so it always matches the DuiAI version on the phone.
 
 ## Adding it
 
@@ -20,11 +20,11 @@ The built-in slash command **`/mini_app <what it should do>`** tells the agent t
 ## What the agent can and can't do
 
 - **Development apps only.** File, console, eval, screenshot, permission and data tools only work on development apps (folders in `~/mini-apps`). An installed (signed) app is never changed, scripted or inspected: that would defeat its signature.
-- **Installing needs the user.** `miniapp_install` opens AntiGem's install screen; the user taps Install / Update. This is true for every package, including ones the agent just signed.
+- **Installing needs the user.** `miniapp_install` opens DuiAI's install screen; the user taps Install / Update. This is true for every package, including ones the agent just signed.
 - **Permissions are granted by the user.** The agent can list, reset or deny a development app's permissions, never grant them. When an app asks for a permission, its prompt is on the phone's screen and the user answers it.
 - **The key password stays on the phone.** The agent can create the developer key and open the backup screen, but the password is typed on the phone and the agent never sees the key or the password. Never ask the user for it.
 - **Developer mode.** Development apps only run while developer mode is on (Mini Apps → the `</>` button). `miniapp_list` reports it.
-- Mini apps can't use this server through `AntiGem.mcp`: an app never gets the tools to script other apps.
+- Mini apps can't use this server through `DuiAI.mcp`: an app never gets the tools to script other apps.
 
 ## The development loop
 
@@ -69,7 +69,7 @@ Every app, development and installed: id, name, version, `kind`, location, wheth
 
 ### miniapp_create
 
-Creates a development app from a small working template: `manifest.json`, `index.html` (UI kit), `app.js` (a counter kept in `AntiGem.storage`, a native confirm dialog and a toast) and `style.css`.
+Creates a development app from a small working template: `manifest.json`, `index.html` (UI kit), `app.js` (a counter kept in `DuiAI.storage`, a native confirm dialog and a toast) and `style.css`.
 
 | Argument | Type | Meaning |
 |---|---|---|
@@ -125,7 +125,7 @@ The app's console: `console.*` calls, uncaught errors and runtime messages (mani
 | `since` | Only entries after this time in ms. Each result has `now`: pass it as `since` next time to get only new lines. |
 | `clear` | Clear the buffer after reading. |
 
-The buffer lives in memory; after AntiGem restarts, the last lines come from the app's `console.log` file (`from_log_file`).
+The buffer lives in memory; after DuiAI restarts, the last lines come from the app's `console.log` file (`from_log_file`).
 
 ### miniapp_eval
 
@@ -138,10 +138,10 @@ return document.querySelectorAll('.item').length
 ```js
 document.querySelector('#add').click();
 await new Promise(r => setTimeout(r, 300));
-return { count: document.querySelector('#count').textContent, stored: AntiGem.storage.get('count') };
+return { count: document.querySelector('#count').textContent, stored: DuiAI.storage.get('count') };
 ```
 
-The result is JSON when it can be (`result`), a DOM element comes back as its HTML, and anything else as text with its `type`. A thrown error or a syntax error comes back as `error` with its stack. Console lines printed meanwhile are returned in `console`. `timeout_ms` defaults to 10000 (max 60000). Native dialogs opened by the code (`AntiGem.ui.confirm`…) wait for the user: don't await them in eval.
+The result is JSON when it can be (`result`), a DOM element comes back as its HTML, and anything else as text with its `type`. A thrown error or a syntax error comes back as `error` with its stack. Console lines printed meanwhile are returned in `console`. `timeout_ms` defaults to 10000 (max 60000). Native dialogs opened by the code (`DuiAI.ui.confirm`…) wait for the user: don't await them in eval.
 
 ### miniapp_screenshot
 
@@ -165,7 +165,7 @@ Creates the phone's developer key with a `developer` name (shown to people who i
 
 ### miniapp_key_backup
 
-Opens the key backup on the phone. The user types a password twice; the key, encrypted with it, is saved to the phone's public **Download/AntiGem** folder (it stays even if AntiGem is uninstalled) and the share sheet opens so they can keep a second copy in Drive or email. Check the result with `miniapp_key_status`. See [signing and distribution](signing-and-distribution.md).
+Opens the key backup on the phone. The user types a password twice; the key, encrypted with it, is saved to the phone's public **Download/DuiAI** folder (it stays even if DuiAI is uninstalled) and the share sheet opens so they can keep a second copy in Drive or email. Check the result with `miniapp_key_status`. See [signing and distribution](signing-and-distribution.md).
 
 ### miniapp_sign
 

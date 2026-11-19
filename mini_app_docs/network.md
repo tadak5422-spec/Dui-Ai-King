@@ -1,7 +1,7 @@
 # Network
 
 A mini app page can only connect to its own origin by itself (a strict Content Security Policy). Everything else goes
-through AntiGem's native network stack: the SDK replaces `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` and
+through DuiAI's native network stack: the SDK replaces `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` and
 `navigator.sendBeacon`, and `https` images, styles, fonts and scripts are fetched natively too. You write ordinary web
 code. There are no CORS limits and any header can be set, but every connection is checked against the app's `network`
 and `localhost` permissions. The app's cookie jar is applied automatically.
@@ -35,8 +35,8 @@ Host rules:
   Reaching them needs `localhost` (with that port), and, since the name or IP in the URL is also a host, `network`
   with that host. The address is checked when the socket connects, for every connection: `fetch` and XHR,
   subresources, WebSocket handshakes and redirects.
-- AntiGem's own local servers can never be reached, even with `localhost: true`: ports `1234`, `1235`, `8765` and
-  `8865` in the `com.termux` build, `1236`, `1237`, `8767` and `8867` in the `com.antigem` build.
+- DuiAI's own local servers can never be reached, even with `localhost: true`: ports `1234`, `1235`, `8765` and
+  `8865` in the `com.termux` build, `1236`, `1237`, `8767` and `8867` in the `com.dui` build.
 - Widening the hosts or ports in the manifest asks the user again; narrowing them keeps the user's choice. See
   [permissions](permissions.md#when-a-declaration-changes).
 
@@ -47,7 +47,7 @@ redirect or a connection blocked on the way fails with `TypeError` instead ("Fai
 try {
   await fetch('https://example.com/');
 } catch (e) {
-  if (e.name === 'NotAllowedError') AntiGem.ui.toast('This app may not connect to example.com');
+  if (e.name === 'NotAllowedError') DuiAI.ui.toast('This app may not connect to example.com');
   else throw e;
 }
 ```
@@ -61,7 +61,7 @@ try {
   Put them in `init.headers`: a `Request` object built beforehand has already dropped them.
 - `Accept-Encoding`, `Content-Length`, `Host` and `Connection` are managed natively and ignored if you set them.
   Compressed responses are decompressed for you.
-- Without your own `User-Agent`, requests use the WebView's user agent plus ` AntiGemMiniApp/1`.
+- Without your own `User-Agent`, requests use the WebView's user agent plus ` DuiAIMiniApp/1`.
 - `http:` and `https:` both work. Other schemes reject with `TypeError`.
 - **Streaming responses.** The body arrives as a real stream (`res.body.getReader()` works for downloads and
   server-sent events). Request bodies are sent in one piece (no upload streaming).
@@ -118,7 +118,7 @@ Network failures reject with `TypeError` ("Failed to fetch: …"), as in browser
 - `send()` takes strings, `Blob`, `ArrayBuffer` and typed arrays. `binaryType` is `'blob'` (default) or
   `'arraybuffer'`.
 - `close(code, reason)`: `code` must be `1000` or `3000`–`4999` (else `InvalidAccessError`).
-- The handshake sends `Origin: <the app's origin>`, the AntiGem user agent and the app's saved cookies for that host;
+- The handshake sends `Origin: <the app's origin>`, the DuiAI user agent and the app's saved cookies for that host;
   `Set-Cookie` in the handshake response is stored in the jar. Custom headers can't be set (as in browsers).
 - The handshake is checked like any other request: the hosts list and the `localhost` rules.
 - Open, message, error and close events fire as usual. A connection that can't be opened (including a permission
@@ -168,7 +168,7 @@ Two native features load web URLs for the app too:
 
 - **Notification images** (`icon`, `smallIcon`, `image` in [notifications](notifications.md)) from an `http(s)` URL
   are fetched as the app: the same hosts list, cookies and `localhost` rules.
-- **The media viewer** (`AntiGem.ui.viewMedia`) checks a web URL against the hosts list; a hostname that points to
+- **The media viewer** (`DuiAI.ui.viewMedia`) checks a web URL against the hosts list; a hostname that points to
   this phone needs the `localhost` permission too.
 
 ## Cookies and credentials
@@ -185,7 +185,7 @@ The app has one persistent cookie jar (see [storage](storage.md#cookies)):
 
 - Cookies are applied on every hop of a redirect, so a login that redirects keeps its session.
 - If you set a `Cookie` header yourself, it is merged with the jar's cookies; your values win for the same name.
-- `AntiGem.cookies.import(url, header)` saves a `Cookie:` header the user copied from a browser, for APIs that need a
+- `DuiAI.cookies.import(url, header)` saves a `Cookie:` header the user copied from a browser, for APIs that need a
   browser login.
 
 ## Not supported
@@ -205,7 +205,7 @@ The app has one persistent cookie jar (see [storage](storage.md#cookies)):
 
 | Error | When |
 |---|---|
-| `NotAllowedError` | No `network` / `localhost` permission, host not listed, port not listed, or an AntiGem port |
+| `NotAllowedError` | No `network` / `localhost` permission, host not listed, port not listed, or an DuiAI port |
 | `TypeError` | Network failure, invalid URL, unsupported scheme, `redirect: 'error'` with a redirect; a redirect, or an address found only when connecting, that the app may not reach ("Failed to fetch: Blocked: …") |
 | `AbortError` | The request's signal was aborted |
 | `InvalidAccessError` | `WebSocket.close()` with a bad code |

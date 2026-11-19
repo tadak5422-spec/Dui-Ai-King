@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A mini app page slides in from the right (AntiGem.nav.push) -->
+<!-- A mini app page slides in from the right (DuiAI.nav.push) -->
 <translate xmlns:android="http://schemas.android.com/apk/res/android"
     android:duration="280"
     android:fromXDelta="100%p"

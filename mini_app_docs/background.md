@@ -2,13 +2,13 @@
 
 Like a native app, a mini app can do work while it is closed: check something online, sync, then post a
 notification. You write a background script, declare it in the manifest, and register named tasks with a schedule.
-When a task is due, AntiGem loads the script in an invisible page with the full SDK (no screen), calls your handler,
+When a task is due, DuiAI loads the script in an invisible page with the full SDK (no screen), calls your handler,
 and closes the page when the handler's promise settles. Runs are limited to keep the phone's battery safe: at most 48
 per app per day, 60 seconds each, one at a time across all apps. Background tasks need the manifest's `background`
 script and the `background` permission.
 
 For a notification at a fixed time with no code to run, use a reminder instead
-([`AntiGem.notify.schedule`](notifications.md#reminders)): it needs no background permission and has no daily limit.
+([`DuiAI.notify.schedule`](notifications.md#reminders)): it needs no background permission and has no daily limit.
 
 ## Setup
 
@@ -27,9 +27,9 @@ For a notification at a fixed time with no code to run, use a reminder instead
 2. In `background.js`, register a handler for each task, at the top level of the script:
 
    ```js
-   AntiGem.background.on('sync', async (task) => {
+   DuiAI.background.on('sync', async (task) => {
      const items = await (await fetch('https://api.example.com/new')).json();
-     if (items.length) await AntiGem.notify.show({ id: 'sync', title: `${items.length} new items` });
+     if (items.length) await DuiAI.notify.show({ id: 'sync', title: `${items.length} new items` });
    });
    ```
 
@@ -37,8 +37,8 @@ For a notification at a fixed time with no code to run, use a reminder instead
    task keeps its timing.
 
    ```js
-   if (await AntiGem.permissions.request('background') === 'granted') {
-     await AntiGem.background.register('sync', { every: '1h', network: 'any' });
+   if (await DuiAI.permissions.request('background') === 'granted') {
+     await DuiAI.background.register('sync', { every: '1h', network: 'any' });
    }
    ```
 
@@ -74,10 +74,10 @@ Conditions, for `every` and `delay` only (an `at` task runs at its time regardle
 | `batteryNotLow` | boolean | `false` | Wait while the battery is low |
 
 ```js
-await AntiGem.background.register('rain-check', { every: '1h', network: 'any' });
-await AntiGem.background.register('digest', { at: '07:30', repeat: 'daily' });
-await AntiGem.background.register('cleanup', { delay: '10m' });
-await AntiGem.background.register('backup', { every: '1d', network: 'unmetered', charging: true });
+await DuiAI.background.register('rain-check', { every: '1h', network: 'any' });
+await DuiAI.background.register('digest', { at: '07:30', repeat: 'daily' });
+await DuiAI.background.register('cleanup', { delay: '10m' });
+await DuiAI.background.register('backup', { every: '1d', network: 'unmetered', charging: true });
 ```
 
 Registering a task name again replaces its options. Re-registering an `every` task with the same kind of schedule
@@ -87,12 +87,12 @@ starts its delay over.
 ## The handler
 
 ```js
-AntiGem.background.on('hn-digest', async (task) => {
+DuiAI.background.on('hn-digest', async (task) => {
   // task = {name, reason, runId, data}
   const [topId] = await (await fetch('https://hacker-news.firebaseio.com/v0/topstories.json')).json();
   if (localStorage.getItem('hn.top') === String(topId)) return;
   localStorage.setItem('hn.top', String(topId));
-  await AntiGem.notify.show({ id: 'hn', title: 'New #1 on Hacker News' });
+  await DuiAI.notify.show({ id: 'hn', title: 'New #1 on Hacker News' });
   console.log(`hn-digest (${task.reason}): ${topId}`);
 });
 ```
@@ -107,7 +107,7 @@ AntiGem.background.on('hn-digest', async (task) => {
 - **The handler's promise is the run.** Do all the work, and `await` it, before the handler returns. When the promise
   resolves the run is recorded as `ok`; a rejection or a thrown error records `error` with its message. Then the page
   is closed.
-- Register handlers at the top level of the background script, synchronously. AntiGem looks for the handler when the
+- Register handlers at the top level of the background script, synchronously. DuiAI looks for the handler when the
   page has loaded; a task with no handler fails with "No handler".
 - The script may load more code: `importScripts` is not available (it's a page), but `<script>` tags added to
   `document`, `import()` and, with `"type": "module"`, static imports work.
@@ -120,7 +120,7 @@ background script with the task name `notification` (when the app has a backgrou
 permission). The event is in `task.data`:
 
 ```js
-AntiGem.background.on('notification', async (task) => {
+DuiAI.background.on('notification', async (task) => {
   const e = task.data;                     // {id, action, reply?}
   if (e.id === 'timer' && e.action === 'pause') await pauseTimerFromStoredState();
   if (e.reply) localStorage.setItem('lastReply', e.reply);
@@ -140,16 +140,16 @@ same permissions as the app's pages.
 
 | Works | Doesn't |
 |---|---|
-| `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` | Dialogs: `AntiGem.ui.alert/confirm/prompt/sheet/pickDate/pickTime/viewMedia` reject with `NotSupportedError` |
-| `localStorage`, `sessionStorage`, `AntiGem.storage`, IndexedDB | `AntiGem.fs.pick`, `AntiGem.fs.pickFolder` (`NotSupportedError`) |
-| `AntiGem.fs` (read and write), `AntiGem.cookies` | `AntiGem.nav.push`, `AntiGem.device.share`, `AntiGem.device.openUrl`, `AntiGem.intent.send` (`NotSupportedError`) |
-| `AntiGem.notify` (show, schedule, …) | `AntiGem.permissions.request` shows no prompt; it returns the current state |
-| `AntiGem.mcp`, `AntiGem.thread`, Web Workers | `AntiGem.ui.toast` and `AntiGem.ui.statusBar` do nothing |
-| `AntiGem.background.register/list/cancel/run` | `alert()` returns at once, `confirm()` returns `false` and `prompt()` returns `null`, with a warning in the console |
-| `AntiGem.device.copy/info/status`, `console.*` | `resume`, `pause`, `network`, `battery` events are not sent |
+| `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` | Dialogs: `DuiAI.ui.alert/confirm/prompt/sheet/pickDate/pickTime/viewMedia` reject with `NotSupportedError` |
+| `localStorage`, `sessionStorage`, `DuiAI.storage`, IndexedDB | `DuiAI.fs.pick`, `DuiAI.fs.pickFolder` (`NotSupportedError`) |
+| `DuiAI.fs` (read and write), `DuiAI.cookies` | `DuiAI.nav.push`, `DuiAI.device.share`, `DuiAI.device.openUrl`, `DuiAI.intent.send` (`NotSupportedError`) |
+| `DuiAI.notify` (show, schedule, …) | `DuiAI.permissions.request` shows no prompt; it returns the current state |
+| `DuiAI.mcp`, `DuiAI.thread`, Web Workers | `DuiAI.ui.toast` and `DuiAI.ui.statusBar` do nothing |
+| `DuiAI.background.register/list/cancel/run` | `alert()` returns at once, `confirm()` returns `false` and `prompt()` returns `null`, with a warning in the console |
+| `DuiAI.device.copy/info/status`, `console.*` | `resume`, `pause`, `network`, `battery` events are not sent |
 
-`localStorage` and `AntiGem.storage` changes made here reach open pages of the app as `storage` events, as usual.
-`AntiGem.page.background` and `AntiGem.background.isBackground` are `true`.
+`localStorage` and `DuiAI.storage` changes made here reach open pages of the app as `storage` events, as usual.
+`DuiAI.page.background` and `DuiAI.background.isBackground` are `true`.
 
 ## Limits
 
@@ -170,13 +170,13 @@ granted, a required permission is missing, the app is a development app and Deve
 app's files no longer match its signature. A skipped `notification` run keeps its event: it is delivered to the app,
 with `queued: true`, when the app is next opened.
 
-Android may delay or skip background work while AntiGem's battery use is optimized (App info shows a warning with an
-"Allow" button), and exact times need AntiGem's "Alarms & reminders" access on Android 12+. Force-stopping AntiGem
-stops all scheduled work until AntiGem is opened again.
+Android may delay or skip background work while DuiAI's battery use is optimized (App info shows a warning with an
+"Allow" button), and exact times need DuiAI's "Alarms & reminders" access on Android 12+. Force-stopping DuiAI
+stops all scheduled work until DuiAI is opened again.
 
 ## Seeing what happened
 
-- `AntiGem.background.list()` returns each task with its `lastRun`.
+- `DuiAI.background.list()` returns each task with its `lastRun`.
 - App info → Background lists the tasks, their last run (time, status, duration, error), how many of the 48 daily
   runs were used, and a "Run now" button.
 - Every run writes a line to the app's console log, like `Background task "sync" (schedule) finished in 812 ms`

@@ -1,9 +1,9 @@
 # Intents, links and device events
 
 Mini apps exchange content the way Android apps do. An app declares in its manifest what it accepts ("share text and
-images"); another app calls `AntiGem.intent.send()`, the user picks the target in a native sheet, and the target opens
+images"); another app calls `DuiAI.intent.send()`, the user picks the target in a native sheet, and the target opens
 and receives an `intent` event. Android's own share sheet has a "Mini app" entry that delivers the same way, and
-`antigem-miniapp://` links open an app at a path. This page also covers the events about the outside world: the
+`dui-miniapp://` links open an app at a path. This page also covers the events about the outside world: the
 page's lifecycle (`resume`, `pause`) and the device's network and battery status.
 
 ## Declaring what the app accepts
@@ -28,21 +28,21 @@ No permission is needed to send or receive.
 
 ```js
 // a file: the user picks Pocket Notes, another mini app, or "Other apps…" (Android's share sheet)
-const r = await AntiGem.intent.send({ action: 'share', path: '/sdcard/DCIM/Camera/IMG_1.jpg', title: 'Sunset' });
-// r = {to: 'com.antigem.notes'} | {to: 'android'} | null (cancelled)
+const r = await DuiAI.intent.send({ action: 'share', path: '/sdcard/DCIM/Camera/IMG_1.jpg', title: 'Sunset' });
+// r = {to: 'com.dui.notes'} | {to: 'android'} | null (cancelled)
 
 // text and a link
-await AntiGem.intent.send({ action: 'share', text: 'Look at this', url: 'https://example.com' });
+await DuiAI.intent.send({ action: 'share', text: 'Look at this', url: 'https://example.com' });
 
 // structured data to an app that knows your format
-await AntiGem.intent.send({ action: 'import-tasks', type: 'application/x-tasks+json', data: { tasks } });
+await DuiAI.intent.send({ action: 'import-tasks', type: 'application/x-tasks+json', data: { tasks } });
 ```
 
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `action` | string | `'share'` | Up to 40 characters |
 | `type` | MIME type | from the file's extension; `'text/uri-list'` with a `url`; else `'text/plain'` | Used to find targets |
-| `path` | string | none | A file the app may read (any [AntiGem.fs path](files.md#paths)). It must exist (`NotFoundError`) |
+| `path` | string | none | A file the app may read (any [DuiAI.fs path](files.md#paths)). It must exist (`NotFoundError`) |
 | `text` | string | none | |
 | `url` | string | none | |
 | `title` | string | none | |
@@ -72,18 +72,18 @@ folder, and the receiver needs no storage permission. If the receiver wants to k
 ## Receiving
 
 ```js
-AntiGem.on('intent', async (it) => {
+DuiAI.on('intent', async (it) => {
   if (it.action !== 'share') return;
   if (it.path && it.type?.startsWith('image/')) {
-    const blob = await (await fetch(AntiGem.fs.url(it.path))).blob();   // the grant lasts one day: keep a copy
-    await AntiGem.fs.write(`data/images/${Date.now()}-${it.path.split('/').pop()}`, blob);
+    const blob = await (await fetch(DuiAI.fs.url(it.path))).blob();   // the grant lasts one day: keep a copy
+    await DuiAI.fs.write(`data/images/${Date.now()}-${it.path.split('/').pop()}`, blob);
   }
   addNote([it.title, it.text, it.url].filter(Boolean).join('\n\n'));
-  AntiGem.ui.toast(`Saved from ${it.from?.name ?? 'another app'}`);
+  DuiAI.ui.toast(`Saved from ${it.from?.name ?? 'another app'}`);
 });
 
 // or later: the last intent this page received
-if (AntiGem.intent.current?.action === 'view') openPath(AntiGem.intent.current.path);
+if (DuiAI.intent.current?.action === 'view') openPath(DuiAI.intent.current.path);
 ```
 
 | Field | Meaning |
@@ -99,12 +99,12 @@ if (AntiGem.intent.current?.action === 'view') openPath(AntiGem.intent.current.p
 - When the app is on screen, every open page gets the event at once. Otherwise the event waits, the app opens, and the
   event is delivered to every page once it has loaded (at most 20 waiting events per app, notifications included).
   Register the listener when the page starts so it doesn't miss it.
-- `AntiGem.intent.current` holds the last intent the page received (or `null`).
-- The event is the only thing that happens: the app decides what to show (for example `AntiGem.nav.push`).
+- `DuiAI.intent.current` holds the last intent the page received (or `null`).
+- The event is the only thing that happens: the app decides what to show (for example `DuiAI.nav.push`).
 
 ## Android's share sheet: "Mini app"
 
-When the user shares from any Android app and picks **Mini app**, AntiGem lists the mini apps whose manifest accepts
+When the user shares from any Android app and picks **Mini app**, DuiAI lists the mini apps whose manifest accepts
 `share` with that MIME type. The chosen app opens and gets an `intent` event:
 
 ```js
@@ -114,31 +114,31 @@ When the user shares from any Android app and picks **Mini app**, AntiGem lists 
 - A file is copied into the app's `data/inbox/` first (a name that exists gets a `1-`, `2-`… prefix), so it is the
   app's own. When several files are shared, only the first is delivered.
 - Shared text arrives as `text`, the subject as `title`.
-- A shared `.agapp` package opens AntiGem's installer instead. See
+- A shared `.agapp` package opens DuiAI's installer instead. See
   [signing and distribution](signing-and-distribution.md).
 
-## Links: antigem-miniapp://
+## Links: dui-miniapp://
 
-`antigem-miniapp://app/<app id>/<path>?<query>` opens a mini app from a browser, a chat, a QR code or another Android
+`dui-miniapp://app/<app id>/<path>?<query>` opens a mini app from a browser, a chat, a QR code or another Android
 app.
 
-- `antigem-miniapp://app/com.example.todo` just opens the app (as it was, if it was running).
+- `dui-miniapp://app/com.example.todo` just opens the app (as it was, if it was running).
 - With a path, the app also receives an intent:
 
   ```js
-  // antigem-miniapp://app/com.example.todo/list/42?highlight=7
-  AntiGem.on('intent', (it) => {
+  // dui-miniapp://app/com.example.todo/list/42?highlight=7
+  DuiAI.on('intent', (it) => {
     if (it.action !== 'view') return;
     // it = {action: 'view', path: 'list/42', params: {highlight: '7'},
-    //       url: 'antigem-miniapp://app/com.example.todo/list/42?highlight=7', from: {id: 'link', name: 'Link'}}
+    //       url: 'dui-miniapp://app/com.example.todo/list/42?highlight=7', from: {id: 'link', name: 'Link'}}
     const [, listId] = it.path.split('/');
-    AntiGem.nav.push('list.html', { id: listId, highlight: it.params.highlight });
+    DuiAI.nav.push('list.html', { id: listId, highlight: it.params.highlight });
   });
   ```
 
 - The path is not loaded for you; it is only data. Values in `params` are strings.
-- A mini app can't open these links itself (`AntiGem.device.openUrl` only opens `http(s)`, `mailto` and `tel`): to
-  hand something to another mini app, use `AntiGem.intent.send`.
+- A mini app can't open these links itself (`DuiAI.device.openUrl` only opens `http(s)`, `mailto` and `tel`): to
+  hand something to another mini app, use `DuiAI.intent.send`.
 
 ## Lifecycle events
 
@@ -147,8 +147,8 @@ Each page gets `pause` when its screen leaves the front, and `resume` when it co
 save and stop work nobody sees.
 
 ```js
-AntiGem.on('resume', () => refreshList());
-AntiGem.on('pause', () => saveDraft());
+DuiAI.on('resume', () => refreshList());
+DuiAI.on('pause', () => saveDraft());
 ```
 
 - The first open sends no `resume`, by design: that is the page's own load. Run your start-up code directly.
@@ -157,10 +157,10 @@ AntiGem.on('pause', () => saveDraft());
 
 ## Device status
 
-`AntiGem.device.status()` returns the network and battery now. No permission is needed.
+`DuiAI.device.status()` returns the network and battery now. No permission is needed.
 
 ```js
-const { network, battery } = await AntiGem.device.status();
+const { network, battery } = await DuiAI.device.status();
 if (!network.online) showOfflineBanner();
 if (network.metered) useLowQualityImages();
 if (battery.saver) disableAnimations();
@@ -180,9 +180,9 @@ events when something changes. They are not sent while the page is in the backgr
 you need the current values.
 
 ```js
-AntiGem.on('network', (n) => setOffline(!n.online));
-AntiGem.on('battery', (b) => (b.saver ? reduceWork() : null));
-AntiGem.on('resume', async () => setOffline(!(await AntiGem.device.status()).network.online));
+DuiAI.on('network', (n) => setOffline(!n.online));
+DuiAI.on('battery', (b) => (b.saver ? reduceWork() : null));
+DuiAI.on('resume', async () => setOffline(!(await DuiAI.device.status()).network.online));
 ```
 
 ## Limits and errors

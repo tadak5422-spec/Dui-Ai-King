@@ -5,7 +5,7 @@ Mini apps work like small Android apps: an app can only use what its manifest de
 ## The model
 
 1. The app declares permissions in `manifest.json` ([manifest.md](manifest.md#permissions)).
-2. AntiGem turns each declaration into one or more named permissions: `network`, `storage:/sdcard/Download`, `mcp:notes_mcp`, … Entries it ignores, or that look like a mistake, are printed as warnings in the app's console ([manifest.md](manifest.md#manifest-warnings)).
+2. DuiAI turns each declaration into one or more named permissions: `network`, `storage:/sdcard/Download`, `mcp:notes_mcp`, … Entries it ignores, or that look like a mistake, are printed as warnings in the app's console ([manifest.md](manifest.md#manifest-warnings)).
 3. The user grants or denies each one: on the first launch, when the app asks, or in App info.
 4. A call that needs a permission that isn't granted rejects with a `DOMException` named `NotAllowedError`.
 
@@ -14,11 +14,11 @@ Each permission has one state:
 | State | Meaning |
 |---|---|
 | `granted` | The user allowed it. |
-| `denied` | The user said no. The app can ask again with `AntiGem.permissions.request()`. |
+| `denied` | The user said no. The app can ask again with `DuiAI.permissions.request()`. |
 | `prompt` | Declared, but not decided yet (new, or its declaration was widened). |
 | `undeclared` | Not in the manifest. It can't be requested. |
 
-No permission is needed for the app's own things: its `data/` folder, `localStorage`, `sessionStorage`, `AntiGem.storage`, IndexedDB, its cookie jar, native dialogs and sheets, toasts, haptics, writing to the clipboard, sharing text with `AntiGem.device.share`, device info and status, and sending intents.
+No permission is needed for the app's own things: its `data/` folder, `localStorage`, `sessionStorage`, `DuiAI.storage`, IndexedDB, its cookie jar, native dialogs and sheets, toasts, haptics, writing to the clipboard, sharing text with `DuiAI.device.share`, device info and status, and sending intents.
 
 ## Every permission
 
@@ -28,13 +28,13 @@ No permission is needed for the app's own things: its `data/` folder, `localStor
 | `localhost` | `localhost` | Servers on this phone: `127.0.0.1`, `localhost` and the phone's own addresses (listed ports, or any) | **Local servers** |
 | `storage.folders[]` | `storage:<path>` (one per folder) | That folder, with the declared access | **Folder <path>**: "Read only", "Write (not read)" or "Read and change" |
 | `storage: true` / `full` | `storage:all` | Everything in shared storage and the home folder | **All files** (warning; typed confirmation) |
-| `storage.pick` | none (picking is the grant) | `AntiGem.fs.pickFolder()` | the folder picker |
+| `storage.pick` | none (picking is the grant) | `DuiAI.fs.pickFolder()` | the folder picker |
 | `notifications` | `notifications` | Show notifications, create channels, schedule reminders | **Notifications** |
 | `background` | `background` | Background tasks while the app is closed | **Run in the background**: "Do tasks while closed, up to 48 times a day" |
-| `clipboard` | `clipboard` | Read the clipboard (`AntiGem.device.paste()`) | **Clipboard** |
+| `clipboard` | `clipboard` | Read the clipboard (`DuiAI.device.paste()`) | **Clipboard** |
 | `camera` | `camera` | Camera through `getUserMedia`, and the camera app for `<input type="file" capture>` | **Camera** (warning) |
 | `microphone` | `microphone` | Microphone through `getUserMedia` | **Microphone** (warning) |
-| `mcp` | `mcp:<server>` (one per server) | `AntiGem.mcp.list` / `call` on that server | **AntiGem tools: <server>** |
+| `mcp` | `mcp:<server>` (one per server) | `DuiAI.mcp.list` / `call` on that server | **DuiAI tools: <server>** |
 
 ### network
 
@@ -47,7 +47,7 @@ No permission is needed for the app's own things: its `data/` folder, `localStor
 - Every redirect is checked again: a redirect to a host outside the list fails. A host outside the list is not even looked up (DNS).
 - The native network stack handles `http`, `https`, `ws` and `wss`. Addresses on your local network (`192.168.x.x`) are ordinary hosts: list them. The phone's own addresses are the exception: they also need `localhost` ([below](#localhost)).
 - The WebView itself may only talk to the app's own origin. All other traffic goes through native code, which is where the checks happen.
-- Opening a link outside the app (`AntiGem.device.openUrl`, or a tapped link that leaves the app) needs no permission when `network` is granted. Without it, AntiGem asks first: **Open link?** "<App> wants to open: <url>". Only `http(s)`, `mailto` and `tel` links open.
+- Opening a link outside the app (`DuiAI.device.openUrl`, or a tapped link that leaves the app) needs no permission when `network` is granted. Without it, DuiAI asks first: **Open link?** "<App> wants to open: <url>". Only `http(s)`, `mailto` and `tel` links open.
 
 ### localhost
 
@@ -59,11 +59,11 @@ No permission is needed for the app's own things: its `data/` folder, `localStor
 - The address is checked when the socket connects, for every connection: `fetch` and XHR, images and other subresources, WebSocket handshakes and every redirect.
 - The phone's own IP, or another name that points to the phone, is also a host for `network`: it must be in the `hosts` list too.
 - `ports` limits the ports; with no `ports` list, any port. An empty list allows no port (the manifest gets a warning).
-- **AntiGem's own ports are always refused**, even with this permission: the bridge, the hub and the phone-tools (MCP) server. In the `com.termux` build these are 1234, 1235, 8765 and 8865; in the `com.antigem` build 1236, 1237, 8767 and 8867. The error is "port <n> belongs to AntiGem".
+- **DuiAI's own ports are always refused**, even with this permission: the bridge, the hub and the phone-tools (MCP) server. In the `com.termux` build these are 1234, 1235, 8765 and 8865; in the `com.dui` build 1236, 1237, 8767 and 8867. The error is "port <n> belongs to DuiAI".
 
 ### storage
 
-Files outside the app's own `data/` folder. Paths in the API are `data/…` (own folder, always allowed), `app:<id>/…` ([shared-data.md](shared-data.md)), `~/…` (AntiGem's home folder) or absolute (`/sdcard/…`).
+Files outside the app's own `data/` folder. Paths in the API are `data/…` (own folder, always allowed), `app:<id>/…` ([shared-data.md](shared-data.md)), `~/…` (DuiAI's home folder) or absolute (`/sdcard/…`).
 
 **Manifest folders.** Each folder in `storage.folders` is its own permission (`storage:<path>`), so the user can allow some folders and deny others. The access comes from the manifest; the user only allows or denies it:
 
@@ -77,7 +77,7 @@ Files outside the app's own `data/` folder. Paths in the API are `data/…` (own
 
 **All files.** `storage:all` grants the declared access to the whole home folder and the whole of shared storage (`/sdcard`), minus the protected places listed [below](#never-reachable).
 
-**Picked folders.** With `"pick"` in the manifest, `AntiGem.fs.pickFolder()` opens AntiGem's file explorer (**Give access to this folder**). The folder the user chooses gets the manifest's `pick` access. Picked folders are listed in App info under **Folders you picked** with **Remove**, and the app can give one back with `AntiGem.fs.forgetFolder()`. If the manifest later changes `pick`, each picked folder keeps the access it was picked with, but never more than the new `pick` allows: a change from `read` to `write` doesn't make a folder picked for reading writable. When the two have nothing in common (`read` and `write`), that folder no longer counts. Removing `pick` turns them all off. In Remote mode the folder must be on the phone, not on the PC or server.
+**Picked folders.** With `"pick"` in the manifest, `DuiAI.fs.pickFolder()` opens DuiAI's file explorer (**Give access to this folder**). The folder the user chooses gets the manifest's `pick` access. Picked folders are listed in App info under **Folders you picked** with **Remove**, and the app can give one back with `DuiAI.fs.forgetFolder()`. If the manifest later changes `pick`, each picked folder keeps the access it was picked with, but never more than the new `pick` allows: a change from `read` to `write` doesn't make a folder picked for reading writable. When the two have nothing in common (`read` and `write`), that folder no longer counts. Removing `pick` turns them all off. In Remote mode the folder must be on the phone, not on the PC or server.
 
 **Typed confirmation.** These need the user to type a phrase under a warning before they turn on:
 
@@ -85,7 +85,7 @@ Files outside the app's own `data/` folder. Paths in the API are `data/…` (own
 - a manifest folder that is, or contains, the home folder or the root of shared storage (`~/`, `/sdcard`, `/storage`, `/`), or a folder that can't be resolved;
 - picking such a folder;
 - a manifest folder in a hidden home folder (`~/.gemini`, `~/.ssh`, …), unless the app is an official one (installed
-  from a package signed with the key of the [AntiGem mini apps](https://github.com/Santoshkurmi/antigem_mini_apps)
+  from a package signed with the key of the [DuiAI mini apps](https://github.com/Santoshkurmi/dui_mini_apps)
   repository): those get the normal switch.
 
 The dialog says **Give <App> access to <scope>?**, explains that the app could read, change or delete photos, documents and downloads and send them anywhere it can reach, and asks to `Type iknowiamstupid to confirm:` (case does not matter). The button is **Give access**. In the first-launch dialog these switches start off.
@@ -107,7 +107,7 @@ Errors you will see:
 
 ### notifications
 
-Needed to show a notification, create a channel and schedule a reminder. Listing, dismissing and cancelling don't need it. AntiGem's own notification switch in Android settings must be on too, otherwise calls fail with "Notifications are turned off for AntiGem in Android settings". See [notifications.md](notifications.md).
+Needed to show a notification, create a channel and schedule a reminder. Listing, dismissing and cancelling don't need it. DuiAI's own notification switch in Android settings must be on too, otherwise calls fail with "Notifications are turned off for DuiAI in Android settings". See [notifications.md](notifications.md).
 
 ### background
 
@@ -115,23 +115,23 @@ Needed to register and run background tasks. The manifest must also name a `back
 
 ### clipboard
 
-Reading only. Writing (`AntiGem.device.copy`) is always allowed.
+Reading only. Writing (`DuiAI.device.copy`) is always allowed.
 
 ### camera and microphone
 
-Used by `navigator.mediaDevices.getUserMedia`. The first time the page asks for a camera or microphone stream, AntiGem asks for the mini app permission and then, if needed, Android asks for AntiGem's own camera or microphone permission. Both must be allowed.
+Used by `navigator.mediaDevices.getUserMedia`. The first time the page asks for a camera or microphone stream, DuiAI asks for the mini app permission and then, if needed, Android asks for DuiAI's own camera or microphone permission. Both must be allowed.
 
 There is no location permission: `navigator.geolocation` is always refused.
 
 ### mcp:<server>
 
-Each MCP server the app declares is its own permission. With it, `AntiGem.mcp.list(server)` and `AntiGem.mcp.call(server, tool, args)` reach that server's tools inside AntiGem. Servers whose name contains `terminal`, `android` or `browser` are shown with a warning ("Can control parts of your phone through <server>"), because they can run commands, tap the screen or drive the browser. See [mcp.md](mcp.md).
+Each MCP server the app declares is its own permission. With it, `DuiAI.mcp.list(server)` and `DuiAI.mcp.call(server, tool, args)` reach that server's tools inside DuiAI. Servers whose name contains `terminal`, `android` or `browser` are shown with a warning ("Can control parts of your phone through <server>"), because they can run commands, tap the screen or drive the browser. See [mcp.md](mcp.md).
 
 ## When the user is asked
 
 **First launch.** When an app opens and some declared permissions are still undecided, a dialog titled **<App> wants to** lists them, each with a switch, and says "You can change these later in App info." Switches start on, except broad file access (typed confirmation). The buttons are **Continue** and **Deny all**; when the dialog lists required permissions the second button reads **Don't allow (app can't run)** and leads to the screen that explains the app can't run without them ([below](#required-permissions)). **Continue** stays disabled while a required switch is off.
 
-**When the app asks.** `AntiGem.permissions.request(name)` shows **Allow <App> to use this?** with **Allow** / **Don't allow**. It asks again even after a denial (there is no "don't ask again"). `request("storage")` asks for every storage folder not granted yet, each with its own switch. A granted or undeclared permission returns at once without a dialog.
+**When the app asks.** `DuiAI.permissions.request(name)` shows **Allow <App> to use this?** with **Allow** / **Don't allow**. It asks again even after a denial (there is no "don't ask again"). `request("storage")` asks for every storage folder not granted yet, each with its own switch. A granted or undeclared permission returns at once without a dialog.
 
 `"storage"` on its own is a summary of the storage permissions: `prompt` while any declared folder (or all files) is undecided, `granted` only when every one is granted (or, with no folders declared, when a folder was picked), otherwise `denied`, and `undeclared` when there is nothing. So with one folder allowed and one denied it is `denied`: check the folder you need with `query('storage:<path>')`. `query('storage')` works in pages and in workers.
 
@@ -139,7 +139,7 @@ Each MCP server the app declares is its own permission. With it, `AntiGem.mcp.li
 
 **Never asked:** background task pages and calls that simply fail. A call to an API whose permission is not granted rejects with `NotAllowedError` (`"notifications" permission is denied`, `… is prompt`, `… is undeclared`); it does not open a prompt. Call `request()` first, for example from a button the user tapped.
 
-The page can follow decisions: `AntiGem.permissions.all()`, `query(name)` and the `permission` event ([api-reference.md](api-reference.md)).
+The page can follow decisions: `DuiAI.permissions.all()`, `query(name)` and the `permission` event ([api-reference.md](api-reference.md)).
 
 ## When a declaration changes
 
@@ -181,12 +181,12 @@ When another mini app sends a file through an intent, the receiving app may read
 Whatever is granted, a mini app can never reach:
 
 - **Other mini apps' code:** everything in `~/mini-apps/`, and installed apps' files.
-- **Other mini apps' data:** everything in `~/.antigem/mini-apps/`, except its own `data/` and the `data/` folders of its [shared group](shared-data.md).
-- **AntiGem's own folder:** everything in `~/.antigem/` (settings, the browser profile, uploads, every app's data).
+- **Other mini apps' data:** everything in `~/.dui/mini-apps/`, except its own `data/` and the `data/` folders of its [shared group](shared-data.md).
+- **DuiAI's own folder:** everything in `~/.dui/` (settings, the browser profile, uploads, every app's data).
 - **Other hidden folders in the home folder** (`~/.ssh`, `~/.codex`, `~/.claude`, every other folder starting with `.`),
   unless the manifest declares that folder (or a folder inside it) in `storage.folders` and the user grants it. `storage:all`
   and picked folders never open them. In the prompt such a folder is shown as **Hidden folder <path>** and always marked
   sensitive.
-- **Anything outside the home folder and shared storage:** AntiGem's private files, system folders, other storage volumes.
-- **AntiGem's own local ports** (bridge, hub, phone-tools server), even with `localhost`.
+- **Anything outside the home folder and shared storage:** DuiAI's private files, system folders, other storage volumes.
+- **DuiAI's own local ports** (bridge, hub, phone-tools server), even with `localhost`.
 - **Other origins from the WebView itself:** pages can't navigate away or open windows; links open outside.

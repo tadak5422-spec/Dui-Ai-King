@@ -1,10 +1,10 @@
-#!/data/data/ai.antigem/files/usr/bin/bash
+#!/data/data/ai.dui/files/usr/bin/bash
 # If invoked by a different shell or missing shebang interpreter, auto-detect and switch to bash
 if [ -z "${BASH_VERSION:-}" ]; then
     if [ -n "${PREFIX:-}" ] && [ -x "$PREFIX/bin/bash" ]; then
         exec "$PREFIX/bin/bash" "$0" "$@"
-    elif [ -x "/data/data/ai.antigem/files/usr/bin/bash" ]; then
-        exec "/data/data/ai.antigem/files/usr/bin/bash" "$0" "$@"
+    elif [ -x "/data/data/ai.dui/files/usr/bin/bash" ]; then
+        exec "/data/data/ai.dui/files/usr/bin/bash" "$0" "$@"
     elif command -v bash >/dev/null 2>&1; then
         exec bash "$0" "$@"
     fi
@@ -17,8 +17,8 @@ fi
 #   --include-secrets  also back up SSH keys, sign-ins (agent and GitHub logins) and shell history
 #
 # The zip is written as <output>.partial, tested entry by entry (unzip -t), and only then renamed to <output>:
-# a file named *.zip in the backups folder is always a complete, readable backup. Restore it in AntiGem's
-# installer ("From a ZIP file"); a backup made in the com.termux app is rewritten for ai.antigem there.
+# a file named *.zip in the backups folder is always a complete, readable backup. Restore it in DuiAI's
+# installer ("From a ZIP file"); a backup made in the com.termux app is rewritten for ai.dui there.
 # Works in both apps: paths come from $PREFIX/$HOME, else from where this script is installed.
 # ==============================================================================
 set -euo pipefail

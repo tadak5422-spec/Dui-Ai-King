@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Splash theme style -->
-    <style name="Theme.Gemini.Splash" parent="Theme.Gemini" />
+    <style name="Theme.Dui.Splash" parent="Theme.Dui" />
 </resources>

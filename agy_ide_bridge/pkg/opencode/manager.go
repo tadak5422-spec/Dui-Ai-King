@@ -74,7 +74,7 @@ func NewManager(homeDir, workspaceDir, binPath string) *Manager {
 }
 
 // dataDir holds the bridge's OpenCode files (custom providers and the generated config).
-func (m *Manager) dataDir() string { return filepath.Join(m.HomeDir, ".antigem_bridge", "opencode") }
+func (m *Manager) dataDir() string { return filepath.Join(m.HomeDir, ".dui_bridge", "opencode") }
 
 func (m *Manager) configPath() string { return filepath.Join(m.dataDir(), "opencode.json") }
 

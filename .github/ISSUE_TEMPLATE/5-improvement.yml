@@ -1,12 +1,12 @@
 name: ✨ Improve an existing feature
-description: Something that already exists in AntiGem could work better (UI, speed, a missing option).
+description: Something that already exists in DuiAI could work better (UI, speed, a missing option).
 title: "[Improvement]: "
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        This is for features that **already exist in AntiGem** and that **you use**.
+        This is for features that **already exist in DuiAI** and that **you use**.
         Want something completely new (a new agent, provider, MCP, tool, model or big feature)? Use **🧩 New feature / integration** instead.
 
   - type: checkboxes
@@ -14,9 +14,9 @@ body:
     attributes:
       label: Before you start
       options:
-        - label: I searched the [existing issues](https://github.com/Santoshkurmi/antigem/issues?q=is%3Aissue) and this has not been asked yet.
+        - label: I searched the [existing issues](https://github.com/Santoshkurmi/dui/issues?q=is%3Aissue) and this has not been asked yet.
           required: true
-        - label: I use this feature of AntiGem myself, regularly.
+        - label: I use this feature of DuiAI myself, regularly.
           required: true
 
   - type: input

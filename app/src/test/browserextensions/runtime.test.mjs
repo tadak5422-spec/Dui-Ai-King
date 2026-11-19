@@ -43,7 +43,7 @@ test('Flow guard decodes Request bodies and blocks mismatched references before 
   assert.equal(sent.length,1);assert.deepEqual(Array.from(helper.capSent(2).problems),['dry-run']);
 });
 async function fixture(t, code = '') {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(),'antigem-extension-')); const dir = path.join(root,'example'); fs.mkdirSync(dir);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(),'dui-extension-')); const dir = path.join(root,'example'); fs.mkdirSync(dir);
   fs.writeFileSync(path.join(dir,'manifest.json'),JSON.stringify({manifest_version:3,name:'Fixture',version:'1',permissions:['storage','alarms','tabs'],background:{service_worker:'worker.js'},mcp_tools:[{name:'echo',inputSchema:{type:'object'}}]})); fs.writeFileSync(path.join(dir,'worker.js'),code);
   const host = new ExtensionHost({ root, stateRoot:path.join(root,'state') }); const ext = await host.loadExtension(dir);
   t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});return {host,ext,root,dir};
@@ -78,12 +78,12 @@ test('match patterns use host boundaries and resource paths cannot escape',async
   const {root,dir}=await fixture(t);fs.writeFileSync(path.join(root,'secret'),'x');assert.throws(()=>safeFile(dir,'../secret'),/escapes/);
 });
 test('unmodified flow_mcp worker loads with its callback storage and lifecycle APIs',async t=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'antigem-flow-smoke-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'dui-flow-smoke-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
   host.browser.request = async (context, method) => { if (method === 'tabs.query' || method === 'windows.getAll') return []; return {}; };
   const ext=await host.loadExtension(path.resolve('flow_mcp'));await tick();assert.equal(ext.manifest.name,'DeepX - Antigravity Flow Bridge');assert.equal(ext.background.client.chrome.storage.onChanged.hasListeners(),true);
 });
 test('bundled Flow registers all tools including every Chrome MCP name',async t=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'antigem-tool-sets-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'dui-tool-sets-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
   host.browser.request=async(context,method)=>method==='tabs.query'?[]:{};
   await host.loadExtension(path.resolve('extensions/google-flow'));await tick();
   const tools=host.listTools();assert.equal(tools.filter(t=>t.name.startsWith('flow_')).length,42);assert.equal(new Set(tools.map(t=>t.name)).size,65);
@@ -130,7 +130,7 @@ test('extension UI is unavailable while content events and resource files still 
 });
 test('published documentation covers every public facade member and exact Flow schemas',()=>{
   const {chrome}=createChromeAPI({id:'doc-test',manifest:{},contextId:'doc-test',resourceBase:'http://localhost/',rpc:async()=>{}});
-  const docs=['chrome-api.md','antigem-api.md'].map(f=>fs.readFileSync('extension_docs/'+f,'utf8')).join('\n');
+  const docs=['chrome-api.md','dui-api.md'].map(f=>fs.readFileSync('extension_docs/'+f,'utf8')).join('\n');
   const walk=(object,prefix)=>{for(const [name,value]of Object.entries(object)){
     if(name.startsWith('_')||name==='browserAction')continue;
     const full=prefix?prefix+'.'+name:name;
@@ -140,16 +140,16 @@ test('published documentation covers every public facade member and exact Flow s
   assert.deepEqual(JSON.parse(fs.readFileSync('extension_docs/flow-tools.json','utf8')),JSON.parse(fs.readFileSync('extensions/google-flow/manifest.json','utf8')).mcp_tools);
 });
 test('documented example handles an actual MCP call and persists state through reload',async t=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'antigem-doc-example-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'dui-doc-example-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
   const ext=await host.loadExtension(path.resolve('extension_docs/examples/hello-mcp'));
   assert.deepEqual(await host.callTool('hello',{name:'Ada'},ext.id),{greeting:'Hello Ada',count:1});await host.reload(ext.id);
   assert.equal((await host.callTool('hello',{name:'Lin'},ext.id)).count,2);
 });
 test('native file inventory and copy are available to worker APIs with permission checks',async t=>{
-  const {host,ext}=await fixture(t);const dir=fs.mkdtempSync(path.join(os.homedir(),'.antigem-api-test-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const {host,ext}=await fixture(t);const dir=fs.mkdtempSync(path.join(os.homedir(),'.dui-api-test-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   fs.writeFileSync(path.join(dir,'source.txt'),'hello');
-  await assert.rejects(ext.background.client.chrome.antigem.listFiles({path:dir}),/antigemFiles/);
-  ext.manifest.permissions.push('antigemFiles');const api=ext.background.client.chrome.antigem;
+  await assert.rejects(ext.background.client.chrome.dui.listFiles({path:dir}),/duiFiles/);
+  ext.manifest.permissions.push('duiFiles');const api=ext.background.client.chrome.dui;
   assert.equal((await api.listFiles({path:dir}))[0].name,'source.txt');await api.copyFile({from:path.join(dir,'source.txt'),to:path.join(dir,'copy','target.txt')});assert.equal(await api.readFile({path:path.join(dir,'copy','target.txt')}),'hello');
 });
 test('Flow warm settings skip project lookup and settings traversal',async()=>{
@@ -163,7 +163,7 @@ test('Flow warm settings skip project lookup and settings traversal',async()=>{
   assert.equal(evaluations,10);assert.equal(insertions,10);assert.equal(armed,10);
 });
 test('ported analyzer runs through the real worker with multilingual scenes and entity cards',async t=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'antigem-analyze-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'dui-analyze-'));const host=new ExtensionHost({stateRoot:root});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
   await host.loadExtension(path.resolve('extensions/google-flow'));
   const analysis=await host.callTool('deepx_analyze_and_breakdown_script',{raw_input:'Scene 1: A Tesla Roadster drives through a neon city.\n\nScene 2: The Tesla Roadster parks beside a lake.',style_preset:'cinematic'},'google-flow');
   assert.equal(analysis.success,true);assert.equal(analysis.totalScenes,2);assert.ok(analysis.entities.some(e=>e.type==='vehicle'&&e.referencePrompt));assert.ok(analysis.storyboard.every(s=>s.prompt&&s.rawConcept));
@@ -179,7 +179,7 @@ test('Flow upload supports memory files, detached inputs, trusted chooser CDP an
     const document={querySelector:()=>add,querySelectorAll(selector){if(selector==='input[type=file]')return created?[input]:[];return opened?[upload]:[];}};
     const context={HTMLInputElement:Input,RPC:{},setTimeout,crypto,Date,document,window:{},visualViewport:{width:100,height:100,offsetLeft:0,offsetTop:0},Event:class{constructor(type){this.type=type;}},atob,File:class{constructor(bytes,name,options){this.name=name;this.type=options.type;}},DataTransfer:class{constructor(){if(fallback)throw new Error('Unavailable');this.files=[];this.items={add:file=>this.files.push(file)};}}};
     vm.runInNewContext(fs.readFileSync('extensions/google-flow/flow-client.js','utf8').replace(/^import .*\n/,'').replaceAll('export ','')+'\nglobalThis.FlowClient=FlowClient;',context);
-    const chrome={antigem:{stat:async()=>({path:'/fixture/asset.png',size:3,modified:1}),readFile:async()=>{reads++;return btoa('png');},automation:async p=>{assert.equal(mode,'trusted');assert.ok(p.tap.fx>0&&p.tap.fx<1);for(const fn of listeners)fn({tabId:1},'Page.fileChooserOpened',{backendNodeId:1234});}},debugger:{onEvent:{addListener:fn=>listeners.add(fn),removeListener:fn=>listeners.delete(fn)},sendCommand:async(target,method,params)=>{if(method==='Runtime.evaluate')return {result:{objectId:'input'}};if(method==='DOM.setFileInputFiles'){if(mode==='trusted')assert.equal(params.backendNodeId,1234);cdpBound++;uploaded++;}return {};}}};
+    const chrome={dui:{stat:async()=>({path:'/fixture/asset.png',size:3,modified:1}),readFile:async()=>{reads++;return btoa('png');},automation:async p=>{assert.equal(mode,'trusted');assert.ok(p.tap.fx>0&&p.tap.fx<1);for(const fn of listeners)fn({tabId:1},'Page.fileChooserOpened',{backendNodeId:1234});}},debugger:{onEvent:{addListener:fn=>listeners.add(fn),removeListener:fn=>listeners.delete(fn)},sendCommand:async(target,method,params)=>{if(method==='Runtime.evaluate')return {result:{objectId:'input'}};if(method==='DOM.setFileInputFiles'){if(mode==='trusted')assert.equal(params.backendNodeId,1234);cdpBound++;uploaded++;}return {};}}};
     const client=new context.FlowClient(chrome);client.evaluate=async(tab,fn,args)=>vm.runInNewContext('('+fn.toString()+')',context)(...args);client.js=async(tab,source)=>source==='s.capMark().n'?0:source.startsWith('s.uploadsAfter')?{ids:uploaded?['uploaded-media-id']:[]}:{};client.media=async()=>({mediaId:'uploaded-media-id'});
     assert.equal(await client.resolveReference(1,'~/asset.png'),'uploaded-media-id');assert.equal(uploaded,1);assert.equal(reads,1);assert.equal(cdpBound,fallback||mode==='trusted'?1:0);assert.equal(Input.prototype.click,originalClick);assert.equal(listeners.size,0);
     assert.equal(await client.resolveReference(1,'~/asset.png'),'uploaded-media-id');assert.equal(uploaded,1);assert.equal(reads,1);
@@ -200,7 +200,7 @@ test('developer logs survive reload and failed starts, enforce bounds and requir
   assert.ok((await get(ext.id)).value.logs.some(e=>e.level==='error'&&e.message.includes('bad developer update')));
 });
 test('skills folder adds get_skills, get_skill and get_skill_file, even without a worker or mcp_tools',async t=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'antigem-skills-'));const dir=path.join(root,'yt');fs.mkdirSync(path.join(dir,'skills','youtube_upload','more'),{recursive:true});
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'dui-skills-'));const dir=path.join(root,'yt');fs.mkdirSync(path.join(dir,'skills','youtube_upload','more'),{recursive:true});
   fs.writeFileSync(path.join(dir,'manifest.json'),JSON.stringify({manifest_version:3,id:'yt',name:'YouTube'}));
   fs.writeFileSync(path.join(dir,'skills','youtube_upload.md'),'# Upload a video\n\nUploads a video to YouTube Studio.\n\nSee youtube_upload/thumbnails.md.');
   fs.writeFileSync(path.join(dir,'skills','search.md'),'---\nname: Search\ndescription: "Find videos"\n---\nBody');
@@ -227,17 +227,17 @@ test('a tool the extension declares wins over the built-in skill tool of the sam
   assert.equal(await host.callTool('get_skill',{name:'a'},ext.id),'own');
   assert.equal(host.listTools(ext.id).filter(x=>x.name==='get_skill').length,1);
 });
-test('chrome.antigem.uploadFiles needs antigemFiles, checks paths and asks the app to answer the file chooser',async t=>{
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'antigem-upload-'));const make=(id,permissions)=>{const dir=path.join(root,id);fs.mkdirSync(dir);
+test('chrome.dui.uploadFiles needs duiFiles, checks paths and asks the app to answer the file chooser',async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'dui-upload-'));const make=(id,permissions)=>{const dir=path.join(root,id);fs.mkdirSync(dir);
     fs.writeFileSync(path.join(dir,'manifest.json'),JSON.stringify({manifest_version:3,id,name:id,permissions,host_permissions:['https://*/*'],background:{service_worker:'w.js'},mcp_tools:[{name:'x'}]}));fs.writeFileSync(path.join(dir,'w.js'),'');return dir;};
   const host=new ExtensionHost({root,stateRoot:path.join(root,'state')});t.after(async()=>{await host.close();fs.rmSync(root,{recursive:true,force:true});});
   const calls=[];host.browser.tab=async id=>({id});host.browser.checkAccess=async()=>{};host.browser.native=id=>'native-'+id;host.browser.bridge=async(endpoint,body)=>{calls.push([endpoint,body]);return {success:true,method:'chooser',given:body.file_paths.length};};
-  const allowed=await host.loadExtension(make('poster',['antigemFiles']));const denied=await host.loadExtension(make('plain',[]));
+  const allowed=await host.loadExtension(make('poster',['duiFiles']));const denied=await host.loadExtension(make('plain',[]));
   const home=path.resolve(process.env.HOME);
-  const result=await host.nativeRequest(allowed.background,'antigem.uploadFiles',{tabId:3,files:['~/photo.png'],selector:'input[type=file]',point:{fx:0.5,fy:0.4},timeoutMs:5000});
+  const result=await host.nativeRequest(allowed.background,'dui.uploadFiles',{tabId:3,files:['~/photo.png'],selector:'input[type=file]',point:{fx:0.5,fy:0.4},timeoutMs:5000});
   assert.equal(result.method,'chooser');
   assert.deepEqual(calls[0],['upload',{tab_id:'native-3',file_paths:[path.join(home,'photo.png')],selector:'input[type=file]',fx:0.5,fy:0.4,method:undefined,timeout_ms:5000}]);
-  await assert.rejects(host.nativeRequest(denied.background,'antigem.uploadFiles',{tabId:3,files:['~/photo.png']}),/antigemFiles/);
-  await assert.rejects(host.nativeRequest(allowed.background,'antigem.uploadFiles',{tabId:3,files:['/etc/passwd']}),/inside the app home/);
-  await assert.rejects(host.nativeRequest(allowed.background,'antigem.uploadFiles',{tabId:3,files:[]}),/files is required/);
+  await assert.rejects(host.nativeRequest(denied.background,'dui.uploadFiles',{tabId:3,files:['~/photo.png']}),/duiFiles/);
+  await assert.rejects(host.nativeRequest(allowed.background,'dui.uploadFiles',{tabId:3,files:['/etc/passwd']}),/inside the app home/);
+  await assert.rejects(host.nativeRequest(allowed.background,'dui.uploadFiles',{tabId:3,files:[]}),/files is required/);
 });

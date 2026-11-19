@@ -1,8 +1,8 @@
 // Package relocate rewrites Termux .deb packages for an app with another package name of the same length
-// (com.termux -> ai.antigem), in one streaming pass per package and several packages at once. It is the bridge's
+// (com.termux -> ai.dui), in one streaming pass per package and several packages at once. It is the bridge's
 // `relocate-debs` command (see Main).
 //
-// AntiGem's apt hook (libexec/antigem/relocate-debs, written by TermuxRelocation.kt) runs
+// DuiAI's apt hook (libexec/dui/relocate-debs, written by TermuxRelocation.kt) runs
 // `agy_ide_bridge relocate-debs` with the .deb paths on stdin, as apt's DPkg::Pre-Install-Pkgs gives them; the dpkg
 // wrapper runs it for .debs given by hand. Each package is decompressed once, every "from" in its file paths,
 // contents, symlinks and maintainer scripts becomes "to" while the bytes stream past (both names have the same
@@ -23,7 +23,7 @@ import (
 
 // Capability is a fixed text in the bridge binary: the apt hook looks for it in the file (grep) to know this bridge
 // has the command, without running an older bridge that would start its server instead.
-const Capability = "antigem-relocate-debs/1"
+const Capability = "dui-relocate-debs/1"
 
 type stringList []string
 
@@ -93,10 +93,10 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 				changed, err := relocateDeb(p, rw)
 				mu.Lock()
 				if err != nil {
-					fmt.Fprintf(stderr, "AntiGem: could not adapt %s: %v\n", p, err)
+					fmt.Fprintf(stderr, "DuiAI: could not adapt %s: %v\n", p, err)
 					failed = true
 				} else if changed {
-					fmt.Fprintf(stdout, "AntiGem: adapted %s for %s\n", p[strings.LastIndex(p, "/")+1:], *to)
+					fmt.Fprintf(stdout, "DuiAI: adapted %s for %s\n", p[strings.LastIndex(p, "/")+1:], *to)
 				}
 				mu.Unlock()
 			}

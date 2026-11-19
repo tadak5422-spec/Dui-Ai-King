@@ -1,6 +1,6 @@
 # Connect to PC: pairing protocol
 
-This describes how the AntiGem app (phone) pairs with AntiGem in VS Code (PC). After pairing, the phone uses the
+This describes how the DuiAI app (phone) pairs with DuiAI in VS Code (PC). After pairing, the phone uses the
 agents of the bridge VS Code runs on the PC, through an SSH tunnel.
 
 - Phone side, already built: `app/.../data/pc/PcConnect.kt` and `PcPairingCrypto.kt`.
@@ -9,7 +9,7 @@ agents of the bridge VS Code runs on the PC, through an SSH tunnel.
 
 ## Overview
 
-1. On the PC, the user opens **Connect phone** in AntiGem. While that screen is open the extension:
+1. On the PC, the user opens **Connect phone** in DuiAI. While that screen is open the extension:
    - shows a random **6-digit code**;
    - listens on a **pairing port** (default **1250**, on the LAN);
    - announces itself on mDNS.
@@ -28,7 +28,7 @@ agents of the bridge VS Code runs on the PC, through an SSH tunnel.
 
 ## mDNS announcement
 
-- Service type: `_antigem-pc._tcp`
+- Service type: `_dui-pc._tcp`
 - Instance name: the PC's name, for example the hostname.
 - Port: the pairing port.
 - TXT records: `v=1`, `id=<pcId>`, `name=<pc name>`, `os=<linux|darwin|win32>`
@@ -37,25 +37,25 @@ agents of the bridge VS Code runs on the PC, through an SSH tunnel.
 
 | Item | Value |
 |---|---|
-| Label | `antigem-pair-v1` |
+| Label | `dui-pair-v1` |
 | Group | RFC 3526 2048-bit MODP group 14: prime `p`, `g = 2`, subgroup order `q = (p-1)/2`. |
-| M, N | `H(seed) = SHA-256(seed ‖ byte(i))` for i = 0..8, concatenated (288 bytes) → integer mod p → **squared** mod p. Seeds: `"antigem-pair-v1 M"`, `"antigem-pair-v1 N"`. |
-| w | `SHA-256("antigem-pair-v1 w" ‖ code)` → integer mod q; 0 becomes 1. `code` is the 6 digits as UTF-8. |
+| M, N | `H(seed) = SHA-256(seed ‖ byte(i))` for i = 0..8, concatenated (288 bytes) → integer mod p → **squared** mod p. Seeds: `"dui-pair-v1 M"`, `"dui-pair-v1 N"`. |
+| w | `SHA-256("dui-pair-v1 w" ‖ code)` → integer mod q; 0 becomes 1. `code` is the 6 digits as UTF-8. |
 | Phone | random x in [1, q); `X = g^x · M^w mod p` |
 | PC | random y in [1, q); `Y = g^y · N^w mod p` |
 | Check | Each side rejects a received value unless `1 < V < p-1` and `V^q mod p = 1`. |
 | Z | Phone: `(Y · (N^w)^-1)^x mod p`. PC: `(X · (M^w)^-1)^y mod p`. |
-| TT | Each item as a 4-byte big-endian length followed by its bytes: `"antigem-pair-v1"`, phoneId (UTF-8), X, Y, Z, w. X, Y, Z and w are each 256-byte big-endian values. |
+| TT | Each item as a 4-byte big-endian length followed by its bytes: `"dui-pair-v1"`, phoneId (UTF-8), X, Y, Z, w. X, Y, Z and w are each 256-byte big-endian values. |
 | K | `SHA-256(TT)` |
 | Keys | `HMAC-SHA256(K, label)` for the labels `confirm-pc`, `confirm-phone`, `enc-phone-to-pc`, `enc-pc-to-phone`. |
 | Confirmations | `confirmPc = HMAC-SHA256(key(confirm-pc), TT)`, `confirmPhone = HMAC-SHA256(key(confirm-phone), TT)` |
-| Box | AES-256-GCM. Output: base64 of (12-byte random nonce ‖ ciphertext ‖ 16-byte tag). Additional data: `"antigem-pair-v1"`. |
+| Box | AES-256-GCM. Output: base64 of (12-byte random nonce ‖ ciphertext ‖ 16-byte tag). Additional data: `"dui-pair-v1"`. |
 
 All numbers in JSON are lowercase hex of the 256-byte big-endian value.
 
 ## HTTP API (pairing port, JSON)
 
-### `POST /antigem/pair/start`
+### `POST /dui/pair/start`
 
 Request:
 
@@ -73,7 +73,7 @@ Response 200:
 - After **3 attempts** with the same code, the PC shows a new code and answers **423** to further requests.
 - If the code is wrong, the phone sees that `confirm` doesn't match and shows "Wrong code". It never calls `finish`.
 
-### `POST /antigem/pair/finish`
+### `POST /dui/pair/finish`
 
 Request:
 
@@ -82,7 +82,7 @@ Request:
   "box": "<seal(key(enc-phone-to-pc), {phoneId, phoneName, publicKey})>" }
 ```
 
-- `publicKey` is a single OpenSSH line: `ecdsa-sha2-nistp256 AAAA… antigem-phone:<phoneId>`.
+- `publicKey` is a single OpenSSH line: `ecdsa-sha2-nistp256 AAAA… dui-phone:<phoneId>`.
 - The PC checks `confirm` (in constant time) and that `box.phoneId` equals the `phoneId` sent in `start`.
 
 Response 200:
@@ -121,7 +121,7 @@ Errors return `{ "error": "<message for the user>" }` with one of these statuses
 Write one line per phone. Pairing the same phone again replaces its line, and the comment identifies it:
 
 ```
-command="internal-sftp",restrict,port-forwarding,permitopen="127.0.0.1:1244",permitopen="127.0.0.1:1245" ecdsa-sha2-nistp256 AAAA… antigem-phone:<phoneId>
+command="internal-sftp",restrict,port-forwarding,permitopen="127.0.0.1:1244",permitopen="127.0.0.1:1245" ecdsa-sha2-nistp256 AAAA… dui-phone:<phoneId>
 ```
 
 What this line allows, tested with OpenSSH 10.5:
@@ -135,10 +135,10 @@ What this line allows, tested with OpenSSH 10.5:
 `command="internal-sftp"`, so the phone can open a shell:
 
 ```
-restrict,port-forwarding,pty,permitopen="127.0.0.1:1244",permitopen="127.0.0.1:1245" ecdsa-sha2-nistp256 AAAA… antigem-phone:<phoneId>
+restrict,port-forwarding,pty,permitopen="127.0.0.1:1244",permitopen="127.0.0.1:1245" ecdsa-sha2-nistp256 AAAA… dui-phone:<phoneId>
 ```
 
-At every connect the phone runs `echo antigem-shell-ok`. If that answers, the app's terminal and Run configurations
+At every connect the phone runs `echo dui-shell-ok`. If that answers, the app's terminal and Run configurations
 open on the PC, over SSH with tmux, like Server mode. If not, they run in the phone's own terminal. Changing the
 setting rewrites the phone's line; the phone notices at its next connect.
 
@@ -158,7 +158,7 @@ that moment.
 
 ## The token
 
-The phone reads `.antigem_bridge/csrf_token.txt` relative to the SSH home, over SFTP, at every connect. It falls back
+The phone reads `.dui_bridge/csrf_token.txt` relative to the SSH home, over SFTP, at every connect. It falls back
 to `cat ~/…` or `type %USERPROFILE%\…`. The token from pairing is only used when both fail.
 
 ## Claude subagents

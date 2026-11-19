@@ -36,7 +36,7 @@ import (
 )
 
 func printUsage() {
-	fmt.Println(`antiGem Go IDE Server & AGY Hub Supervisor
+	fmt.Println(`DuiAI Go IDE Server & AGY Hub Supervisor
 
 Usage:
   go run main.go [flags]
@@ -134,7 +134,7 @@ func formatHumanCrash(p interface{}, rawStack []byte) (reason string, location s
 }
 
 func main() {
-	// `agy_ide_bridge relocate-debs …`: AntiGem's apt hook and dpkg wrapper rewrite Termux .debs with it (see
+	// `agy_ide_bridge relocate-debs …`: DuiAI's apt hook and dpkg wrapper rewrite Termux .debs with it (see
 	// pkg/relocate); nothing of the bridge itself starts
 	if len(os.Args) > 1 && os.Args[1] == "relocate-debs" {
 		os.Exit(relocate.Main(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
@@ -268,7 +268,7 @@ func main() {
 		}
 		patchTarget := hub.ResolvePatchTarget(resolvedBin)
 		fmt.Println("\033[1;36m============================================================\033[0m")
-		fmt.Println("\033[1;33m  ⚡ antiGem AGY Binary Header Unpatcher\033[0m")
+		fmt.Println("\033[1;33m  ⚡ DuiAI AGY Binary Header Unpatcher\033[0m")
 		fmt.Println("\033[1;36m============================================================\033[0m")
 		fmt.Printf("  \033[1m• Target Binary:\033[0m  %s\n", patchTarget)
 
@@ -318,7 +318,7 @@ func main() {
 
 	// Stylized Banner
 	fmt.Println("\033[1;36m============================================================\033[0m")
-	fmt.Println("\033[1;32m  ⚡ antiGem Go IDE Server & AGY Hub Supervisor\033[0m")
+	fmt.Println("\033[1;32m  ⚡ DuiAI Go IDE Server & AGY Hub Supervisor\033[0m")
 	fmt.Println("\033[1;36m============================================================\033[0m")
 	fmt.Printf("  \033[1m• IDE Server Port:\033[0m  http://%s:%s\n", cfg.Bind, cfg.Port)
 	fmt.Printf("  \033[1m• Projects Dir:\033[0m     %s\n", cfg.ProjectsBaseDir)
@@ -384,10 +384,10 @@ func main() {
 	// Project checkpoints: a hidden copy of the project before each chat message (any agent), restore with preview
 	mux.Handle("/api/checkpoints/", checkpoint.NewManager(cfg.HomeDir))
 
-	// Agent memory: memory files and chat history the agents read (~/.antigem/memory), shared by every agent
+	// Agent memory: memory files and chat history the agents read (~/.dui/memory), shared by every agent
 	mux.Handle("/api/memory/", memory.NewManager(cfg.HomeDir))
 
-	// Custom AntiGem plugins on disk: list, install (ZIP or GitHub repository), update, remove, export
+	// Custom DuiAI plugins on disk: list, install (ZIP or GitHub repository), update, remove, export
 	pluginMgr := plugins.NewManager(cfg.HomeDir)
 	mux.Handle("/api/custom-plugins/", pluginMgr)
 
@@ -531,7 +531,7 @@ func main() {
 		}
 		if r.URL.Path == "/" {
 			w.Header().Set("Content-Type", "text/plain")
-			_, _ = w.Write([]byte(fmt.Sprintf("antiGem IDE Server running on :%s\n", cfg.Port)))
+			_, _ = w.Write([]byte(fmt.Sprintf("DuiAI IDE Server running on :%s\n", cfg.Port)))
 			return
 		}
 		http.NotFound(w, r)
@@ -662,7 +662,7 @@ func main() {
 		}
 	}()
 
-	fmt.Printf(" \033[32m🚀 antiGem IDE Server running at http://%s:%s\033[0m\n\n", cfg.Bind, cfg.Port)
+	fmt.Printf(" \033[32m🚀 DuiAI IDE Server running at http://%s:%s\033[0m\n\n", cfg.Bind, cfg.Port)
 
 	// Determine if AGY Hub should be started
 	shouldStartHub := false
@@ -713,7 +713,7 @@ func main() {
 	}
 
 	<-stopChan
-	fmt.Println("\n🛑 Shutting down antiGem server gracefully...")
+	fmt.Println("\n🛑 Shutting down DuiAI server gracefully...")
 
 	// 1. Close all active WebSocket client connections immediately
 	wsHub.Close()
@@ -738,7 +738,7 @@ func main() {
 	_ = server.Shutdown(ctx)
 	_ = server.Close()
 
-	fmt.Println("✅ antiGem Go server stopped.")
+	fmt.Println("✅ DuiAI Go server stopped.")
 	runLogFile.Close()
 	os.Exit(0)
 }

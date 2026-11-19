@@ -1,5 +1,5 @@
 /*
- * AntiGem Mini Apps SDK: network. fetch, XMLHttpRequest, WebSocket, EventSource and sendBeacon go through the
+ * DuiAI Mini Apps SDK: network. fetch, XMLHttpRequest, WebSocket, EventSource and sendBeacon go through the
  * native network layer (OkHttp): no CORS, any header, checked against the app's network/localhost permissions.
  * The page itself may only connect to its own origin (CSP), so this is the only way out.
  */
@@ -57,7 +57,7 @@
     } catch (e) {
       if (signal) signal.removeEventListener('abort', onAbort);
       if (e && e.name === 'AbortError') throw abortError();
-      if (e && e.name === 'NotAllowedError') { console.warn('[AntiGem] ' + e.message); throw e; }
+      if (e && e.name === 'NotAllowedError') { console.warn('[DuiAI] ' + e.message); throw e; }
       throw new TypeError(e && e.message ? e.message : 'Failed to fetch');
     }
     if (signal) signal.removeEventListener('abort', onAbort);
@@ -65,7 +65,7 @@
 
     // the body streams from a one-time local URL: no base64, no copies, real streaming (SSE, downloads)
     var stream = null;
-    if (meta.sid) stream = (await origFetch(location.origin + '/_antigem/net/' + meta.sid, { signal: signal, cache: 'no-store' })).body;
+    if (meta.sid) stream = (await origFetch(location.origin + '/_dui/net/' + meta.sid, { signal: signal, cache: 'no-store' })).body;
     var status = meta.status;
     var resp;
     try {
@@ -186,7 +186,7 @@
       if (self._aborted) return;
       self.status = 0; self.readyState = 4; self._fire('readystatechange');
       if (self._timedOut) self._fire('timeout');
-      else { if (e && e.message) console.warn('[AntiGem] XHR ' + self._url + ': ' + e.message); self._fire('error'); }
+      else { if (e && e.message) console.warn('[DuiAI] XHR ' + self._url + ': ' + e.message); self._fire('error'); }
       self._fire('loadend');
     });
   };
@@ -220,7 +220,7 @@
     sockets.set(this._sid, this);
     var list = protocols == null ? [] : Array.isArray(protocols) ? protocols : [protocols];
     AG.call('ws.open', { sid: this._sid, url: u.href, protocols: list.map(String) }).catch(function (e) {
-      console.warn('[AntiGem] WebSocket ' + u.href + ': ' + (e && e.message));
+      console.warn('[DuiAI] WebSocket ' + u.href + ': ' + (e && e.message));
       self._event({ t: 'error' });
       self._event({ t: 'close', code: 1006, reason: '', clean: false });
     });
@@ -257,7 +257,7 @@
       this._fire(new MessageEvent('message', { data: data, origin: new URL(this.url).origin }));
     } else if (d.t === 'error') {
       // like a browser, the event carries no reason: the console gets it (blocked, refused, TLS…)
-      if (d.message) console.warn('[AntiGem] WebSocket ' + this.url + ': ' + d.message);
+      if (d.message) console.warn('[DuiAI] WebSocket ' + this.url + ': ' + d.message);
       this._fire(new Event('error'));
     }
     else if (d.t === 'close') {

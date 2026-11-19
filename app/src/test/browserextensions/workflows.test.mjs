@@ -7,7 +7,7 @@ function fixture({submit}={}) {
   const jobs=new Map(), requests=[], storage={characters:{}}, copied=[];
   const scope={crypto,AbortController,setTimeout,IMAGE_MODELS:['Nano Banana 2.1'],VIDEO_MODELS:['Omni 1.1 Flash'],analyzeAndBreakdownScript:args=>({storyboard:[{prompt:args.raw_input}],entities:[],heroReferences:[]}),setLocalAssetIndex(){}};
   vm.runInNewContext(workflowSource+'\nglobalThis.createFlowWorkflows=createFlowWorkflows;',scope);
-  const chrome={storage:{local:{get:async()=>storage,set:async value=>Object.assign(storage,value)}},antigem:{listFiles:async()=>[],copyFile:async p=>{copied.push(p);return {path:p.to}}}};
+  const chrome={storage:{local:{get:async()=>storage,set:async value=>Object.assign(storage,value)}},dui:{listFiles:async()=>[],copyFile:async p=>{copied.push(p);return {path:p.to}}}};
   const client={begin:async()=>{},end:async()=>{},libraryCache:new Map(),tab:async()=>1,js:async()=>({projectId:'project-a'}),evaluate:async(tab,fn,args)=>fn(...args),exclusive:fn=>fn()};
   const snapshot=j=>Object.fromEntries(Object.entries(j).filter(([k])=>!['abort','completion','request'].includes(k)));
   const awaitJobs=async(selected,seconds)=>{if(seconds)await Promise.all(selected.map(j=>j.completion));return selected.length===1?snapshot(selected[0]):selected.map(snapshot)};

@@ -443,7 +443,7 @@ func (m *Manager) start() (*process, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), startTimeout)
 	defer cancel()
 	info, err := m.call(ctx, p, "initialize", map[string]interface{}{
-		"clientInfo": map[string]interface{}{"name": "antigem", "title": "AntiGem", "version": clientVersion},
+		"clientInfo": map[string]interface{}{"name": "dui", "title": "DuiAI", "version": clientVersion},
 		"capabilities": map[string]interface{}{
 			"experimentalApi":           true,
 			"requestAttestation":        false,
@@ -682,7 +682,7 @@ func threadIDOf(params json.RawMessage) string {
 
 func (m *Manager) onServerRequest(p *process, msg wireMessage, line []byte) {
 	if !appHandledRequests[msg.Method] {
-		_ = m.write(p, map[string]interface{}{"id": msg.ID, "error": map[string]interface{}{"code": -32601, "message": "not supported by AntiGem: " + msg.Method}})
+		_ = m.write(p, map[string]interface{}{"id": msg.ID, "error": map[string]interface{}{"code": -32601, "message": "not supported by DuiAI: " + msg.Method}})
 		return
 	}
 	tid := threadIDOf(msg.Params)

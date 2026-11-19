@@ -74,7 +74,7 @@ func (m *Manager) Context(req ContextRequest) ContextResult {
 	res := ContextResult{Listed: len(listed), More: len(ranked) - len(listed)}
 	root := m.root
 	var b strings.Builder
-	b.WriteString("[AntiGem agent memory: from the app, not written by the user. Shared by every agent and chat on this machine.]\n\n")
+	b.WriteString("[DuiAI agent memory: from the app, not written by the user. Shared by every agent and chat on this machine.]\n\n")
 	b.WriteString("## Agent memory\n")
 	if dir != "" {
 		fmt.Fprintf(&b, "Memories are Markdown files in %s/: global/ for every project, projects/%s/ for this one. ", root, dir)
@@ -228,7 +228,7 @@ var stopWords = func() map[string]bool {
 	return m
 }()
 
-// projectName is a project folder's readable name ("antigem-3f9a1c2b" → "antigem").
+// projectName is a project folder's readable name ("dui-3f9a1c2b" → "dui").
 func projectName(dir, path string) string {
 	if path != "" {
 		return filepath.Base(path)

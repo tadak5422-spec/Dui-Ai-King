@@ -13,7 +13,7 @@ import (
 )
 
 // never saved, on top of the project's own .gitignore files
-const defaultExcludes = `# AntiGem project checkpoints: never saved
+const defaultExcludes = `# DuiAI project checkpoints: never saved
 node_modules/
 .gradle/
 .cxx/
@@ -192,7 +192,7 @@ func (m *Manager) snapUnitOnce(p *project, rel, abs string, maxFile int64) (Unit
 	}
 	snap.Tree = strings.TrimSpace(string(tree))
 	// the index's files stay reachable (an automatic cleanup never removes what the next copy builds on)
-	if _, err := m.shadow(p, "").run("update-ref", "refs/antigem/last/"+unitKey(rel), snap.Tree); err != nil {
+	if _, err := m.shadow(p, "").run("update-ref", "refs/dui/last/"+unitKey(rel), snap.Tree); err != nil {
 		return snap, nil, err
 	}
 	snap.Head = headOf(abs)
@@ -595,7 +595,7 @@ func (m *Manager) FileDiff(path, id, file string) (string, error) {
 	}
 	c := m.shadow(p, "")
 	c.okCodes = []int{1}
-	out, err := c.run(m.gitArgs(p, "diff", "--no-color", "--no-ext-diff", "--no-renames", "refs/antigem/last/"+unitKey(unit.Path), unit.Tree, "--", rel)...)
+	out, err := c.run(m.gitArgs(p, "diff", "--no-color", "--no-ext-diff", "--no-renames", "refs/dui/last/"+unitKey(unit.Path), unit.Tree, "--", rel)...)
 	if err != nil {
 		return "", err
 	}

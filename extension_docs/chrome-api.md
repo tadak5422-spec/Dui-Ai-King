@@ -1,8 +1,8 @@
 # Chrome API reference
 
-This reference includes every implemented public facade method and event, with stubs/rejections identified. AntiGem supplies these APIs to your worker and isolated content scripts; do not copy or import the app runtime to use them. Other `chrome.*` namespaces are absent.
+This reference includes every implemented public facade method and event, with stubs/rejections identified. DuiAI supplies these APIs to your worker and isolated content scripts; do not copy or import the app runtime to use them. Other `chrome.*` namespaces are absent.
 
-Unless stated synchronous, a method returns a Promise and also accepts a final callback. A callback form returns no Promise. On failure, Promises reject; callbacks receive `undefined` with `chrome.runtime.lastError.message` set **only during the callback**. API values and messages are JSON-serialized: do not pass functions, DOM objects, cycles or BigInts. `scripting.executeScript.func` is the explicit function-serialization exception. `chrome.antigem` methods use Promises only.
+Unless stated synchronous, a method returns a Promise and also accepts a final callback. A callback form returns no Promise. On failure, Promises reject; callbacks receive `undefined` with `chrome.runtime.lastError.message` set **only during the callback**. API values and messages are JSON-serialized: do not pass functions, DOM objects, cycles or BigInts. `scripting.executeScript.func` is the explicit function-serialization exception. `chrome.dui` methods use Promises only.
 
 All events expose synchronous `addListener(fn)`, `removeListener(fn)`, `hasListener(fn) → boolean`, `hasListeners() → boolean`. No event filters/extra registration arguments are implemented. A compatibility event listed as inert can accept listeners but does not currently fire.
 
@@ -20,7 +20,7 @@ All events expose synchronous `addListener(fn)`, `removeListener(fn)`, `hasListe
 | `runtime.connect(extensionId, connectInfo?)` | Same extension only; no external communication. |
 | `runtime.reload()` | Schedules this worker's reload; current jobs/variables will be lost. |
 | `runtime.getPlatformInfo()` | `{os:"android",arch,nacl_arch}`. |
-| `runtime.getBrowserInfo()` | AntiGem metadata `{name,vendor,version,buildID}`; not Chromium version negotiation. |
+| `runtime.getBrowserInfo()` | DuiAI metadata `{name,vendor,version,buildID}`; not Chromium version negotiation. |
 | `runtime.getContexts(filter?)` | Current extension contexts `{contextId,contextType,tabId,frameId,documentUrl}[]`; filter is currently ignored. Context types include BACKGROUND, CONTENT and transient MCP. |
 | `runtime.openOptionsPage()` | Rejects: extension UI unsupported. |
 | `extension.getURL(path)` | Synchronous alias of runtime.getURL. |
@@ -106,7 +106,7 @@ Match patterns support `<all_urls>`, http/https/file/ftp, wildcard http+https sc
 | `debugger.sendCommand(target, method, commandParams?)` | Raw engine CDP result; requires attach. Includes Runtime.evaluate remote objects/promises, DOM.setFileInputFiles, Page and Input commands supported by installed WebView. Engine errors propagate. Deadline180 seconds. |
 | `debugger.getTargets()` | → `{id,tabId,type:"page",title,url,attached}[]`. Targets are browser tabs only. |
 
-Events: `debugger.onEvent(source,method,params)`, `debugger.onDetach(source,reason)`. Native Android trusted touch is provided by `chrome.antigem.automation`, described separately; JS element.click does not have identical website trust behavior.
+Events: `debugger.onEvent(source,method,params)`, `debugger.onDetach(source,reason)`. Native Android trusted touch is provided by `chrome.dui.automation`, described separately; JS element.click does not have identical website trust behavior.
 
 ## windows
 
@@ -144,7 +144,7 @@ A permitted open page/CDP connection is needed for read/write operations. Only W
 | `downloads.removeFile(downloadId)` | Removes file → void. |
 | `downloads.open(...)`, `downloads.show(...)`, `downloads.getFileIcon(...)` | Reject: no desktop file UI. |
 
-Files are stored under `<parent of host root>/Downloads/<extension ID>/` by default. With the app's private root this is private `files/Downloads/<ID>/`, not necessarily Android's public Downloads app. Relative paths cannot contain `..` or be absolute. `chrome.antigem.download` provides an explicit terminal-home path instead.
+Files are stored under `<parent of host root>/Downloads/<extension ID>/` by default. With the app's private root this is private `files/Downloads/<ID>/`, not necessarily Android's public Downloads app. Relative paths cannot contain `..` or be absolute. `chrome.dui.download` provides an explicit terminal-home path instead.
 
 Events: `downloads.onCreated(item)`, `downloads.onChanged(delta)` (completion/interruption), `downloads.onErased(id)`. `downloads.onDeterminingFilename` is inert. Progress bytes can be read with search; not every chunk emits an event. Download history is host-memory only. Node fetch does not share authenticated WebView cookies.
 
@@ -194,6 +194,6 @@ No toolbar, popup, side panel or options-page UI is supported. `chrome.browserAc
 | `action.setPopup(...)`, `action.getPopup(...)`, `action.openPopup(...)` | Reject: extension UI unsupported. |
 | `sidePanel.open(...)`, `sidePanel.close(...)`, `sidePanel.setOptions(...)`, `sidePanel.getOptions(...)`, `sidePanel.setPanelBehavior(...)`, `sidePanel.getPanelBehavior(...)` | Reject: extension UI unsupported. |
 
-`action.onClicked` is inert. `chrome.antigem` is fully documented in [the native API reference](antigem-api.md).
+`action.onClicked` is inert. `chrome.dui` is fully documented in [the native API reference](dui-api.md).
 
 Unsupported namespaces include webRequest, declarativeNetRequest, navigation/history/bookmarks/contextMenus/notifications, commands, identity, management and nativeMessaging. Do not infer support merely because a similar Chrome extension loads. User-facing UI APIs must be replaced by MCP tools.

@@ -16,7 +16,7 @@ import (
 )
 
 func testRewriter() *rewriter {
-	return newRewriter("com.termux", "ai.antigem", []string{".termuxam", ".x11."}, []string{"apk", "jar", "zip"})
+	return newRewriter("com.termux", "ai.dui", []string{".termuxam", ".x11."}, []string{"apk", "jar", "zip"})
 }
 
 // reference: the same rule on a whole buffer, the simple way
@@ -26,7 +26,7 @@ func referenceRewrite(b []byte) []byte {
 		if string(out[i:i+10]) == "com.termux" {
 			rest := string(out[i+10:])
 			if !strings.HasPrefix(rest, ".termuxam") && !strings.HasPrefix(rest, ".x11.") {
-				copy(out[i:], "ai.antigem")
+				copy(out[i:], "ai.dui")
 			}
 			i += 10
 		} else {
@@ -135,27 +135,27 @@ func TestRewriteTar(t *testing.T) {
 			t.Fatal("not changed")
 		}
 		got := readTar(t, out.Bytes())
-		if _, ok := got["./data/data/ai.antigem/files/usr/bin/"]; !ok {
+		if _, ok := got["./data/data/ai.dui/files/usr/bin/"]; !ok {
 			t.Fatalf("%v: directory not renamed: %v", format, keys(got))
 		}
-		am := got["./data/data/ai.antigem/files/usr/bin/am"].content
-		if am != "#!/data/data/ai.antigem/files/usr/bin/sh\nexec app_process / com.termux.termuxam.Am\n" {
+		am := got["./data/data/ai.dui/files/usr/bin/am"].content
+		if am != "#!/data/data/ai.dui/files/usr/bin/sh\nexec app_process / com.termux.termuxam.Am\n" {
 			t.Fatalf("%v: am = %q", format, am)
 		}
-		if l := got["./data/data/ai.antigem/files/usr/bin/sh"].hdr.Linkname; l != "/data/data/ai.antigem/files/usr/bin/dash" {
+		if l := got["./data/data/ai.dui/files/usr/bin/sh"].hdr.Linkname; l != "/data/data/ai.dui/files/usr/bin/dash" {
 			t.Fatalf("%v: link target %q", format, l)
 		}
-		newLong := strings.ReplaceAll(long, "com.termux", "ai.antigem")
-		if e, ok := got[newLong]; !ok || e.content != "ai.antigem" {
+		newLong := strings.ReplaceAll(long, "com.termux", "ai.dui")
+		if e, ok := got[newLong]; !ok || e.content != "ai.dui" {
 			t.Fatalf("%v: long name entry missing or wrong: %v", format, keys(got))
 		}
-		if c := got["./data/data/ai.antigem/files/usr/share/x.apk"].content; c != "com.termux in a zip" {
+		if c := got["./data/data/ai.dui/files/usr/share/x.apk"].content; c != "com.termux in a zip" {
 			t.Fatalf("%v: skipped extension rewritten: %q", format, c)
 		}
-		if c := got["./data/data/ai.antigem/files/usr/lib/big"].content; c != string(referenceRewrite([]byte(big))) {
+		if c := got["./data/data/ai.dui/files/usr/lib/big"].content; c != string(referenceRewrite([]byte(big))) {
 			t.Fatalf("%v: big file wrong", format)
 		}
-		if res.md5s["data/data/ai.antigem/files/usr/bin/am"] != md5sum([]byte(am)) {
+		if res.md5s["data/data/ai.dui/files/usr/bin/am"] != md5sum([]byte(am)) {
 			t.Fatalf("%v: md5 of am wrong", format)
 		}
 	}
@@ -170,9 +170,9 @@ func keys(m map[string]entry) []string {
 }
 
 func TestReplaceSums(t *testing.T) {
-	c := []byte(strings.Repeat("0", 32) + "  data/data/ai.antigem/files/usr/bin/am\n" + strings.Repeat("1", 32) + "  other\n")
-	replaceSums(c, map[string]string{"data/data/ai.antigem/files/usr/bin/am": strings.Repeat("a", 32)})
-	if string(c) != strings.Repeat("a", 32)+"  data/data/ai.antigem/files/usr/bin/am\n"+strings.Repeat("1", 32)+"  other\n" {
+	c := []byte(strings.Repeat("0", 32) + "  data/data/ai.dui/files/usr/bin/am\n" + strings.Repeat("1", 32) + "  other\n")
+	replaceSums(c, map[string]string{"data/data/ai.dui/files/usr/bin/am": strings.Repeat("a", 32)})
+	if string(c) != strings.Repeat("a", 32)+"  data/data/ai.dui/files/usr/bin/am\n"+strings.Repeat("1", 32)+"  other\n" {
 		t.Fatalf("got %q", c)
 	}
 }
@@ -231,15 +231,15 @@ func TestRelocateDeb(t *testing.T) {
 		return readTar(t, b)
 	}
 	d := read(members[2])
-	newAm := d["./data/data/ai.antigem/files/usr/bin/am"].content
-	if newAm != strings.ReplaceAll(amContent, "/data/data/com.termux", "/data/data/ai.antigem") {
+	newAm := d["./data/data/ai.dui/files/usr/bin/am"].content
+	if newAm != strings.ReplaceAll(amContent, "/data/data/com.termux", "/data/data/ai.dui") {
 		t.Fatalf("am = %q", newAm)
 	}
 	c := read(members[1])
-	if want := md5sum([]byte(newAm)) + "  data/data/ai.antigem/files/usr/bin/am\n"; c["./md5sums"].content != want {
+	if want := md5sum([]byte(newAm)) + "  data/data/ai.dui/files/usr/bin/am\n"; c["./md5sums"].content != want {
 		t.Fatalf("md5sums = %q, want %q", c["./md5sums"].content, want)
 	}
-	if !strings.Contains(c["./postinst"].content, "/data/data/ai.antigem/files/usr/libexec") {
+	if !strings.Contains(c["./postinst"].content, "/data/data/ai.dui/files/usr/libexec") {
 		t.Fatalf("postinst = %q", c["./postinst"].content)
 	}
 

@@ -20,7 +20,7 @@ export class ExtensionHost {
     this.options = { bridgeUrl: process.env.AGY_BRIDGE_URL || 'http://127.0.0.1:8765', deviceId: process.env.AGY_DEVICE_ID || process.env.DEVICE_ID || '', root: ROOT, hostPort: 8865, ...options };
     this.logs = []; this.extensions = new Map(); this.toolRegistry = new Map(); this.contexts = new Map(); this.pendingMessages = new Map(); this.ports = new Map();
     this.browser = new BrowserAPI(this); this.sequence = 0; this.downloads = new Map(); this.downloadCounter = 0; this.closed = false; this.polling = false; this.disabledIds = new Set();
-    this.stateRoot = options.stateRoot || path.join(this.options.root, '.antigem-state'); this.server = null;
+    this.stateRoot = options.stateRoot || path.join(this.options.root, '.dui-state'); this.server = null;
   }
   recordLog(extensionId,level,args){const message=args.map(value=>{if(value?.stack)return value.stack;try{return typeof value==='string'?value:JSON.stringify(value)??String(value);}catch{return String(value);}}).join(' ').slice(0,8000);this.logs.push({extension_id:extensionId,time:Date.now(),level,message});if(this.logs.length>500)this.logs.splice(0,this.logs.length-500);}
   resourceBase(ext) { return `${this.baseUrl || `http://127.0.0.1:${this.options.hostPort}`}/extension/${ext.resourceToken}/`; }
@@ -30,7 +30,7 @@ export class ExtensionHost {
   send(ctx, name, args = []) {
     if (!this.contexts.has(ctx.id)) return;
     if (ctx.client) { ctx.client.dispatch(name, args).catch(console.error); return; }
-    if (ctx.devtools) { ctx.devtools.send('Runtime.evaluate', { contextId: ctx.executionContextId, expression: `globalThis.__antigemClient?.dispatch(${JSON.stringify(name)},${JSON.stringify(args)})`, awaitPromise: false }).catch(() => this.dropContext(ctx)); return; }
+    if (ctx.devtools) { ctx.devtools.send('Runtime.evaluate', { contextId: ctx.executionContextId, expression: `globalThis.__duiClient?.dispatch(${JSON.stringify(name)},${JSON.stringify(args)})`, awaitPromise: false }).catch(() => this.dropContext(ctx)); return; }
     ctx.events.push({ seq: ++this.sequence, name, args });
     if (ctx.events.length > 500) { this.dropContext(ctx); return; }
     for (const resolve of ctx.waiters) resolve(); ctx.waiters.clear();
@@ -67,21 +67,21 @@ export class ExtensionHost {
     const id = manifest.id || path.basename(dir); if (!/^[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid extension id');
     if (this.extensions.has(id)) { if (this.extensions.get(id).dir === dir) return this.extensions.get(id); throw new Error(`Duplicate extension id: ${id}`); }
     if (![2, 3].includes(manifest.manifest_version)) throw new Error('Only manifest versions 2 and 3 are supported');
-    const state = this.readState({ id }); const ext = { id, dir, manifest, enabled: true, worldName: `antigem:${id}:${randomUUID()}`, binding: '__antigem_' + randomBytes(12).toString('hex'), resourceToken: randomBytes(24).toString('hex'), storage: { local: state.local || {}, sync: state.sync || {}, session: {} }, alarms: new Map(), scripts: [], registrations: new Map(), dynamicScripts: [], action: {}, sidePanel: {}, contexts: [] };
+    const state = this.readState({ id }); const ext = { id, dir, manifest, enabled: true, worldName: `dui:${id}:${randomUUID()}`, binding: '__dui_' + randomBytes(12).toString('hex'), resourceToken: randomBytes(24).toString('hex'), storage: { local: state.local || {}, sync: state.sync || {}, session: {} }, alarms: new Map(), scripts: [], registrations: new Map(), dynamicScripts: [], action: {}, sidePanel: {}, contexts: [] };
     if (manifest.default_locale) { try { manifest.__messages = JSON.parse(fs.readFileSync(safeFile(dir, `_locales/${manifest.default_locale}/messages.json`), 'utf8')); } catch {} }
     // Tool names are unique within an extension; separate MCP servers may reuse a name.
     const names = new Set();
     for (const tool of manifest.mcp_tools || []) { if (typeof tool.name !== 'string' || !tool.name || names.has(tool.name)) throw new Error(`Duplicate or missing MCP tool name: ${tool.name}`); names.add(tool.name); }
     const ctx = this.context(ext, 'background', { timers: new Set() });
     const chrome = createChromePolyfill({ extension: ext, context: ctx, host: this });
-    chrome.antigem = this.nativeAPI(ctx);
+    chrome.dui = this.nativeAPI(ctx);
     const log = Object.fromEntries(['log','warn','error','info','debug'].map(level => [level, (...a) => {this.recordLog(id,level,a);console.error(`[${id}]`, ...a);}]));
     const timer = (repeat, fn, ms, ...args) => { const handle = (repeat ? setInterval : setTimeout)(() => { try { fn(...args)?.catch?.(e => log.error(e)); } catch (e) { log.error(e); } if (!repeat) ctx.timers.delete(handle); }, ms); ctx.timers.add(handle); return handle; };
     const workerURL = this.resourceBase(ext) + (manifest.background?.service_worker || manifest.background?.scripts?.[0] || 'background.js');
     const sandbox = { console: log, chrome, browser: chrome, setTimeout: (...a) => timer(false, ...a), setInterval: (...a) => timer(true, ...a), clearTimeout: h => { clearTimeout(h); ctx.timers.delete(h); }, clearInterval: h => { clearInterval(h); ctx.timers.delete(h); },
       fetch: (input, options) => fetch(typeof input === 'string' ? new URL(input, workerURL) : input, options), URL, URLSearchParams, TextEncoder, TextDecoder,
       Blob, FormData, Request, Response, Headers, AbortController, AbortSignal, crypto: webcrypto, performance, structuredClone, atob, btoa,
-      Event, EventTarget, MessageEvent, WebSocket: globalThis.WebSocket, navigator: { userAgent: `AntiGem Extension Host Node/${process.versions.node}`, language: 'en', languages: ['en'] }, location: new URL(workerURL) };
+      Event, EventTarget, MessageEvent, WebSocket: globalThis.WebSocket, navigator: { userAgent: `DuiAI Extension Host Node/${process.versions.node}`, language: 'en', languages: ['en'] }, location: new URL(workerURL) };
     sandbox.self = sandbox; sandbox.globalThis = sandbox;
     const scopeEvents = new EventTarget(); sandbox.addEventListener = scopeEvents.addEventListener.bind(scopeEvents); sandbox.removeEventListener = scopeEvents.removeEventListener.bind(scopeEvents); sandbox.dispatchEvent = scopeEvents.dispatchEvent.bind(scopeEvents);
     const context = vm.createContext(sandbox); ext.context = context; ext.background = ctx;
@@ -115,7 +115,7 @@ export class ExtensionHost {
   }
   nativeAPI(context) {
     const api = {};
-    for (const name of ['automation','uploadFiles','readFile','writeFile','listFiles','copyFile','stat','download','mediaFrame','mediaInfo']) api[name] = args => this.request(context, `antigem.${name}`, args);
+    for (const name of ['automation','uploadFiles','readFile','writeFile','listFiles','copyFile','stat','download','mediaFrame','mediaInfo']) api[name] = args => this.request(context, `dui.${name}`, args);
     return api;
   }
   async request(ctx, method, args = []) {
@@ -133,7 +133,7 @@ export class ExtensionHost {
     }
     if (method === 'runtime.portMessage' || method === 'runtime.portDisconnect') { const p = this.ports.get(args.portId); if (!p?.peers.has(ctx.id)) throw new Error('Attempting to use a disconnected port'); for (const id of p.peers) if (id !== ctx.id) { const peer = this.contexts.get(id); if (peer) this.send(peer, method === 'runtime.portMessage' ? 'runtime.portMessage' : 'runtime.portDisconnect', method === 'runtime.portMessage' ? [args.portId, args.message] : [args.portId]); } if (method.endsWith('portDisconnect')) this.ports.delete(args.portId); return; }
     if (method === 'runtime.getPlatformInfo') return { os: 'android', arch: process.arch === 'arm64' ? 'arm64' : process.arch, nacl_arch: process.arch };
-    if (method === 'runtime.getBrowserInfo') return { name: 'AntiGem', vendor: 'AntiGem', version: '1.0', buildID: process.version };
+    if (method === 'runtime.getBrowserInfo') return { name: 'DuiAI', vendor: 'DuiAI', version: '1.0', buildID: process.version };
     if (method === 'runtime.getContexts') return [...this.contexts.values()].filter(c => c.extension === ext).map(c => ({ contextId: c.id, contextType: c.type.toUpperCase(), tabId: c.tabId ?? -1, frameId: c.frameId ?? -1, documentUrl: c.url || '' }));
     if (method === 'runtime.reload') { setTimeout(() => this.reload(ext.id).catch(console.error), 10); return; }
     if (method === 'runtime.openOptionsPage' || method.startsWith('sidePanel.') || ['action.openPopup','action.setPopup','action.getPopup'].includes(method)) throw new Error('Extension UI is not supported; use this extension through its MCP server in Settings');
@@ -158,7 +158,7 @@ export class ExtensionHost {
       throw new Error(`Unsupported Chrome API: ${method}`);
     }
     if (method.startsWith('scripting.') && method.includes('ContentScripts')) { this.permissions(ext, 'scripting'); const ids = args[0]?.ids; if (method === 'scripting.getRegisteredContentScripts') return ext.dynamicScripts.filter(s => !ids || ids.includes(s.id)); if (method === 'scripting.unregisterContentScripts') ext.dynamicScripts = ext.dynamicScripts.filter(s => ids && !ids.includes(s.id)); else { for (const s of args[0] || []) { const index = ext.dynamicScripts.findIndex(d => d.id === s.id); if (method.includes('register') && !method.includes('unregister') && index >= 0) throw new Error(`Duplicate content script id ${s.id}`); if (index >= 0) ext.dynamicScripts[index] = { ...ext.dynamicScripts[index], ...s }; else ext.dynamicScripts.push(s); } } await this.resetRegistrations(ext); return; }
-    if (method.startsWith('antigem.')) return this.nativeRequest(ctx, method, args);
+    if (method.startsWith('dui.')) return this.nativeRequest(ctx, method, args);
     if (method.startsWith('debugger.')) this.permissions(ext, 'debugger');
     if (method.startsWith('scripting.')) this.permissions(ext, 'scripting');
     if (method.startsWith('cookies.')) this.permissions(ext, 'cookies');
@@ -168,17 +168,17 @@ export class ExtensionHost {
   createAlarm(ext, name, info) { const previous = ext.alarms.get(name); if (previous) clearTimeout(previous.timer); const alarm = { name, scheduledTime: info.when ?? Date.now() + (info.delayInMinutes ?? info.periodInMinutes ?? 0) * 60000, ...(info.periodInMinutes ? { periodInMinutes: info.periodInMinutes } : {}) }; const fire = () => { this.broadcast(ext.id, 'alarms.onAlarm', [alarm]); if (alarm.periodInMinutes) { alarm.scheduledTime = Date.now() + alarm.periodInMinutes * 60000; entry.timer = setTimeout(fire, alarm.periodInMinutes * 60000); } else ext.alarms.delete(name); this.saveState(ext); }; const entry = { info: alarm, timer: setTimeout(fire, Math.min(2147483647, Math.max(0, alarm.scheduledTime - Date.now()))) }; ext.alarms.set(name, entry); this.saveState(ext); }
   filePath(value) { const home = path.resolve(process.env.HOME || path.dirname(this.options.root)); const resolved = path.resolve(String(value || '').replace(/^~(?=\/|$)/, home)); if (resolved !== home && !resolved.startsWith(home + path.sep) && !resolved.startsWith('/sdcard/')) throw new Error('File must be inside the app home or shared storage'); return resolved; }
   async nativeRequest(ctx, method, args) {
-    this.permissions(ctx.extension, 'antigemFiles');
-    if (method === 'antigem.automation') { const tab = await this.browser.tab(args.tabId); await this.browser.checkAccess(ctx.extension, tab.id); return this.browser.bridge('automation', { ...args, tab_id: this.browser.native(tab.id), owner: ctx.extension.id }); }
+    this.permissions(ctx.extension, 'duiFiles');
+    if (method === 'dui.automation') { const tab = await this.browser.tab(args.tabId); await this.browser.checkAccess(ctx.extension, tab.id); return this.browser.bridge('automation', { ...args, tab_id: this.browser.native(tab.id), owner: ctx.extension.id }); }
     // Files go to the page's own file chooser (no picker); the app taps the element and answers the chooser
-    if (method === 'antigem.uploadFiles') { const tab = await this.browser.tab(args.tabId); await this.browser.checkAccess(ctx.extension, tab.id); if (!Array.isArray(args.files) || !args.files.length) throw new Error('files is required'); return this.browser.bridge('upload', { tab_id: this.browser.native(tab.id), file_paths: args.files.map(f => this.filePath(f)), selector: args.selector, fx: args.point?.fx, fy: args.point?.fy, method: args.method, timeout_ms: args.timeoutMs }); }
-    if (method === 'antigem.listFiles') { const root=this.filePath(args.path);const output=[];const limit=Math.min(2000,Math.max(1,args.limit||500));const scan=dir=>{for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(output.length>=limit)return;const file=path.join(dir,entry.name);if(entry.isSymbolicLink())continue;const stat=fs.statSync(file);output.push({name:entry.name,path:file,isFile:entry.isFile(),isDirectory:entry.isDirectory(),size:stat.size,modified:stat.mtimeMs});if(args.recursive&&entry.isDirectory())scan(file);}};scan(root);return output; }
-    if (method === 'antigem.copyFile') { const from=this.filePath(args.from),to=this.filePath(args.to);fs.mkdirSync(path.dirname(to),{recursive:true});if(from!==to)fs.copyFileSync(from,to);return {path:to}; }
-    if (method === 'antigem.stat') { const file = this.filePath(args.path); const s = fs.statSync(file); return { path: file, size: s.size, modified: s.mtimeMs, isFile: s.isFile() }; }
-    if (method === 'antigem.readFile') { const file = this.filePath(args.path); const data = fs.readFileSync(file); return args.encoding === 'base64' ? data.toString('base64') : data.toString('utf8'); }
-    if (method === 'antigem.writeFile') { const file = this.filePath(args.path); fs.mkdirSync(path.dirname(file), { recursive: true }); (args.append ? fs.appendFileSync : fs.writeFileSync)(file, args.data, args.encoding === 'base64' ? 'base64' : 'utf8'); return { path: file }; }
-    if (method === 'antigem.download') { const file = this.filePath(args.path); if (args.reuse && fs.existsSync(file) && fs.statSync(file).size) return { path: file }; const response = await fetch(args.url, { signal: AbortSignal.timeout(180000) }); if (!response.ok) throw new Error(`Download HTTP ${response.status}`); fs.mkdirSync(path.dirname(file), { recursive: true }); const temp = file + '.' + randomUUID() + '.tmp'; try { const handle = fs.createWriteStream(temp); const { pipeline } = await import('node:stream/promises'); const { Readable } = await import('node:stream'); await pipeline(Readable.fromWeb(response.body), handle); fs.renameSync(temp, file); } finally { if (fs.existsSync(temp)) fs.unlinkSync(temp); } return { path: file }; }
-    if (method === 'antigem.mediaFrame' || method === 'antigem.mediaInfo') return this.browser.bridge(method.endsWith('mediaFrame') ? 'media/frame' : 'media/info', { ...args, path: this.filePath(args.path) });
+    if (method === 'dui.uploadFiles') { const tab = await this.browser.tab(args.tabId); await this.browser.checkAccess(ctx.extension, tab.id); if (!Array.isArray(args.files) || !args.files.length) throw new Error('files is required'); return this.browser.bridge('upload', { tab_id: this.browser.native(tab.id), file_paths: args.files.map(f => this.filePath(f)), selector: args.selector, fx: args.point?.fx, fy: args.point?.fy, method: args.method, timeout_ms: args.timeoutMs }); }
+    if (method === 'dui.listFiles') { const root=this.filePath(args.path);const output=[];const limit=Math.min(2000,Math.max(1,args.limit||500));const scan=dir=>{for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(output.length>=limit)return;const file=path.join(dir,entry.name);if(entry.isSymbolicLink())continue;const stat=fs.statSync(file);output.push({name:entry.name,path:file,isFile:entry.isFile(),isDirectory:entry.isDirectory(),size:stat.size,modified:stat.mtimeMs});if(args.recursive&&entry.isDirectory())scan(file);}};scan(root);return output; }
+    if (method === 'dui.copyFile') { const from=this.filePath(args.from),to=this.filePath(args.to);fs.mkdirSync(path.dirname(to),{recursive:true});if(from!==to)fs.copyFileSync(from,to);return {path:to}; }
+    if (method === 'dui.stat') { const file = this.filePath(args.path); const s = fs.statSync(file); return { path: file, size: s.size, modified: s.mtimeMs, isFile: s.isFile() }; }
+    if (method === 'dui.readFile') { const file = this.filePath(args.path); const data = fs.readFileSync(file); return args.encoding === 'base64' ? data.toString('base64') : data.toString('utf8'); }
+    if (method === 'dui.writeFile') { const file = this.filePath(args.path); fs.mkdirSync(path.dirname(file), { recursive: true }); (args.append ? fs.appendFileSync : fs.writeFileSync)(file, args.data, args.encoding === 'base64' ? 'base64' : 'utf8'); return { path: file }; }
+    if (method === 'dui.download') { const file = this.filePath(args.path); if (args.reuse && fs.existsSync(file) && fs.statSync(file).size) return { path: file }; const response = await fetch(args.url, { signal: AbortSignal.timeout(180000) }); if (!response.ok) throw new Error(`Download HTTP ${response.status}`); fs.mkdirSync(path.dirname(file), { recursive: true }); const temp = file + '.' + randomUUID() + '.tmp'; try { const handle = fs.createWriteStream(temp); const { pipeline } = await import('node:stream/promises'); const { Readable } = await import('node:stream'); await pipeline(Readable.fromWeb(response.body), handle); fs.renameSync(temp, file); } finally { if (fs.existsSync(temp)) fs.unlinkSync(temp); } return { path: file }; }
+    if (method === 'dui.mediaFrame' || method === 'dui.mediaInfo') return this.browser.bridge(method.endsWith('mediaFrame') ? 'media/frame' : 'media/info', { ...args, path: this.filePath(args.path) });
     throw new Error(`Unsupported native operation ${method}`);
   }
   async downloadRequest(ctx, method, args) {
@@ -202,19 +202,19 @@ export class ExtensionHost {
   async onDevToolsEvent(tabId, name, params) {
     if (name === 'Runtime.executionContextDestroyed') { for (const c of [...this.contexts.values()]) if (c.tabId === tabId && c.executionContextId === params.executionContextId) this.dropContext(c); }
     if (name === 'Runtime.executionContextsCleared') this.dropTabContexts(tabId);
-    if (name !== 'Runtime.bindingCalled' || !params.name.startsWith('__antigem_')) return;
+    if (name !== 'Runtime.bindingCalled' || !params.name.startsWith('__dui_')) return;
     const ext = [...this.extensions.values()].find(e => e.binding === params.name && e.enabled); if (!ext) return;
     const value = JSON.parse(params.payload); let ctx = [...this.contexts.values()].find(c => c.extension === ext && c.tabId === tabId && c.executionContextId === params.executionContextId);
     if (!ctx) ctx = this.context(ext, 'content', { tabId, frameId: value.frameId || 0, executionContextId: params.executionContextId, devtools: await this.browser.connection(tabId), url: value.url });
     if (value.kind === 'ready') return;
-    const deliver = (result, error) => ctx.devtools.send('Runtime.evaluate', { contextId: params.executionContextId, expression: `globalThis.__antigemResolve(${JSON.stringify(value.requestId)},${JSON.stringify(result ?? null)},${JSON.stringify(error || null)})` }).catch(() => {});
+    const deliver = (result, error) => ctx.devtools.send('Runtime.evaluate', { contextId: params.executionContextId, expression: `globalThis.__duiResolve(${JSON.stringify(value.requestId)},${JSON.stringify(result ?? null)},${JSON.stringify(error || null)})` }).catch(() => {});
     try { const result = await this.request(ctx, value.method, value.args); await deliver(result); } catch (error) { await deliver(null, error.message); }
   }
   contentBootstrap(ext) {
-    return `(()=>{if(globalThis.__antigemClient)return;const pending=new Map();let seq=0;const rpc=(method,args)=>new Promise((resolve,reject)=>{const requestId=++seq;pending.set(requestId,{resolve,reject});globalThis[${JSON.stringify(ext.binding)}](JSON.stringify({kind:'rpc',requestId,method,args,url:location.href}));});globalThis.__antigemResolve=(id,result,error)=>{const p=pending.get(id);if(p){pending.delete(id);error?p.reject(new Error(error)):p.resolve(result)}};const client=(${createChromeAPI.toString()})({id:${JSON.stringify(ext.id)},manifest:${JSON.stringify(ext.manifest)},contextType:'content',contextId:crypto.randomUUID(),resourceBase:${JSON.stringify(this.resourceBase(ext))},rpc});globalThis.chrome=client.chrome;globalThis.browser=client.chrome;globalThis.__antigemClient=client;globalThis[${JSON.stringify(ext.binding)}](JSON.stringify({kind:'ready',url:location.href}));})();`;
+    return `(()=>{if(globalThis.__duiClient)return;const pending=new Map();let seq=0;const rpc=(method,args)=>new Promise((resolve,reject)=>{const requestId=++seq;pending.set(requestId,{resolve,reject});globalThis[${JSON.stringify(ext.binding)}](JSON.stringify({kind:'rpc',requestId,method,args,url:location.href}));});globalThis.__duiResolve=(id,result,error)=>{const p=pending.get(id);if(p){pending.delete(id);error?p.reject(new Error(error)):p.resolve(result)}};const client=(${createChromeAPI.toString()})({id:${JSON.stringify(ext.id)},manifest:${JSON.stringify(ext.manifest)},contextType:'content',contextId:crypto.randomUUID(),resourceBase:${JSON.stringify(this.resourceBase(ext))},rpc});globalThis.chrome=client.chrome;globalThis.browser=client.chrome;globalThis.__duiClient=client;globalThis[${JSON.stringify(ext.binding)}](JSON.stringify({kind:'ready',url:location.href}));})();`;
   }
   async ensureContentContext(ext, tabId, frameId) {
-    const c = await this.browser.connection(tabId); ext.binding ||= '__antigem_' + ext.id.replace(/[^a-zA-Z0-9]/g, '_');
+    const c = await this.browser.connection(tabId); ext.binding ||= '__dui_' + ext.id.replace(/[^a-zA-Z0-9]/g, '_');
     if (!ext.registrations.get(tabId)?.binding) { await c.send('Runtime.addBinding', { name: ext.binding, executionContextName: ext.worldName }); }
     await this.browser.evaluate(tabId, this.contentBootstrap(ext), ext.worldName, frameId);
   }
@@ -223,14 +223,14 @@ export class ExtensionHost {
     if (!applicable.length) return; const c = await this.browser.connection(tab.id);
     for (const ext of applicable) {
       if (ext.registrations.get(tab.id)?.connection === c) continue;
-      ext.binding ||= '__antigem_' + ext.id.replace(/[^a-zA-Z0-9]/g, '_');
+      ext.binding ||= '__dui_' + ext.id.replace(/[^a-zA-Z0-9]/g, '_');
       await c.send('Runtime.addBinding', { name: ext.binding, executionContextName: ext.worldName });
       const registration = { connection: c, ids: [], binding: true }; ext.registrations.set(tab.id, registration);
       const scripts = [...(ext.manifest.content_scripts || []), ...ext.dynamicScripts];
       for (const [index, spec] of scripts.entries()) {
         const files = spec.js || [], css = (spec.css || []).map(f => fs.readFileSync(safeFile(ext.dir, f), 'utf8')).join('\n');
         const isolated = (spec.world || 'ISOLATED') !== 'MAIN';
-        const key = `__antigemScript_${ext.worldName.replace(/\W/g, '_')}_${index}`;
+        const key = `__duiScript_${ext.worldName.replace(/\W/g, '_')}_${index}`;
         const match = `(${matches.toString()})`;
         const body = `if(!${JSON.stringify(spec.matches || [])}.some(p=>${match}(p,location.href))||${JSON.stringify(spec.exclude_matches || [])}.some(p=>${match}(p,location.href))||${!spec.all_frames}&&window!==top)return;if(globalThis[${JSON.stringify(key)}])return;globalThis[${JSON.stringify(key)}]=true;${isolated ? this.contentBootstrap(ext) : ''}\n${css ? `const style=document.createElement('style');style.textContent=${JSON.stringify(css)};(document.head||document.documentElement).appendChild(style);` : ''}\n${files.map(f => fs.readFileSync(safeFile(ext.dir, f), 'utf8')).join('\n;\n')}`;
         const source = `(function(){const run=()=>{${body}\n};${spec.run_at === 'document_start' ? 'run()' : "if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run()"}})();`;

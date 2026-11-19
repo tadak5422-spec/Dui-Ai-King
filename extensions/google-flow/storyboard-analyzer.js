@@ -1,4 +1,4 @@
-// Adapted from flow_mcp/deepx-mcp/src/storyboard-analyzer.js. Local files come from chrome.antigem.
+// Adapted from flow_mcp/deepx-mcp/src/storyboard-analyzer.js. Local files come from chrome.dui.
 // DeepX Storyboard Architect & Intelligent Script Breakdown Engine
 // Analyzes raw inputs (prompts, Hindi/multilingual scripts, stories, bullet points)
 // Automatically isolates protagonist entities (Vehicles, Animals, Characters, Products)

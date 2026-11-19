@@ -2,7 +2,7 @@
 
 ## Model configuration
 
-App MCP settings → **Custom AntiGem Plugin MCP** → choose one enabled extension. This preset is first, followed by Custom AntiGem Plugin Developer, Browser Automation, Terminal Automation and Stitch. The [developer MCP](developer-mcp.md) provides SDK docs and the complete create/edit/install/test loop without exposing a combined normal extension server. There is no server that combines all extension tools. Custom manual server configuration is still possible.
+App MCP settings → **Custom DuiAI Plugin MCP** → choose one enabled extension. This preset is first, followed by Custom DuiAI Plugin Developer, Browser Automation, Terminal Automation and Stitch. The [developer MCP](developer-mcp.md) provides SDK docs and the complete create/edit/install/test loop without exposing a combined normal extension server. There is no server that combines all extension tools. Custom manual server configuration is still possible.
 
 ```json
 {
@@ -72,7 +72,7 @@ Run repository tests from the project root:
 
 ```sh
 node --experimental-vm-modules --test app/src/test/browserextensions/*.test.mjs
-./gradlew :app:testDebugUnitTest --tests ai.antigem.ui.browser.WebViewExtensionArchiveTest --offline
+./gradlew :app:testDebugUnitTest --tests ai.dui.ui.browser.WebViewExtensionArchiveTest --offline
 ```
 
 A minimal package load and MCP call test does not prove page automation. Test against the device's actual WebView, verify returned network/media IDs, and use guarded dry runs when the extension implements them.

@@ -21,7 +21,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.terminal.TerminalBuffer;
 import com.termux.terminal.WcWidth;
-import ai.antigem.R;
+import ai.dui.R;
 import com.termux.view.TerminalView;
 
 import java.util.LinkedHashSet;

@@ -10,7 +10,7 @@
         android:height="288dp"
         android:drawable="@drawable/ic_launcher_foreground" />
 
-    <!-- "ANTIGEM" wordmark at the bottom, like the Android 12+ splash branding image -->
+    <!-- "DUIAI" wordmark at the bottom, like the Android 12+ splash branding image -->
     <item
         android:gravity="bottom|center_horizontal"
         android:width="200dp"

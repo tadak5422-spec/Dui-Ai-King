@@ -1,8 +1,8 @@
 /*
- * AntiGem Mini Apps SDK: threads. Runs in pages and workers.
- *  - Every Worker gets the SDK first (native fetch/XHR/WebSocket/indexedDB/AntiGem inside the thread):
+ * DuiAI Mini Apps SDK: threads. Runs in pages and workers.
+ *  - Every Worker gets the SDK first (native fetch/XHR/WebSocket/indexedDB/DuiAI inside the thread):
  *    same-origin worker files get it injected by the runtime (?__agw), blob: workers get a small bootstrap.
- *  - AntiGem.thread: run a function on another CPU core without writing a worker file. Each thread is a real
+ *  - DuiAI.thread: run a function on another CPU core without writing a worker file. Each thread is a real
  *    OS thread with its own V8 engine; a pool sized to the phone's cores is kept warm and reused.
  */
 (function () {
@@ -12,7 +12,7 @@
   if (!AG || AG._threads) return;
   AG._threads = true;
 
-  var SDK_URL = location.origin + '/_antigem/worker-sdk.js';
+  var SDK_URL = location.origin + '/_dui/worker-sdk.js';
   var OrigWorker = G.Worker;
 
   if (typeof OrigWorker === 'function') {
@@ -41,7 +41,7 @@
     AG.define(G, 'Worker', Worker);
   }
 
-  // ------------------------------------------------------------------ AntiGem.thread
+  // ------------------------------------------------------------------ DuiAI.thread
   // What each pool thread runs: receive {src, args}, call the function, send the result back.
   var RUNNER = '(' + function () {
     var cache = new Map();
@@ -56,7 +56,7 @@
       Promise.resolve().then(function () {
         var f = cache.get(d.src);
         if (!f) { f = (0, eval)('(' + d.src + ')'); cache.set(d.src, f); }
-        if (typeof f !== 'function') throw new TypeError('AntiGem.thread.run needs a function');
+        if (typeof f !== 'function') throw new TypeError('DuiAI.thread.run needs a function');
         return f.apply(null, d.args || []);
       }).then(function (r) {
         try { self.postMessage({ __agt: 1, id: d.id, ok: true, r: r }, transferList(r)); }
@@ -146,5 +146,5 @@
     map: function (items, fn) { shared = shared || Pool(); return shared.map(items, fn); },
     pool: function (o) { return Pool(o && typeof o === 'object' ? o.size : o); }
   };
-  if (G.AntiGem) G.AntiGem.thread = thread;
+  if (G.DuiAI) G.DuiAI.thread = thread;
 })();

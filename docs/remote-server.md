@@ -1,4 +1,4 @@
-# Running AntiGem on a server (Server mode)
+# Running DuiAI on a server (Server mode)
 
 In Server mode the IDE bridge, the Antigravity hub (`agy`) and Claude Code run on a server (a VPS, a home server, any
 Linux box) instead of on the phone. The phone only shows the UI: chats, the editor, the terminal. The agents, your
@@ -28,7 +28,7 @@ server runs*, pick one:
 
 ```
 SSH tunnel mode (recommended)
-phone (AntiGem app)                                   server
+phone (DuiAI app)                                   server
  └─ SSH (port 22)  ─────────────────────────────────►  sshd
       · phone 127.0.0.1:1234 ──(tunnel)──► bridge   (REST + WebSocket)  on the server's 127.0.0.1:1234
       · phone 127.0.0.1:1235 ──(tunnel)──► agy hub  (gRPC over HTTP/2)   on the server's 127.0.0.1:1235
@@ -38,7 +38,7 @@ phone (AntiGem app)                                   server
       · adb: the server's adb reaches the phone's adb (optional)
 
 Server mode (domain or open ports)
-phone (AntiGem app)                              server
+phone (DuiAI app)                              server
  ├─ https://bridge.example.com  ──────────────►  bridge   (REST + WebSocket)   :1234
  ├─ https://hub.example.com     ──────────────►  agy hub  (gRPC over HTTP/2)    :1235
  └─ SSH (port 22)               ──────────────►  sshd (start / stop, terminal, reverse tunnels, adb, as above)
@@ -72,7 +72,7 @@ phone (AntiGem app)                              server
 * **Only this app on this phone can use it.** A desktop browser or a second device cannot reach the bridge unless you
   open your own `ssh -L` tunnel there.
 * **The ports must be free on the phone.** The tunnel opens the bridge and hub ports on the phone's `127.0.0.1`. If
-  something else on the phone already uses them (for example the local bridge of the old `com.termux` build of AntiGem on
+  something else on the phone already uses them (for example the local bridge of the old `com.termux` build of DuiAI on
   the same ports), the tunnel cannot open: use other ports in the addresses.
 * **The SSH key is the master key.** Whoever has it has the bridge too (in Server mode they have a shell anyway, so this
   is no worse, but protect the key).
@@ -131,7 +131,7 @@ Contents
 
 * Linux, x86_64 (most VPS) or aarch64 (ARM VPS, Raspberry Pi). Check with `uname -m`.
 * `sshd`, `tmux` (strongly recommended: the bridge keeps running when the SSH connection drops) and `git`.
-* A **normal user** for AntiGem, not root. The bridge can read and write everything that user can.
+* A **normal user** for DuiAI, not root. The bridge can read and write everything that user can.
 * About 1 GB of RAM free for the agents. Node.js 18 or newer only if you use browser plugins.
 
 **Reaching it from the phone: pick one**
@@ -148,7 +148,7 @@ See [Two ways to connect](#two-ways-to-connect-which-one-to-use) for the pros an
 > the path can read it, and with it read and write files and run commands on your server. Plain `http://` is fine on a
 > private network or a VPN (Tailscale, WireGuard).
 
-**Phone:** the AntiGem app. It needs internet access to the server while you use it.
+**Phone:** the DuiAI app. It needs internet access to the server while you use it.
 
 ---
 
@@ -168,10 +168,10 @@ sudo apt install -y nodejs
 Create the user (skip if you already have one) and make sure it can log in over SSH:
 
 ```bash
-sudo adduser antigem
+sudo adduser dui
 ```
 
-Everything below is done **as that user** (`su - antigem` or SSH in as `antigem`).
+Everything below is done **as that user** (`su - dui` or SSH in as `dui`).
 
 ---
 
@@ -186,7 +186,7 @@ You need Go. Use the version in `agy_ide_bridge/go.mod` (the `go` line) or newer
 
 ```bash
 git clone <this repository>
-cd antiGem/agy_ide_bridge
+cd DuiAI/agy_ide_bridge
 
 # 64-bit Intel/AMD server (x86_64), the usual VPS:
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o agy_ide_bridge_linux_amd64 .
@@ -208,13 +208,13 @@ bridge ("matches the app" in green).
 
 ### 3.2 Copy it to the default location
 
-The app looks for the bridge at `~/.antigem/agy_ide_bridge` by default (`~` is the SSH user's home).
+The app looks for the bridge at `~/.dui/agy_ide_bridge` by default (`~` is the SSH user's home).
 
 ```bash
 # from your PC
-ssh antigem@your.server 'mkdir -p ~/.antigem'
-scp agy_ide_bridge_linux_amd64 antigem@your.server:~/.antigem/agy_ide_bridge
-ssh antigem@your.server 'chmod +x ~/.antigem/agy_ide_bridge'
+ssh dui@your.server 'mkdir -p ~/.dui'
+scp agy_ide_bridge_linux_amd64 dui@your.server:~/.dui/agy_ide_bridge
+ssh dui@your.server 'chmod +x ~/.dui/agy_ide_bridge'
 ```
 
 `chmod +x` is required: a file copied with `scp` is often not executable.
@@ -222,7 +222,7 @@ ssh antigem@your.server 'chmod +x ~/.antigem/agy_ide_bridge'
 ### 3.3 Check it
 
 ```bash
-~/.antigem/agy_ide_bridge --help
+~/.dui/agy_ide_bridge --help
 ```
 
 You should see the list of flags. If you see `cannot execute binary file` you copied the wrong CPU build (compare
@@ -255,7 +255,7 @@ bridge starts fine without `agy` for this reason.
 
 Check: `~/.local/bin/agy --version`.
 
-> **The `agy` file must be writable by the AntiGem user.** When the bridge starts the hub it writes the security token
+> **The `agy` file must be writable by the DuiAI user.** When the bridge starts the hub it writes the security token
 > into the `agy` binary (a small in-place patch). Keep it in your own home (`~/.local/bin`), not in `/usr/bin` as
 > root, or the hub will refuse to start with "Failed to patch AGY binary". If the installed `agy` is a small wrapper script,
 > the bridge patches the large `agy.va39` file next to it.
@@ -285,7 +285,7 @@ else, find it with `command -v claude` and put that path in the app.
 ### Quick check of everything
 
 ```bash
-ls -l ~/.antigem/agy_ide_bridge ~/.local/bin/agy ~/.local/bin/claude
+ls -l ~/.dui/agy_ide_bridge ~/.local/bin/agy ~/.local/bin/claude
 ```
 
 The bridge must exist and have an `x` in the permissions. `agy` and `claude` can also be installed later from the app
@@ -300,12 +300,12 @@ The app logs in over SSH to start and stop the bridge. A **private key** is bett
 On your PC (or on the phone with any SSH app):
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/antigem_server -C "antigem-phone"
-ssh-copy-id -i ~/.ssh/antigem_server.pub antigem@your.server
-ssh -i ~/.ssh/antigem_server antigem@your.server        # must log in without a password
+ssh-keygen -t ed25519 -f ~/.ssh/dui_server -C "dui-phone"
+ssh-copy-id -i ~/.ssh/dui_server.pub dui@your.server
+ssh -i ~/.ssh/dui_server dui@your.server        # must log in without a password
 ```
 
-Then get the **private** key (`~/.ssh/antigem_server`, the file without `.pub`) to the phone: copy its text and use
+Then get the **private** key (`~/.ssh/dui_server`, the file without `.pub`) to the phone: copy its text and use
 *Paste key* in the app, or save the file on the phone and use *Choose key file*. Keep it private; delete it from
 shared places afterwards.
 
@@ -345,7 +345,7 @@ The rest of section 6 is about **Server mode**.
 | Bridge | **1234** | REST + WebSocket: files, git, chats relay, Claude, plugins |
 | Hub (`agy`) | **1235** | gRPC over HTTP/2: Antigravity chats |
 
-AntiGem (`ai.antigem`) uses **1236 / 1237** by default; the old `com.termux` build used 1234 / 1235. The app shows the numbers under the address boxes and as placeholders in *Ports on the
+DuiAI (`ai.dui`) uses **1236 / 1237** by default; the old `com.termux` build used 1234 / 1235. The app shows the numbers under the address boxes and as placeholders in *Ports on the
 server*. Use those numbers wherever this guide says 1234 / 1235.
 
 How the app starts the services depends on the address you type:
@@ -381,7 +381,7 @@ them, on the loopback.
 
 ### nginx
 
-Save as `/etc/nginx/conf.d/antigem.conf`, then `sudo nginx -t && sudo systemctl reload nginx`.
+Save as `/etc/nginx/conf.d/dui.conf`, then `sudo nginx -t && sudo systemctl reload nginx`.
 
 ```nginx
 map $http_upgrade $connection_upgrade { default upgrade; '' close; }
@@ -505,11 +505,11 @@ forward / a VPN.
 ## 8b. Second layer: a secret header checked by the proxy (recommended)
 
 The bridge's own token is one lock. This adds a second, independent one **in front** of it: the app adds a header such
-as `X-AntiGem-Key: <20 random characters>` to every request, and the reverse proxy closes the connection for any request
+as `X-DuiAI-Key: <20 random characters>` to every request, and the reverse proxy closes the connection for any request
 without exactly that value. A stranger who finds your sub-domains (certificate names are public) gets nothing from the
 bridge or from agy, even if one of them had a bug.
 
-1. In the app, **Settings > Servers > Proxy access header**: keep the name `X-AntiGem-Key` (letters, digits and dashes
+1. In the app, **Settings > Servers > Proxy access header**: keep the name `X-DuiAI-Key` (letters, digits and dashes
    only), tap **Generate** for the value, and tap **Copy nginx rule**. Leave the value empty to turn the feature off.
 2. Put the same value in the proxy, in **every** server block of the bridge **and** of the hub, on **every** port that
    reaches them (443, and 80 or 8081 if you serve them there too):
@@ -517,11 +517,11 @@ bridge or from agy, even if one of them had a bug.
    nginx (a `map` once in `http { }`, the `if` in each `server { }`):
 
    ```nginx
-   map $http_x_antigem_key $antigem_key_ok { default 0; "PASTE-THE-VALUE-HERE" 1; }
+   map $http_x_dui_key $dui_key_ok { default 0; "PASTE-THE-VALUE-HERE" 1; }
 
    server {
        server_name bridge.example.com;
-       if ($antigem_key_ok = 0) { return 444; }      # 444 = close the connection without an answer
+       if ($dui_key_ok = 0) { return 444; }      # 444 = close the connection without an answer
        ...
    }
    ```
@@ -529,7 +529,7 @@ bridge or from agy, even if one of them had a bug.
    Caddy (inside each site block):
 
    ```caddyfile
-   @nokey not header X-AntiGem-Key "PASTE-THE-VALUE-HERE"
+   @nokey not header X-DuiAI-Key "PASTE-THE-VALUE-HERE"
    abort @nokey
    ```
 
@@ -537,7 +537,7 @@ bridge or from agy, even if one of them had a bug.
 
    ```apache
    RewriteEngine On
-   RewriteCond %{HTTP:X-AntiGem-Key} !^PASTE-THE-VALUE-HERE$
+   RewriteCond %{HTTP:X-DuiAI-Key} !^PASTE-THE-VALUE-HERE$
    RewriteRule ^ - [F]
    ```
 3. Reload the proxy, then in the app tap **Test Bridge** and **Test Hub**: both send the header. If you set it in the app
@@ -605,10 +605,10 @@ Open **Settings > Servers**.
 
    | Field | Default | Meaning |
    |---|---|---|
-   | Bridge binary on the server | `~/.antigem/agy_ide_bridge` | where you copied the bridge (step 3) |
+   | Bridge binary on the server | `~/.dui/agy_ide_bridge` | where you copied the bridge (step 3) |
    | agy binary on the server | `~/.local/bin/agy` | your Antigravity CLI (step 4) |
    | claude binary on the server | `~/.local/bin/claude` | your Claude Code CLI (step 4) |
-   | Bridge folder (in the server home) | `.antigem` | the bridge's folder; its log is `<folder>/bridge.log`. Changing it moves the default bridge path with it |
+   | Bridge folder (in the server home) | `.dui` | the bridge's folder; its log is `<folder>/bridge.log`. Changing it moves the default bridge path with it |
 
    `~` means the SSH user's home on the server. The agy path is only used when Antigravity is enabled in the app, and the
    claude path only when Claude Code is enabled. If an agent file does not exist at its path, the bridge still starts and
@@ -636,7 +636,7 @@ servers.
 
 ## 10. First start and sign-in
 
-After **Reopen** the app connects over SSH and starts the bridge in a tmux session named `antigem-bridge`.
+After **Reopen** the app connects over SSH and starts the bridge in a tmux session named `dui-bridge`.
 **Settings > Servers > Server control** shows the state, the SSH connection, the tunnels and the server log. You can
 also use **Start**, **Restart** and **Stop** there.
 
@@ -719,8 +719,8 @@ The app never updates anything on the server. You update these yourself:
 * **The bridge** (after you update the app or the source): build the new binary (step 3.1), then in the app tap
   **Stop**, copy it over, **Start**:
   ```bash
-  scp agy_ide_bridge_linux_amd64 antigem@your.server:~/.antigem/agy_ide_bridge.new
-  ssh antigem@your.server 'chmod +x ~/.antigem/agy_ide_bridge.new && mv -f ~/.antigem/agy_ide_bridge.new ~/.antigem/agy_ide_bridge'
+  scp agy_ide_bridge_linux_amd64 dui@your.server:~/.dui/agy_ide_bridge.new
+  ssh dui@your.server 'chmod +x ~/.dui/agy_ide_bridge.new && mv -f ~/.dui/agy_ide_bridge.new ~/.dui/agy_ide_bridge'
   ```
   Copying to `.new` and then `mv` avoids "Text file busy" and half-written files. Tap **Restart server** (or **Start**)
   in the app afterwards. The app compares the bridge's version with its own on every launch and shows an
@@ -740,8 +740,8 @@ Work from the bottom up. Each layer must work before the next one can.
 | # | Check | Where | Expected |
 |---|---|---|---|
 | 1 | **Test SSH** in the app | phone | "SSH works" |
-| 2 | binary is there | server: `ls -l ~/.antigem/agy_ide_bridge` | has `x`, right CPU |
-| 3 | bridge is running | server: `tmux ls` | session `antigem-bridge` |
+| 2 | binary is there | server: `ls -l ~/.dui/agy_ide_bridge` | has `x`, right CPU |
+| 3 | bridge is running | server: `tmux ls` | session `dui-bridge` |
 | 4 | bridge answers locally | server: `curl -s http://127.0.0.1:1234/api/health` | `{"status":"ok",…}` |
 | 5 | ports are open locally | server: `ss -ltnp \| grep -E '1234\|1235'` | both listening |
 | 6 | proxy reaches it | anywhere: `curl -s https://bridge.example.com/api/health` | same JSON |
@@ -753,8 +753,8 @@ If step 4 works but 6 does not, the problem is DNS, the firewall, TLS or the pro
 ### 14.2 Logs
 
 * **In the app:** Settings > Servers > Server control > **Server log** (Refresh to update).
-* **On the server:** `tail -f ~/.antigem/bridge.log` (or `<Bridge folder>/bridge.log`).
-* **Live:** `tmux attach -t antigem-bridge` (leave with `Ctrl-b` then `d`, never `Ctrl-c`, which stops the bridge).
+* **On the server:** `tail -f ~/.dui/bridge.log` (or `<Bridge folder>/bridge.log`).
+* **Live:** `tmux attach -t dui-bridge` (leave with `Ctrl-b` then `d`, never `Ctrl-c`, which stops the bridge).
 * **nginx:** `/var/log/nginx/error.log` and `access.log`. **sshd:** `journalctl -u ssh` (or `sshd`).
 
 ### 14.3 Messages and what to do
@@ -762,7 +762,7 @@ If step 4 works but 6 does not, the problem is DNS, the firewall, TLS or the pro
 | What the app says | Cause and fix |
 |---|---|
 | *The bridge is not on the server. Copy agy_ide_bridge_linux_… there yourself* | The file is missing at the configured path. Do step 3 (or fix the path in Advanced). |
-| *The bridge on the server is not executable* | `chmod +x ~/.antigem/agy_ide_bridge` |
+| *The bridge on the server is not executable* | `chmod +x ~/.dui/agy_ide_bridge` |
 | *The bridge path on the server is a folder* | The path points to a directory; point it at the file. |
 | Settings > Agents: *agy was not found on the server* | Tap **Install agy**, or run the installer from step 4 on the server. If it is installed elsewhere, set *agy binary on the server*. |
 | Settings > Agents: *The bridge is older than the app (no agy support)* | Update the bridge (step 13). |
@@ -770,7 +770,7 @@ If step 4 works but 6 does not, the problem is DNS, the firewall, TLS or the pro
 | *The bridge stopped right after it was started* + last log lines | It crashed. Read the lines. Common: port already in use, cannot write the `agy` file, wrong CPU. |
 | *The bridge did not come up on the server in time* | Slow server or hung start; read the log, then Restart. |
 | *The bridge is running on the server but the app cannot reach https://…* | The bridge is fine; the path from the phone is not. Check DNS, firewall, certificate and the proxy (`curl` from your PC). Start does not kill it; Restart does. |
-| *The bridge is still running on the server after the stop request* | Something keeps it alive. `pgrep -af agy_ide_bridge`, then `kill` it, or `tmux kill-session -t antigem-bridge`. |
+| *The bridge is still running on the server after the stop request* | Something keeps it alive. `pgrep -af agy_ide_bridge`, then `kill` it, or `tmux kill-session -t dui-bridge`. |
 | *Could not stop the bridge: SSH is not connected* | Fix SSH first (Test SSH), then Stop again. |
 | *SSH login failed* | Wrong user, password or key (or passphrase). Try the same login from a PC. |
 | *SSH connection timed out / refused* | Wrong host or port, firewall, or sshd not running. |
@@ -789,7 +789,7 @@ If the log says `address already in use`, something else holds the port (often a
 ```bash
 ss -ltnp | grep -E '1234|1235'          # who holds it
 pgrep -af agy_ide_bridge                # old bridges
-tmux kill-session -t antigem-bridge     # the app's session
+tmux kill-session -t dui-bridge     # the app's session
 pkill -f 'agy --hub-port'               # a leftover hub
 ```
 
@@ -809,8 +809,8 @@ Token card). A `401` with the right token almost always means the proxy dropped 
 ### 14.6 Start from scratch
 
 1. In the app: **Stop**.
-2. On the server: `tmux kill-session -t antigem-bridge; pkill -f agy_ide_bridge; pkill -f 'agy --hub-port'`.
-3. Check `~/.antigem/agy_ide_bridge --help` works, then **Start** in the app.
+2. On the server: `tmux kill-session -t dui-bridge; pkill -f agy_ide_bridge; pkill -f 'agy --hub-port'`.
+3. Check `~/.dui/agy_ide_bridge --help` works, then **Start** in the app.
 
 Your chats and projects are not touched by any of this.
 
@@ -820,7 +820,7 @@ Your chats and projects are not touched by any of this.
 
 ### 15.1 There is no guarantee
 
-* AntiGem's bridge gives whoever controls it **the same power as the server user**: read and write every file that user
+* DuiAI's bridge gives whoever controls it **the same power as the server user**: read and write every file that user
   can, run the agents (which run commands), use git, read the keys and logins in that home folder.
 * The software is young and **has not been independently audited**. It has had bugs in exactly this area (for example a
   version of the bridge once sent its secret token back in a response header; it is fixed, but that shows how things go
@@ -873,7 +873,7 @@ in your device settings and protect the phone with a lock screen.
 
 ### 15.4 Hardening checklist (do as much as you can)
 
-* A **dedicated VPS** and a **dedicated user without sudo** for AntiGem. Nothing else of value on that machine.
+* A **dedicated VPS** and a **dedicated user without sudo** for DuiAI. Nothing else of value on that machine.
 * **Updates:** keep the OS, nginx/Apache/Caddy and sshd updated; rebuild and replace the bridge when the app shows the
   "Update the IDE bridge" dialog (it contains fixes).
 * **Firewall:** allow only SSH, 80 and 443 (section 8b), for IPv4 **and** IPv6. Docker publishes ports around `ufw`.
@@ -904,46 +904,46 @@ Apache: `403`. If you get `{"status":"ok",...}` the check is **not active** for 
 
 **2. A wrong value is refused too**
 ```bash
-curl -i -H "X-AntiGem-Key: not-the-value" https://bridge.example.com/api/health
+curl -i -H "X-DuiAI-Key: not-the-value" https://bridge.example.com/api/health
 ```
 Same expectation as above. If it answers, the proxy checks that the header exists, not its value.
 
 **3. The right value gets through**
 ```bash
-curl -i -H "X-AntiGem-Key: KEY" https://bridge.example.com/api/health
+curl -i -H "X-DuiAI-Key: KEY" https://bridge.example.com/api/health
 ```
 Expected: `200` and a small JSON with `"status":"ok"` and a `"version"`.
 
 **4. The token is required** (the bridge itself, behind the proxy)
 ```bash
-curl -i -H "X-AntiGem-Key: KEY" https://bridge.example.com/api/server/info
+curl -i -H "X-DuiAI-Key: KEY" https://bridge.example.com/api/server/info
 ```
 Expected: `401` (`unauthorized`). **If this answers 200, authentication is broken. Stop and fix it.**
 
 **5. A wrong token is refused**
 ```bash
-curl -i -H "X-AntiGem-Key: KEY" -H "x-agWRONGWRONG1_9qx: true" https://bridge.example.com/api/server/info
+curl -i -H "X-DuiAI-Key: KEY" -H "x-agWRONGWRONG1_9qx: true" https://bridge.example.com/api/server/info
 ```
 Expected: `401`.
 
 **6. The token in the URL is not accepted**
 ```bash
-curl -i -H "X-AntiGem-Key: KEY" "https://bridge.example.com/api/server/info?token=TOKEN"
+curl -i -H "X-DuiAI-Key: KEY" "https://bridge.example.com/api/server/info?token=TOKEN"
 ```
 Expected: `401`.
 
 **7. The right token works**
 ```bash
-curl -i -H "X-AntiGem-Key: KEY" -H "x-agTOKEN_9qx: true" https://bridge.example.com/api/server/info
+curl -i -H "X-DuiAI-Key: KEY" -H "x-agTOKEN_9qx: true" https://bridge.example.com/api/server/info
 ```
 Expected: `200` with `os`, `arch`, `home`. If it is `401` with the right token, the proxy removes headers with an
 underscore (nginx: `underscores_in_headers on;` in `http { }`).
 
 **8. The secret never comes back in an answer**
 ```bash
-curl -si -X OPTIONS -H "X-AntiGem-Key: KEY" https://bridge.example.com/anything
-curl -si -H "X-AntiGem-Key: KEY" https://bridge.example.com/api/file/read
-curl -si -H "X-AntiGem-Key: KEY" https://bridge.example.com/does-not-exist
+curl -si -X OPTIONS -H "X-DuiAI-Key: KEY" https://bridge.example.com/anything
+curl -si -H "X-DuiAI-Key: KEY" https://bridge.example.com/api/file/read
+curl -si -H "X-DuiAI-Key: KEY" https://bridge.example.com/does-not-exist
 ```
 Read all the response headers and bodies: the token (and `x-ag…_9qx`) must appear **nowhere**. An old bridge did leak it
 here, so check this on every bridge you run.
@@ -951,7 +951,7 @@ here, so check this on every bridge you run.
 **9. The hub**
 ```bash
 curl -i https://hub.example.com/                              # expected: no answer / 403 (no access header)
-curl -i -H "X-AntiGem-Key: KEY" https://hub.example.com/      # expected: 200, an HTML page (public by design)
+curl -i -H "X-DuiAI-Key: KEY" https://hub.example.com/      # expected: 200, an HTML page (public by design)
 ```
 `agy` itself refuses calls without the secret header; the app's **Test Hub** button and a real chat are the real test.
 
@@ -981,7 +981,7 @@ checking it.
 
 **14. The proxy really runs your file**
 ```bash
-sudo nginx -T | grep -n antigem_key        # your map and your checks must be in the loaded configuration
+sudo nginx -T | grep -n dui_key        # your map and your checks must be in the loaded configuration
 sudo systemctl status nginx                 # when did it last reload?
 ```
 
@@ -1011,7 +1011,7 @@ and it can be wrong in both directions. If you find a real problem, please repor
 
 ### 15.7 If you think the server was hacked
 
-1. Stop the bridge: `tmux kill-session -t antigem-bridge; pkill -f agy_ide_bridge; pkill -f 'agy --hub-port'`.
+1. Stop the bridge: `tmux kill-session -t dui-bridge; pkill -f agy_ide_bridge; pkill -f 'agy --hub-port'`.
 2. Remove the SSH keys you used from `~/.ssh/authorized_keys` and change the passwords; check that file, `crontab -l`
    and `~/.bashrc` for things you did not add.
 3. On the phone: forget the paired computer in *Developer options > Wireless debugging* and turn adb off.
@@ -1033,7 +1033,7 @@ and it can be wrong in both directions. If you find a real problem, please repor
 The app does this for you inside tmux, but the command is:
 
 ```bash
-~/.antigem/agy_ide_bridge -f --token <12 chars> -p 1234 --hub-port 1235 --bind 127.0.0.1 \
+~/.dui/agy_ide_bridge -f --token <12 chars> -p 1234 --hub-port 1235 --bind 127.0.0.1 \
     --bin ~/.local/bin/agy --claude-bin ~/.local/bin/claude
 ```
 
@@ -1047,5 +1047,5 @@ The app does this for you inside tmux, but the command is:
 | `--no-hub`, `--no-claude` | do not run Antigravity / Claude Code (the app adds these when you turn an agent off) |
 | `--tz-offset` | timezone offset in seconds (the app sends the phone's) |
 
-Run it by hand only to debug (stop the app's session first: `tmux kill-session -t antigem-bridge`), and read its output
+Run it by hand only to debug (stop the app's session first: `tmux kill-session -t dui-bridge`), and read its output
 directly. The exact command the app uses is visible in `ps aux | grep agy_ide_bridge` while it runs.

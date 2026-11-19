@@ -59,7 +59,7 @@ export class BrowserAPI {
     if (isSignInPage((await this.tab(tabId)).url)) throw new Error('Extensions are paused on Google sign-in pages');
     const nativeId = this.native(tabId); let info;
     if (process.env.AGY_CDP_URL) {
-      await this.bridge('eval', { tab_id: nativeId, script: `window.__antigemTabId=${JSON.stringify(nativeId)}` });
+      await this.bridge('eval', { tab_id: nativeId, script: `window.__duiTabId=${JSON.stringify(nativeId)}` });
       info = { url: process.env.AGY_CDP_URL };
     } else info = await this.bridge('devtools', { tab_id: nativeId });
     const endpoint = info.socket ? { socket: info.socket } : { url: info.url };
@@ -67,7 +67,7 @@ export class BrowserAPI {
     for (const target of targets.filter(t => t.type === 'page')) {
       if ([...this.connections.values()].some(c => c.targetId === target.id && !c.closed)) continue;
       const connection = await DevToolsConnection.connect(endpoint, target.id);
-      const result = await connection.send('Runtime.evaluate', { expression: 'window.__antigemTabId', returnByValue: true });
+      const result = await connection.send('Runtime.evaluate', { expression: 'window.__duiTabId', returnByValue: true });
       if (result.result?.value !== nativeId) { connection.close(); continue; }
       connection.targetId = target.id; connection.tabId = tabId; this.connections.set(tabId, connection);
       connection.on('event', (name, params) => { this.host.onDevToolsEvent(tabId, name, params).catch(e => console.error(e)); for (const extension of this.debuggers.get(tabId) || []) this.host.broadcast(extension, 'debugger.onEvent', [{ tabId }, name, params]); });
@@ -128,7 +128,7 @@ export class BrowserAPI {
     if (method === 'tabs.executeScript') { const tab = await this.tab(args.tabId); const d = args.details || {}; const res = await this.execute(extension, { target: { tabId: tab.id }, files: d.file ? [d.file] : undefined, func: d.code ? `()=>{return eval(${JSON.stringify(d.code)})}` : undefined }); return res.map(r => r.result); }
     if (method === 'scripting.insertCSS' || method === 'scripting.removeCSS') {
       const d = args[0], tab = await this.checkAccess(extension, d.target.tabId); const css = d.css ?? (d.files || []).map(f => fs.readFileSync(safeFile(extension.dir, f), 'utf8')).join('\n');
-      await this.evaluate(tab.id, `(()=>{const key=${JSON.stringify(extension.id + ':' + css)};const nodes=[...document.querySelectorAll('style[data-antigem-style]')];${method.endsWith('removeCSS') ? "nodes.filter(e=>e.dataset.antigemStyle===key).forEach(e=>e.remove())" : `if(!nodes.some(e=>e.dataset.antigemStyle===key)){const e=document.createElement('style');e.dataset.antigemStyle=key;e.textContent=${JSON.stringify(css)};(document.head||document.documentElement).appendChild(e)}`} })()`); return;
+      await this.evaluate(tab.id, `(()=>{const key=${JSON.stringify(extension.id + ':' + css)};const nodes=[...document.querySelectorAll('style[data-dui-style]')];${method.endsWith('removeCSS') ? "nodes.filter(e=>e.dataset.duiStyle===key).forEach(e=>e.remove())" : `if(!nodes.some(e=>e.dataset.duiStyle===key)){const e=document.createElement('style');e.dataset.duiStyle=key;e.textContent=${JSON.stringify(css)};(document.head||document.documentElement).appendChild(e)}`} })()`); return;
     }
     if (method.startsWith('debugger.')) {
       if (method === 'debugger.getTargets') return (await this.tabs()).map(t => ({ id: String(t.id), tabId: t.id, type: 'page', title: t.title, url: t.url, attached: !!this.debuggers.get(t.id)?.size }));

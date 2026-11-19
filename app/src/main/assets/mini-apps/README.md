@@ -1,6 +1,6 @@
-# AntiGem Mini Apps: guide for agents
+# DuiAI Mini Apps: guide for agents
 
-A mini app is a plain folder of HTML/CSS/JS that AntiGem opens full screen like a real Android app. It gets its own
+A mini app is a plain folder of HTML/CSS/JS that DuiAI opens full screen like a real Android app. It gets its own
 Recents card and home-screen icon, and native pages, dialogs, storage, files, network and notifications. The WebView
 only renders. Everything else is native and gated by permissions the user grants.
 
@@ -21,9 +21,9 @@ only renders. Everything else is native and gated by permissions the user grants
 ```
 
 - No build step. Write plain HTML, CSS and JS. ES modules (`<script type="module">`) and relative imports work.
-- Each app is served at its own origin, `https://<slug>.antigem.invalid/`, where the app folder is the root
+- Each app is served at its own origin, `https://<slug>.dui.invalid/`, where the app folder is the root
   (`/style.css` is `my-app/style.css`).
-- The runtime injects `/_antigem/sdk.js` at the top of `<head>` of every HTML page, so `window.AntiGem` exists before
+- The runtime injects `/_dui/sdk.js` at the top of `<head>` of every HTML page, so `window.DuiAI` exists before
   your scripts run. Don't include it yourself.
 - Paths that aren't files and have no extension fall back to the entry page, so SPA routing works.
 
@@ -64,7 +64,7 @@ only renders. Everything else is native and gated by permissions the user grants
 
 An app can only use what it declares, and the user grants each declared permission (like Android). Undeclared or
 denied capabilities reject with a `DOMException` named `NotAllowedError`. The app's private `data/` folder,
-`localStorage`, `AntiGem.storage`, IndexedDB and the native UI need no permission.
+`localStorage`, `DuiAI.storage`, IndexedDB and the native UI need no permission.
 
 | Name | Declaration | Gives |
 |---|---|---|
@@ -76,7 +76,7 @@ denied capabilities reject with a `DOMException` named `NotAllowedError`. The ap
 | `clipboard` | `true` | Read the clipboard (writing is always allowed) |
 | `camera` | `true` | Camera through getUserMedia |
 | `microphone` | `true` | Microphone |
-| `mcp` | `["notes_mcp", "theme_mcp"]` | Call AntiGem MCP tool servers. Each one is the permission `mcp:<server>` |
+| `mcp` | `["notes_mcp", "theme_mcp"]` | Call DuiAI MCP tool servers. Each one is the permission `mcp:<server>` |
 
 ### Storage
 
@@ -94,7 +94,7 @@ denied capabilities reject with a `DOMException` named `NotAllowedError`. The ap
 - Each folder is its own permission (`storage:<path>`): the user can allow some folders and not others. The access
   comes from the manifest only, the user just allows or denies it: `read` (read, list), `write` (create, change,
   delete; no reading), `readwrite`.
-- `pick`: the app may call `AntiGem.fs.pickFolder()`; the user then chooses any folder in AntiGem's file explorer and
+- `pick`: the app may call `DuiAI.fs.pickFolder()`; the user then chooses any folder in DuiAI's file explorer and
   the app gets that access to it.
 - In the list form (`"permissions": ["storage"]`) storage is ignored: name the folders.
 - `"storage": true` (or `{"full": true, "access": "read"}`) asks for **all files**. That, a folder like `~/`, `/sdcard`,
@@ -110,126 +110,126 @@ Apps of one developer can share files, like Android apps with the same sharedUse
 permission prompt:
 
 ```js
-await AntiGem.fs.write('app:com.you.notes/inbox/todo.txt', 'from Tasks');
-const list = await AntiGem.fs.list('app:com.you.notes/inbox');
-const groups = (await AntiGem.fs.folders()).filter(f => f.source === 'shared'); // [{path: 'app:com.you.notes', app: {id, name}}]
+await DuiAI.fs.write('app:com.you.notes/inbox/todo.txt', 'from Tasks');
+const list = await DuiAI.fs.list('app:com.you.notes/inbox');
+const groups = (await DuiAI.fs.folders()).filter(f => f.source === 'shared'); // [{path: 'app:com.you.notes', app: {id, name}}]
 ```
 
 - Installed apps share only with installed apps signed with the **same key**: a package whose `shared_id` group already
   has an app signed by another key is not installed. Development apps share only with other development apps.
-- Only the `data/` folder is shared (`AntiGem.storage`, IndexedDB and cookies stay per app). Uninstalling an app deletes
+- Only the `data/` folder is shared (`DuiAI.storage`, IndexedDB and cookies stay per app). Uninstalling an app deletes
   its `data/` for the whole group.
 - The install screen and App info show which apps share data.
 
-Never reachable, whatever is granted: other mini apps' code (`~/mini-apps/`) and data (`~/.antigem/`; only its
-`shared_id` group's `data/` folders), hidden folders in home (`~/.ssh`, `~/.codex`, …), anything outside home and `/sdcard`, and AntiGem's own local ports.
+Never reachable, whatever is granted: other mini apps' code (`~/mini-apps/`) and data (`~/.dui/`; only its
+`shared_id` group's `data/` folders), hidden folders in home (`~/.ssh`, `~/.codex`, …), anything outside home and `/sdcard`, and DuiAI's own local ports.
 Widening a permission in the manifest (more hosts, ports or access) asks the user again; narrowing or reordering
 keeps the user's choice. Ignored or suspicious manifest entries are printed as warnings in the app's console.
 
 Ask for the least you need. Most apps need no network at all. States are `granted`, `denied` and `prompt`
-(the user hasn't decided yet: the first use or `AntiGem.permissions.request()` shows a native prompt).
+(the user hasn't decided yet: the first use or `DuiAI.permissions.request()` shows a native prompt).
 
-## The AntiGem API
+## The DuiAI API
 
 ```js
-AntiGem.app      // {id, name, version, origin}
-AntiGem.page     // {id, path, params, root, background}: params = the query string as an object; root = the first page; background = a background task
-AntiGem.ready    // Promise. Calls made earlier are queued, so awaiting is optional
-AntiGem.theme    // {dark, colors: {primary: '#rrggbb', ...}}, also live CSS variables --ag-*
-AntiGem.on(event, fn) / AntiGem.off(event, fn)
+DuiAI.app      // {id, name, version, origin}
+DuiAI.page     // {id, path, params, root, background}: params = the query string as an object; root = the first page; background = a background task
+DuiAI.ready    // Promise. Calls made earlier are queued, so awaiting is optional
+DuiAI.theme    // {dark, colors: {primary: '#rrggbb', ...}}, also live CSS variables --ag-*
+DuiAI.on(event, fn) / DuiAI.off(event, fn)
 //   'theme' (theme changed) · 'resume' / 'pause' (page shown/hidden) · 'storage' ({key}: another page changed a key)
 //   'permission' ({name, state})
 
 // Key-value storage: synchronous, JSON values, native, shared by every page of the app
-AntiGem.storage.get(key, fallback?) · set(key, value) · remove(key) · keys() · clear()
+DuiAI.storage.get(key, fallback?) · set(key, value) · remove(key) · keys() · clear()
 
 // Files: "data/..." = the app's private folder (always allowed); "~/..." or "/sdcard/..." need a granted storage folder
-await AntiGem.fs.read(path, {encoding: 'utf8' | 'base64'}?)   // string
-await AntiGem.fs.readJSON(path)
-await AntiGem.fs.write(path, stringOrArrayBufferOrUint8ArrayOrBlob, {append}?)
-await AntiGem.fs.writeJSON(path, value)
-await AntiGem.fs.list(path)      // [{name, path, type: 'file' | 'dir', size, mtime}]
-await AntiGem.fs.stat(path)      // {name, path, type, size, mtime} or null
-await AntiGem.fs.exists(path)
-await AntiGem.fs.mkdir(path) · delete(path, {recursive}?) · move(from, to)
-AntiGem.fs.url(path)             // URL for <img>, <video> or fetch, streamed natively
-await AntiGem.fs.pick({accept: 'image/*', multiple}?)   // native picker → [{name, path, size, type}], copied into data/imports/
-AntiGem.fs.url(path, {thumb: 320}) // a native JPEG thumbnail (photos, HEIC, video frames), cached: use it for grids
-await AntiGem.fs.pickFolder()        // AntiGem's file explorer → {path, access} | null (needs "pick" in the manifest)
-await AntiGem.fs.folders()           // [{path, access, source: "own" | "shared" | "manifest" | "picked"}]
-await AntiGem.fs.forgetFolder(path?) // give back a picked folder
+await DuiAI.fs.read(path, {encoding: 'utf8' | 'base64'}?)   // string
+await DuiAI.fs.readJSON(path)
+await DuiAI.fs.write(path, stringOrArrayBufferOrUint8ArrayOrBlob, {append}?)
+await DuiAI.fs.writeJSON(path, value)
+await DuiAI.fs.list(path)      // [{name, path, type: 'file' | 'dir', size, mtime}]
+await DuiAI.fs.stat(path)      // {name, path, type, size, mtime} or null
+await DuiAI.fs.exists(path)
+await DuiAI.fs.mkdir(path) · delete(path, {recursive}?) · move(from, to)
+DuiAI.fs.url(path)             // URL for <img>, <video> or fetch, streamed natively
+await DuiAI.fs.pick({accept: 'image/*', multiple}?)   // native picker → [{name, path, size, type}], copied into data/imports/
+DuiAI.fs.url(path, {thumb: 320}) // a native JPEG thumbnail (photos, HEIC, video frames), cached: use it for grids
+await DuiAI.fs.pickFolder()        // DuiAI's file explorer → {path, access} | null (needs "pick" in the manifest)
+await DuiAI.fs.folders()           // [{path, access, source: "own" | "shared" | "manifest" | "picked"}]
+await DuiAI.fs.forgetFolder(path?) // give back a picked folder
 
 // Permissions
-AntiGem.permissions.all()            // {name: state} for every declared permission
-AntiGem.permissions.query(name)      // 'granted' | 'denied' | 'prompt' | 'undeclared'
-await AntiGem.permissions.request(name)   // shows the native prompt → 'granted' | 'denied' | 'undeclared'
+DuiAI.permissions.all()            // {name: state} for every declared permission
+DuiAI.permissions.query(name)      // 'granted' | 'denied' | 'prompt' | 'undeclared'
+await DuiAI.permissions.request(name)   // shows the native prompt → 'granted' | 'denied' | 'undeclared'
 
 // Native UI
-AntiGem.ui.toast(text, {long}?)
-await AntiGem.ui.alert(msg | {title, message, ok})
-await AntiGem.ui.confirm(msg | {title, message, ok, cancel, destructive})   // boolean
-await AntiGem.ui.prompt(msg | {title, message, value, placeholder, ok, cancel})   // string or null
-await AntiGem.ui.sheet({title, items: [{id, label, icon?, destructive?}]})   // chosen id or null; icon = emoji
-await AntiGem.ui.pickDate({value?: 'YYYY-MM-DD', title?})   // string or null
-await AntiGem.ui.pickTime({value?: 'HH:MM'})                // string or null
-AntiGem.ui.viewMedia({items, index})  // native full-screen photo/video viewer: swipe, pinch/double-tap zoom, system video
+DuiAI.ui.toast(text, {long}?)
+await DuiAI.ui.alert(msg | {title, message, ok})
+await DuiAI.ui.confirm(msg | {title, message, ok, cancel, destructive})   // boolean
+await DuiAI.ui.prompt(msg | {title, message, value, placeholder, ok, cancel})   // string or null
+await DuiAI.ui.sheet({title, items: [{id, label, icon?, destructive?}]})   // chosen id or null; icon = emoji
+await DuiAI.ui.pickDate({value?: 'YYYY-MM-DD', title?})   // string or null
+await DuiAI.ui.pickTime({value?: 'HH:MM'})                // string or null
+DuiAI.ui.viewMedia({items, index})  // native full-screen photo/video viewer: swipe, pinch/double-tap zoom, system video
                                      // player, share. items: paths, https URLs or {src, type: 'image'|'video', title} → {index}
-AntiGem.ui.statusBar({color})        // any CSS color; icon contrast is automatic
+DuiAI.ui.statusBar({color})        // any CSS color; icon contrast is automatic
 
 // Device
-AntiGem.device.haptic(kind)          // 'light' | 'medium' | 'heavy' | 'selection' | 'success' | 'warning' | 'error'
-await AntiGem.device.share({title, text, url})
-await AntiGem.device.copy(text)
-await AntiGem.device.paste()         // needs `clipboard`
-AntiGem.device.openUrl(url)          // opens in the system browser
-await AntiGem.device.status()        // {network: {online, type, metered}, battery: {level, charging, saver}}
-AntiGem.on('network', n => {}) · AntiGem.on('battery', b => {})   // while the app is on screen, when they change
-await AntiGem.device.info()          // {manufacturer, model, android, sdk, dark, locale}
+DuiAI.device.haptic(kind)          // 'light' | 'medium' | 'heavy' | 'selection' | 'success' | 'warning' | 'error'
+await DuiAI.device.share({title, text, url})
+await DuiAI.device.copy(text)
+await DuiAI.device.paste()         // needs `clipboard`
+DuiAI.device.openUrl(url)          // opens in the system browser
+await DuiAI.device.status()        // {network: {online, type, metered}, battery: {level, charging, saver}}
+DuiAI.on('network', n => {}) · DuiAI.on('battery', b => {})   // while the app is on screen, when they change
+await DuiAI.device.info()          // {manufacturer, model, android, sdk, dark, locale}
 
 // Notifications (need `notifications`): see "Notifications" below
-await AntiGem.notify.show({id, title, body, ...})   // → {id}; same id updates in place
-await AntiGem.notify.channel({id, name, importance, sound, vibrate, lights, badge})
-await AntiGem.notify.active() · dismiss(id?) · deleteChannel(id)
-AntiGem.on('notification', e => {})  // {id, action: "tap" | "dismiss" | <button id>, reply?, queued?}
+await DuiAI.notify.show({id, title, body, ...})   // → {id}; same id updates in place
+await DuiAI.notify.channel({id, name, importance, sound, vibrate, lights, badge})
+await DuiAI.notify.active() · dismiss(id?) · deleteChannel(id)
+DuiAI.on('notification', e => {})  // {id, action: "tap" | "dismiss" | <button id>, reply?, queued?}
 // Reminders: kept natively, they fire with the app closed and survive restarts and reboots. Same id = replaced.
-await AntiGem.notify.schedule({id?, title, body, at?, delay?, repeat?, exact?, ...any notify.show option})   // → {id, at, repeat}
+await DuiAI.notify.schedule({id?, title, body, at?, delay?, repeat?, exact?, ...any notify.show option})   // → {id, at, repeat}
 //   at:     Date | epoch ms | "HH:MM" (next time of day) | "2026-12-24T18:00" (local)
 //   delay:  ms or "10m" / "2h" / "1d"
 //   repeat: "daily" | "weekly" | "weekdays" | "hourly" | "2h" | {every: "30m"} | {days: ["mon", "thu"], time?: "08:00"}
 //           plus optional until (Date/ms) and count (fire N times)
 //   exact:  default true (on time even in Doze); false lets Android batch it
-await AntiGem.notify.list()          // scheduled reminders: [{id, title, body, repeat, at}]
-await AntiGem.notify.cancel(id) · AntiGem.notify.cancelAll()   // cancel reminders (and the shown notification)
+await DuiAI.notify.list()          // scheduled reminders: [{id, title, body, repeat, at}]
+await DuiAI.notify.cancel(id) · DuiAI.notify.cancelAll()   // cancel reminders (and the shown notification)
 
 // Cookies: each app has a permanent cookie jar, sent automatically (fetch credentials: 'omit' turns it off)
-await AntiGem.cookies.list(url?)     // [{name, value, domain, path, expires, session, secure, httpOnly}]
-await AntiGem.cookies.get(url, name)
-await AntiGem.cookies.set({url, name, value, path?, domain?, expires?: Date|ms, maxAge?: s, secure?, httpOnly?})
-await AntiGem.cookies.import(url, "a=1; b=2", {days?})   // a "Cookie:" header the user pasted (e.g. a login)
-await AntiGem.cookies.delete({url?, name?, path?}) · AntiGem.cookies.clear(url?)
+await DuiAI.cookies.list(url?)     // [{name, value, domain, path, expires, session, secure, httpOnly}]
+await DuiAI.cookies.get(url, name)
+await DuiAI.cookies.set({url, name, value, path?, domain?, expires?: Date|ms, maxAge?: s, secure?, httpOnly?})
+await DuiAI.cookies.import(url, "a=1; b=2", {days?})   // a "Cookie:" header the user pasted (e.g. a login)
+await DuiAI.cookies.delete({url?, name?, path?}) · DuiAI.cookies.clear(url?)
 
 // Background tasks (need `background` + the manifest's background script). See "Background tasks".
-await AntiGem.background.register(name, {every: "1h"} | {delay: "10m"} | {at: "07:30", repeat: "daily"}, ...)
-await AntiGem.background.list() · cancel(name?) · run(name)
-AntiGem.background.on(name, async (task) => {...})   // in the background script
+await DuiAI.background.register(name, {every: "1h"} | {delay: "10m"} | {at: "07:30", repeat: "daily"}, ...)
+await DuiAI.background.list() · cancel(name?) · run(name)
+DuiAI.background.on(name, async (task) => {...})   // in the background script
 
 // Navigation: every page is a native screen (slide in, swipe or back to return)
-AntiGem.nav.push(path, params?)      // path relative to the app root, e.g. nav.push('item.html', {id: 7})
-AntiGem.nav.back()                   // close this page
-AntiGem.nav.close()                  // close the whole app
-AntiGem.onBack(fn)                   // fn() returns true if it handled back (close your own panel, go to the first tab)
+DuiAI.nav.push(path, params?)      // path relative to the app root, e.g. nav.push('item.html', {id: 7})
+DuiAI.nav.back()                   // close this page
+DuiAI.nav.close()                  // close the whole app
+DuiAI.onBack(fn)                   // fn() returns true if it handled back (close your own panel, go to the first tab)
 
-// AntiGem MCP tools (need `mcp:<server>`)
-await AntiGem.mcp.list(server)       // tools[]
-await AntiGem.mcp.call(server, tool, args)
+// DuiAI MCP tools (need `mcp:<server>`)
+await DuiAI.mcp.list(server)       // tools[]
+await DuiAI.mcp.call(server, tool, args)
 
 // Dev
-AntiGem.dev.console()                // native console panel: every log and error, plus a JS input
-AntiGem.dev.devtools()               // Eruda devtools: elements, network, storage
-AntiGem.reload()
+DuiAI.dev.console()                // native console panel: every log and error, plus a JS input
+DuiAI.dev.devtools()               // Eruda devtools: elements, network, storage
+DuiAI.reload()
 
 // Threads (see "Threads" below)
-AntiGem.thread.run(fn, args?) · map(items, fn) · pool(size) · cores
+DuiAI.thread.run(fn, args?) · map(items, fn) · pool(size) · cores
 ```
 
 ## Standard web APIs, routed natively
@@ -245,16 +245,16 @@ Write ordinary web code. These are handled natively behind the scenes:
   clearing the WebView's data.
 - **`indexedDB`** is native SQLite (the standard API, plus libraries like `idb`). Booleans are not valid IndexedDB
   keys, so index `0`/`1` instead.
-- **`alert()` / `confirm()` / `prompt()`** show native dialogs. In new code prefer `AntiGem.ui.*` (async, with titles).
+- **`alert()` / `confirm()` / `prompt()`** show native dialogs. In new code prefer `DuiAI.ui.*` (async, with titles).
 - **`<input type="file">`** opens the native picker.
 - **`console.*`**, uncaught errors and unhandled rejections go to the native console panel and the log file.
 - **`new Worker(...)`** (classic, `{type: 'module'}` or a `blob:` URL) works too: the SDK is put into every worker, so
-  `fetch`, XHR, `WebSocket`, `EventSource`, `indexedDB` (the same databases as the page) and `AntiGem.fs` / `mcp` /
+  `fetch`, XHR, `WebSocket`, `EventSource`, `indexedDB` (the same databases as the page) and `DuiAI.fs` / `mcp` /
   `notify` / `thread` work inside it, with the same permissions. `importScripts` and module `import` of your own files
   work. Not in workers: `localStorage` (no browser has it there) and the UI APIs. `SharedArrayBuffer` is not available
   (Android WebView doesn't support cross-origin isolation), so threads share data by messages, not memory.
 
-## Threads: `AntiGem.thread`
+## Threads: `DuiAI.thread`
 
 Heavy work (parsing, image processing, search, math) goes on other CPU cores, so the UI never stutters. Each thread is
 a real OS thread with its own V8 engine; a pool sized to the phone (cores − 1) is started on first use and reused.
@@ -262,20 +262,20 @@ a real OS thread with its own V8 engine; a pool sized to the phone (cores − 1)
 ```js
 // Runs on another core. The function is copied to the thread as source code:
 // it can't use variables from outside it, so pass everything in as arguments.
-const sum = await AntiGem.thread.run((a, b) => a + b, [2, 40]);
+const sum = await DuiAI.thread.run((a, b) => a + b, [2, 40]);
 
 // Spread a list over all cores; results come back in order
-const sizes = await AntiGem.thread.map(urls, async (url) => (await (await fetch(url)).arrayBuffer()).byteLength);
+const sizes = await DuiAI.thread.map(urls, async (url) => (await (await fetch(url)).arrayBuffer()).byteLength);
 
 // Your own pool (e.g. 2 threads for background work); close it when done
-const pool = AntiGem.thread.pool(2);
+const pool = DuiAI.thread.pool(2);
 await pool.run(fn, [args]);
 pool.close();
 
-AntiGem.thread.cores   // number of CPU cores
+DuiAI.thread.cores   // number of CPU cores
 ```
 
-Inside a thread the function may be `async` and may use `fetch`, `indexedDB` and `AntiGem.fs`. A thrown error rejects
+Inside a thread the function may be `async` and may use `fetch`, `indexedDB` and `DuiAI.fs`. A thrown error rejects
 the promise with the same name and message. Arguments and results are copied (structured clone); an `ArrayBuffer` or
 typed array returned is moved without copying. For a long-running thread with its own message protocol, use a normal
 `new Worker('worker.js')`.
@@ -284,29 +284,29 @@ typed array returned is moved without copying. For a long-running thread with it
 
 ```js
 // send: the user picks the app (mini apps that accept it, or "Other apps…" = Android's share sheet)
-await AntiGem.intent.send({ action: 'share', path: '/sdcard/DCIM/x.jpg', title: 'Sunset' });   // → {to}
-await AntiGem.intent.send({ action: 'share', text: 'Hello', url: 'https://example.com' });
+await DuiAI.intent.send({ action: 'share', path: '/sdcard/DCIM/x.jpg', title: 'Sunset' });   // → {to}
+await DuiAI.intent.send({ action: 'share', text: 'Hello', url: 'https://example.com' });
 // receive (declare "intents" in the manifest)
-AntiGem.on('intent', (it) => { /* {action, type, text?, url?, path?, title?, data?, from: {id, name}} */ });
-AntiGem.intent.current   // the last one received
+DuiAI.on('intent', (it) => { /* {action, type, text?, url?, path?, title?, data?, from: {id, name}} */ });
+DuiAI.intent.current   // the last one received
 ```
 A file goes along as a one-day read grant for that file only: copy it into your `data/` if you keep it. Android's
 share sheet has "Mini app" too: what's shared there arrives the same way (files copied into `data/inbox/`).
-Links `antigem-miniapp://app/<id>/<path>?a=1` open the app and arrive as `{action: "view", path, params, url}`.
+Links `dui-miniapp://app/<id>/<path>?a=1` open the app and arrive as `{action: "view", path, params, url}`.
 
 ## Notifications
 
 Native Android notifications, as an installed app has them. The same `id` updates a notification in place.
 
 ```js
-await AntiGem.notify.channel({ id: 'timer', name: 'Running timer', importance: 'low', sound: false });
-await AntiGem.notify.show({
+await DuiAI.notify.channel({ id: 'timer', name: 'Running timer', importance: 'low', sound: false });
+await DuiAI.notify.show({
   id: 'timer', channel: 'timer', ongoing: true, color: '#C62828',
   title: 'Focus', body: 'Ends at 14:25',
   countdown: endTime,                        // the system ticks it: no updates needed
   actions: [{ id: 'pause', title: 'Pause', open: false }, { id: 'skip', title: 'Skip', open: false }],
 });
-AntiGem.on('notification', (e) => { if (e.action === 'pause') pause(); });
+DuiAI.on('notification', (e) => { if (e.action === 'pause') pause(); });
 ```
 
 | Option | Meaning |
@@ -331,7 +331,7 @@ AntiGem.on('notification', (e) => { if (e.action === 'pause') pause(); });
 | `group`, `groupSummary` | Bundle the app's notifications together. Without a group each notification stands alone (never mixed with other apps') |
 | `number` | Badge count |
 | `timeout` | Remove after this many ms |
-| `actions` | Up to 3 buttons `{id, title, open?, reply?}`. `open: false` doesn't open the app: the event goes to the app if it is on screen, else to its background script (`AntiGem.background.on('notification', task => task.data)`), else when it opens. `reply: {placeholder}` adds a text box; the text comes as `e.reply` |
+| `actions` | Up to 3 buttons `{id, title, open?, reply?}`. `open: false` doesn't open the app: the event goes to the app if it is on screen, else to its background script (`DuiAI.background.on('notification', task => task.data)`), else when it opens. `reply: {placeholder}` adds a text box; the text comes as `e.reply` |
 | `tapAction` | Event action for a tap on the notification (default `"tap"`); a tap opens the app |
 
 Events: `{id, action, reply?, queued?}`. `action` is `"tap"`, `"dismiss"` (swiped away) or a button id. `queued: true`
@@ -346,16 +346,16 @@ Like a native app, a mini app can do work while it is closed: check something on
 2. In `background.js` (it runs in an invisible page with the full SDK: fetch, IndexedDB, localStorage, files,
    cookies, notifications; no UI, no dialogs):
    ```js
-   AntiGem.background.on('sync', async (task) => {      // task: {name, reason: "schedule"|"alarm"|"manual", runId}
+   DuiAI.background.on('sync', async (task) => {      // task: {name, reason: "schedule"|"alarm"|"manual", runId}
      const items = await (await fetch('https://api.example.com/new')).json();
-     if (items.length) await AntiGem.notify.show({ title: `${items.length} new`, tag: 'sync' });
+     if (items.length) await DuiAI.notify.show({ title: `${items.length} new`, tag: 'sync' });
    });
    ```
 3. From the app (calling it on every start is fine, the schedule is kept):
    ```js
-   await AntiGem.permissions.request('background');
-   await AntiGem.background.register('sync', { every: '1h', network: 'any' });   // flexible, battery friendly
-   await AntiGem.background.register('digest', { at: '07:30', repeat: 'daily' }); // exact time
+   await DuiAI.permissions.request('background');
+   await DuiAI.background.register('sync', { every: '1h', network: 'any' });   // flexible, battery friendly
+   await DuiAI.background.register('digest', { at: '07:30', repeat: 'daily' }); // exact time
    ```
    Options: `every` (≥ 15 min, periodic), `delay` (once), `at` + `repeat` (exact, same rules as reminders), and for
    `every`/`delay`: `network` (`"any"` or `"unmetered"`), `charging`, `batteryNotLow`.
@@ -364,7 +364,7 @@ Limits: at most 10 tasks per app, 48 runs per app per 24 h, 60 s per run, one ta
 battery saver (except `run()`). The handler's promise is the run: finish your work before it resolves. Timers
 (`setTimeout`) may be slowed in the invisible page; await promises instead. `every` tasks run roughly on time
 (Android batches them); use `at` when the minute matters. Runs and errors show in App info → Background and in the
-console log. Force-stopping AntiGem stops everything until it is opened again.
+console log. Force-stopping DuiAI stops everything until it is opened again.
 
 ## Development apps and signed packages
 
@@ -372,7 +372,7 @@ console log. Force-stopping AntiGem stops everything until it is opened again.
   **DEV** label. It only runs with Developer mode on (Mini Apps → `</>`, on by default in the beta).
 - **Installed app:** installed from a signed package (`.agapp`). Like an Android APK: the first install records the
   developer's key; an update must be signed with the same key (else: uninstall first, which deletes its data); a lower
-  `version_code` needs the user's OK. Its files live in AntiGem's private folder and each one is checked against the
+  `version_code` needs the user's OK. Its files live in DuiAI's private folder and each one is checked against the
   signature when it loads: a modified installed app doesn't run. An installed app owns its id: a development folder
   with the same id doesn't run, and a package can't take a development app's id.
 - **Making a package:** App info → "Export signed package" (signed with the phone's developer key, Mini Apps → key
@@ -385,17 +385,17 @@ console log. Force-stopping AntiGem stops everything until it is opened again.
   Bump `version` (or `version_code`) for every release.
 - Packages are only ever signed: there is no way to ship a development app as an installable package.
 - **Sharing and installing** (like an APK): "Export signed package" opens the share sheet (WhatsApp, Telegram, email,
-  Drive, Nearby Share…). On the other phone, tapping the `.agapp` (in a chat, Files, a browser's downloads or AntiGem's
-  file explorer) or sharing it to "Mini app" opens AntiGem's installer: who signed it, new / update / downgrade, new
-  permissions, then Open / Done. Updates go the same way. In AntiGem: Mini Apps → install icon → "Install from a file"
+  Drive, Nearby Share…). On the other phone, tapping the `.agapp` (in a chat, Files, a browser's downloads or DuiAI's
+  file explorer) or sharing it to "Mini app" opens DuiAI's installer: who signed it, new / update / downgrade, new
+  permissions, then Open / Done. Updates go the same way. In DuiAI: Mini Apps → install icon → "Install from a file"
   or "Install from a link" (https:// only, e.g. a GitHub release asset). An installed app's App info → "Share app" sends
   the exact package it was installed from, still with the developer's signature.
-- Hosting packages: serve them as `application/vnd.antigem.agapp` (or `application/octet-stream`) with the `.agapp`
-  name, so phones open them in AntiGem.
+- Hosting packages: serve them as `application/vnd.dui.agapp` (or `application/octet-stream`) with the `.agapp`
+  name, so phones open them in DuiAI.
 
 ## UI kit
 
-Add `<link rel="stylesheet" href="/_antigem/ui.css">` for Material 3 components that follow the user's AntiGem theme
+Add `<link rel="stylesheet" href="/_dui/ui.css">` for Material 3 components that follow the user's DuiAI theme
 (light and dark) automatically. Its main classes:
 
 - **Layout:** `ag-page`, `ag-appbar` (`ag-large` for a big title that shrinks while scrolling), `ag-appbar-title`,
@@ -445,22 +445,22 @@ color in kit components, set `--ag-accent` and `--ag-on-accent`.
 
 - **Hot reload:** saving any file in the app folder reloads every open page of the app within about 100 ms. Edits to
   only `.css` files hot-swap the stylesheets without a reload, so state is kept. Storage persists across reloads.
-- **Logs:** `~/.antigem/mini-apps/<app id>/console.log` (`tail -f` it while testing), or the native console
-  (`AntiGem.dev.console()`).
-- **Data:** `~/.antigem/mini-apps/<app id>/` holds `kv.db` (localStorage + AntiGem.storage, SQLite), `idb.db`
+- **Logs:** `~/.dui/mini-apps/<app id>/console.log` (`tail -f` it while testing), or the native console
+  (`DuiAI.dev.console()`).
+- **Data:** `~/.dui/mini-apps/<app id>/` holds `kv.db` (localStorage + DuiAI.storage, SQLite), `idb.db`
   (IndexedDB), `cookies.db` (the cookie jar) and `files/` (the app's `data/` folder). Reminders and background tasks
-  are kept by AntiGem itself (not in this folder) and survive reboots.
+  are kept by DuiAI itself (not in this folder) and survive reboots.
 
 ## Rules for building apps
 
 1. **Offline first.** Don't load CDNs or web fonts unless the app truly needs the network and declares it. Bundle
    small libraries into the app folder instead.
-2. **Use the theme variables** (or the UI kit) for every color, so the app matches AntiGem in light and dark.
+2. **Use the theme variables** (or the UI kit) for every color, so the app matches DuiAI in light and dark.
    Never hard-code white or black backgrounds.
-3. **Use `AntiGem.ui`** for dialogs, sheets, pickers and toasts, and `AntiGem.device.haptic` on important taps.
+3. **Use `DuiAI.ui`** for dialogs, sheets, pickers and toasts, and `DuiAI.device.haptic` on important taps.
    That's what makes it feel native.
-4. **Handle back:** register `AntiGem.onBack` to close in-page panels and to return to the first tab before the app
+4. **Handle back:** register `DuiAI.onBack` to close in-page panels and to return to the first tab before the app
    closes.
 5. **Declare the fewest permissions,** and handle `NotAllowedError` with a friendly message.
-6. **Test with `AntiGem.dev.console()`** or the log file. Fix every error before calling the app done.
+6. **Test with `DuiAI.dev.console()`** or the log file. Fix every error before calling the app done.
 7. **Keep `id` stable;** bump `version` when you change the app.

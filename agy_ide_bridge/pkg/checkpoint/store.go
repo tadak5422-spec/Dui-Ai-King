@@ -1,7 +1,7 @@
 // Package checkpoint keeps "before this message" copies of a project's files for every chat agent (Claude Code,
 // Codex, OpenCode, Antigravity) and puts them back on request.
 //
-// Each project gets its own hidden git repository under ~/.antigem_bridge/checkpoints/projects/<key>/git, with the
+// Each project gets its own hidden git repository under ~/.dui_bridge/checkpoints/projects/<key>/git, with the
 // project as its work tree. The user's own .git (and every nested repository's) is only ever read: no branch, commit,
 // stash, ref or index of theirs changes. A checkpoint is a set of trees (the project, and each nested git repository
 // inside it on its own), each kept alive by a ref of its own, with no parent: deleting an old one never touches newer
@@ -144,7 +144,7 @@ type gitCacheEntry struct {
 
 func NewManager(homeDir string) *Manager {
 	m := &Manager{
-		root:     filepath.Join(homeDir, ".antigem_bridge", "checkpoints"),
+		root:     filepath.Join(homeDir, ".dui_bridge", "checkpoints"),
 		projects: map[string]*project{},
 		gitCache: map[string]gitCacheEntry{},
 	}
@@ -418,7 +418,7 @@ func newID() string {
 	return strconv.FormatInt(time.Now().UnixMilli(), 36) + hex.EncodeToString(b[:])
 }
 
-func cpRef(id string) string { return "refs/antigem/cp/" + id }
+func cpRef(id string) string { return "refs/dui/cp/" + id }
 
 // ---------------------------------------------------------------------------------------------- turns
 

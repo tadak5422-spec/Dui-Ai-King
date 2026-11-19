@@ -13,7 +13,7 @@ When you are on the Chat screen, you will see:
    - **Choose project**: Tap the folder icon (**Choose project**) to open the workspace folder browser (**Choose the project folder**). This tells the AI which folder on your phone or server contains your code.
    - **Agent Selector**: A pill at the top allowing you to switch between **Antigravity**, **Claude Code**, or **OpenCode**.
    - **Model Selector**: Displays the currently selected model. Tapping it opens the Model Selector bottom sheet with live quotas and thinking effort levels.
-   - **Minimize to Bubble**: Tap the bubble icon in the top bar to shrink AntiGem into a floating Android overlay window (`FloatingChatActivity`), letting you chat while using other apps.
+   - **Minimize to Bubble**: Tap the bubble icon in the top bar to shrink DuiAI into a floating Android overlay window (`FloatingChatActivity`), letting you chat while using other apps.
    - **Chat Telemetry & Tokens**: Tap the info / telemetry icon to view token usage, latency, and context window limits.
 2. **System Status Banners**:
    - **Antigravity Disconnected**: Displays at the top if the connection to the AGY Hub is lost, alongside an automatic reconnection indicator (*"Connecting to Antigravity..."*).
@@ -43,7 +43,7 @@ Tapping the **Menu Icon (☰)** in the top-left corner slides out the Chat Histo
   - **Copy Conversation ID**: Copies the internal session identifier to your clipboard.
   - **Export Markdown (.md)**: Saves the chat messages and code blocks as a standard markdown file.
   - **Export Standalone HTML**: Generates a self-contained, beautifully styled HTML document you can open in any browser.
-  - **Share**: Bundles the session into an interactive replay package (shows toast: *"Preparing .antigem share..."*).
+  - **Share**: Bundles the session into an interactive replay package (shows toast: *"Preparing .dui share..."*).
   - **Delete Conversation**: Opens the *"Delete Conversation?"* confirmation dialog to permanently remove the chat.
 - **Bottom Drawer Bar**:
   - 👤 **Accounts**: Shows who is signed in for each agent, current subscription tier, and sign-in status.
@@ -159,7 +159,7 @@ Whenever you type a forward slash (`/`) into the chat input bar, an auto-complet
 ### ❌ Symptom: Live dictation hears nothing or shows "No speech recognized".
 - **What to check**: Check microphone permission and ensure dictation is not paused.
 - **How to fix**:
-  1. Grant microphone permission in Android **Settings → Apps → AntiGem → Permissions → Microphone**.
+  1. Grant microphone permission in Android **Settings → Apps → DuiAI → Permissions → Microphone**.
   2. If the banner shows *"Dictation paused (tap resume to speak)"*, tap the **Resume** button.
   3. Speak close to the phone microphone and avoid noisy background environments.
 

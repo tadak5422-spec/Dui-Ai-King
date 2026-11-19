@@ -1,22 +1,22 @@
-#!/data/data/ai.antigem/files/usr/bin/bash
+#!/data/data/ai.dui/files/usr/bin/bash
 # If invoked by a different shell or missing shebang interpreter, auto-detect and switch to bash
 if [ -z "${BASH_VERSION:-}" ]; then
     if [ -n "${PREFIX:-}" ] && [ -x "$PREFIX/bin/bash" ]; then
         exec "$PREFIX/bin/bash" "$0" "$@"
-    elif [ -x "/data/data/ai.antigem/files/usr/bin/bash" ]; then
-        exec "/data/data/ai.antigem/files/usr/bin/bash" "$0" "$@"
+    elif [ -x "/data/data/ai.dui/files/usr/bin/bash" ]; then
+        exec "/data/data/ai.dui/files/usr/bin/bash" "$0" "$@"
     elif command -v bash >/dev/null 2>&1; then
         exec bash "$0" "$@"
     fi
 fi
 
 # ==============================================================================
-# antiGem IDE & AGY Projects Backup Packager
+# DuiAI IDE & AGY Projects Backup Packager
 # ==============================================================================
 set -euo pipefail
 
-PREFIX_DIR="${PREFIX:-/data/data/ai.antigem/files/usr}"
-HOME_DIR="${HOME:-/data/data/ai.antigem/files/home}"
+PREFIX_DIR="${PREFIX:-/data/data/ai.dui/files/usr}"
+HOME_DIR="${HOME:-/data/data/ai.dui/files/home}"
 TMP_ROOT="${TMPDIR:-${PREFIX_DIR}/tmp}"
 mkdir -p "$TMP_ROOT"
 
@@ -31,7 +31,7 @@ BACKUP_MODE="${2:-git}" # "git" (exclude ignored/node_modules) or "full" (raw ex
 shift 2 || true
 
 echo "================================================"
-echo "       antiGem Projects Backup Packager         "
+echo "       DuiAI Projects Backup Packager         "
 echo "================================================"
 echo "Output Archive : $OUTPUT_ZIP"
 echo "Backup Mode    : $BACKUP_MODE (git-aware / full)"
@@ -60,12 +60,12 @@ else
     done
 fi
 
-STAGE_DIR="${TMP_ROOT}/antigem_project_stage_${TIMESTAMP}_$$"
+STAGE_DIR="${TMP_ROOT}/dui_project_stage_${TIMESTAMP}_$$"
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR/projects"
 
 # Use Python helper to normalize paths, filter out $HOME/root, detect hierarchies, and build manifest
-MANIFEST_FILE="$STAGE_DIR/antigem_project_manifest.json"
+MANIFEST_FILE="$STAGE_DIR/dui_project_manifest.json"
 
 python3 - <<PYEOF
 import os
@@ -81,7 +81,7 @@ backup_mode = "$BACKUP_MODE"
 manifest_file = "$MANIFEST_FILE"
 timestamp = "$TIMESTAMP"
 
-# 1. Normalize and filter paths (Exclude $HOME, /, /data/data/ai.antigem/files, empty)
+# 1. Normalize and filter paths (Exclude $HOME, /, /data/data/ai.dui/files, empty)
 valid_paths = set()
 for p in raw_paths:
     p = os.path.expanduser(p).strip()
@@ -214,7 +214,7 @@ PYEOF
 
 echo ""
 echo "[2/3] Compressing into zip archive..."
-TEMP_ZIP="${TMP_ROOT}/antigem_projects_bundle_${TIMESTAMP}_$$.zip"
+TEMP_ZIP="${TMP_ROOT}/dui_projects_bundle_${TIMESTAMP}_$$.zip"
 rm -f "$TEMP_ZIP"
 
 TOTAL_ITEMS=$( { find "$STAGE_DIR" 2>/dev/null || true; } | wc -l)

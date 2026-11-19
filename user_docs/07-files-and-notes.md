@@ -1,12 +1,12 @@
 # 07 — Files & Notes
 
-AntiGem comes equipped with two persistent productivity tools designed to make mobile work seamless: a full **File Explorer** and a dedicated **Notes & To-Do** pad.
+DuiAI comes equipped with two persistent productivity tools designed to make mobile work seamless: a full **File Explorer** and a dedicated **Notes & To-Do** pad.
 
 ---
 
 ## 📁 Part 1: The File Explorer
 
-The **Files Screen** lets you manage, organize, and inspect files in your AntiGem workspace and phone storage without relying on external file manager apps.
+The **Files Screen** lets you manage, organize, and inspect files in your DuiAI workspace and phone storage without relying on external file manager apps.
 
 ### 1. Opening the File Explorer
 - Tap the **Files** icon on the floating app switcher.
@@ -34,7 +34,7 @@ Long-press any item to activate **Multi-Selection Mode**:
 - **Selection Action Bar**:
   - **Clear selection**: Deselects all highlighted items and exits selection mode.
   - **Select all**: Selects or deselects all visible items.
-  - **Copy**: Copies selected files to the AntiGem clipboard.
+  - **Copy**: Copies selected files to the DuiAI clipboard.
   - **Cut**: Prepares selected files to be moved.
   - **Delete**: Prompts for bulk deletion.
   - **More**: Additional batch actions (**Compress to ZIP**, **Copy paths**).
@@ -112,7 +112,7 @@ When inside a note or checklist:
 ## 🛠️ Troubleshooting Files & Notes Issues
 
 ### ❌ Symptom: The File Explorer cannot see files on my phone's SD card or Downloads folder.
-- **What to check**: Check whether storage permission was granted to Termux/AntiGem.
+- **What to check**: Check whether storage permission was granted to Termux/DuiAI.
 - **How to fix**:
   1. Open the Terminal and run `termux-setup-storage`.
   2. Android will prompt you to grant storage access. Tap **Allow**.

@@ -196,8 +196,8 @@ def main():
     search_paths = [
         os.path.join(repo_root, "app", "src"),
         os.path.join(repo_root, "proto_generator"),
-        os.path.join(repo_root, "antiGem", "app", "src"),
-        os.path.join(repo_root, "antiGem", "proto_generator")
+        os.path.join(repo_root, "DuiAI", "app", "src"),
+        os.path.join(repo_root, "DuiAI", "proto_generator")
     ]
 
     result, similar = get_all_types_for_api(api_query, search_paths)

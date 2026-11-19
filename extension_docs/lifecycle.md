@@ -11,7 +11,7 @@
 | `background.type` | `"module"` enables relative ES-module imports. Otherwise classic script execution. |
 | `background.scripts` | MV2 classic script array, in execution order; use instead of service_worker. No HTML background pages. |
 | `mcp_tools` | Nonempty array, required for ZIP install unless the package has [`skills/*.md`](skills.md); a skills-only package needs no background worker. Each entry has a unique `name`, `description`, `inputSchema` JSON schema. Names are unique within this extension; another extension may reuse them. The worker must validate its actual arguments. |
-| `permissions` | Permission names: `storage`, `scripting`, `debugger`, `downloads`, `alarms`, `cookies`, `antigemFiles`; `activeTab` allows the active tab. `tabs` is accepted for compatibility; basic tab enumeration does not currently enforce it. MV2 URL patterns are accepted here. |
+| `permissions` | Permission names: `storage`, `scripting`, `debugger`, `downloads`, `alarms`, `cookies`, `duiFiles`; `activeTab` allows the active tab. `tabs` is accepted for compatibility; basic tab enumeration does not currently enforce it. MV2 URL patterns are accepted here. |
 | `host_permissions` | URL match patterns for page scripting/debugging/cookies/automation. Prefer the narrow origins needed. |
 | `content_scripts` | `matches`, `exclude_matches`, relative `js`/`css` arrays, `run_at`, `all_frames`, `world`. See limitations below. |
 | `default_locale` | Loads `_locales/<locale>/messages.json`. Only that locale is selected; no locale fallback negotiation. |
@@ -27,12 +27,12 @@ The app owns and supplies the extension runtime. Extension authors do not need t
 The bundled Flow package comes from `extensions/google-flow/`. Installed ZIPs go to local terminal home `~/extensions/<folder>`. Directory discovery order is:
 
 1. `~/extensions`
-2. `<projects>/antiGem/extensions` when present
+2. `<projects>/DuiAI/extensions` when present
 3. private `files/extensions`
 4. bundled private `files/browser-extensions`
-5. `/sdcard/antiGem/extensions` when present
+5. `/sdcard/DuiAI/extensions` when present
 
-The first manifest with a given ID wins. A home package can override a bundled package without modifying the APK. The per-root `extensions.json` file stores disabled IDs. The host's private `.antigem-state/<ID>.json` stores `local`, locally persisted `sync`, version and alarms. Folder renaming does not change the ID or state filename.
+The first manifest with a given ID wins. A home package can override a bundled package without modifying the APK. The per-root `extensions.json` file stores disabled IDs. The host's private `.dui-state/<ID>.json` stores `local`, locally persisted `sync`, version and alarms. Folder renaming does not change the ID or state filename.
 
 ZIP extraction rejects traversal, absolute/drive paths, canonical duplicates and ambiguous enclosing packages. Limits: 5,000 entries, 32 MiB per unpacked file, 128 MiB total. Installation validates the manifest and background files before replacing a package. An enabled replacement must load successfully; otherwise the previous files and worker are restored. Updating a disabled package validates its package but does not execute its worker until enabled.
 

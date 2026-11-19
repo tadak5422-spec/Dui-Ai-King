@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # -----------------------------------------------------------------------------
-# AntiGem APK Build & Output Packager
-# Builds the app (ai.antigem).
+# DuiAI APK Build & Output Packager
+# Builds the app (ai.dui).
 # -----------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,7 +16,7 @@ if [[ "${1:-}" == "--release" || "${1:-}" == "-r" ]]; then
 fi
 
 echo "================================================================="
-echo "🚀 Building AntiGem Packages in [${MODE^^}] mode"
+echo "🚀 Building DuiAI Packages in [${MODE^^}] mode"
 echo "================================================================="
 
 # Extract version from version.json
@@ -34,12 +34,12 @@ APKS_SRC="${ROOT_DIR}/app/build/outputs/apk"
 if [[ "${MODE}" == "release" ]]; then
     echo "🔨 Compiling Release (:app:assembleRelease)..."
     "${ROOT_DIR}/gradlew" -p "${ROOT_DIR}" :app:assembleRelease
-    # the release asset; the in-app updater downloads releases/download/v<version>/AntiGem-v<version>.apk
-    find "${APKS_SRC}/release" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/AntiGem-v${VERSION_NAME}.apk" \;
+    # the release asset; the in-app updater downloads releases/download/v<version>/DuiAI-v<version>.apk
+    find "${APKS_SRC}/release" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/DuiAI-v${VERSION_NAME}.apk" \;
 else
     echo "🔨 Compiling Debug (:app:assembleDebug)..."
     "${ROOT_DIR}/gradlew" -p "${ROOT_DIR}" :app:assembleDebug
-    find "${APKS_SRC}/debug" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/AntiGem-v${VERSION_NAME}-debug.apk" \;
+    find "${APKS_SRC}/debug" -name "*.apk" -exec cp {} "${OUTPUT_DIR}/DuiAI-v${VERSION_NAME}-debug.apk" \;
 
     # the APK ships the bridge xz-compressed; the uncompressed build is kept under app/build
     if [[ -f "${ROOT_DIR}/app/build/intermediates/agyIdeBridge/agy_ide_bridge" ]]; then

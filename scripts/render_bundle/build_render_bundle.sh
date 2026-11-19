@@ -3,9 +3,9 @@
 #
 #   bash scripts/render_bundle/build_render_bundle.sh
 #
-# Output: scripts/render_bundle/out/antigem-render-bundle-v1.zip (+ .sha256), git-ignored.
+# Output: scripts/render_bundle/out/dui-render-bundle-v1.zip (+ .sha256), git-ignored.
 # Upload that zip to a GitHub release with the tag in BUNDLE_TAG (same file name), then put the printed
-# SHA-256 in RenderBundle.BUNDLE_SHA256 (app/src/main/java/ai/antigem/data/render/RenderBundle.kt).
+# SHA-256 in RenderBundle.BUNDLE_SHA256 (app/src/main/java/ai/dui/data/render/RenderBundle.kt).
 #
 # Every library is pinned to an exact version: the app tells the model these exact versions.
 # Changing a version = new bundle tag (render-v2, ...) + new URL / SHA-256 / versions in RenderBundle.kt.
@@ -13,7 +13,7 @@ set -euo pipefail
 
 BUNDLE_VERSION=1
 BUNDLE_TAG="render-v${BUNDLE_VERSION}"
-ZIP_NAME="antigem-render-bundle-v${BUNDLE_VERSION}.zip"
+ZIP_NAME="dui-render-bundle-v${BUNDLE_VERSION}.zip"
 
 MERMAID_V="10.9.8"          # same major as the CDN copy the app already uses (mermaid@10)
 SMILES_V="2.4.1"
@@ -115,4 +115,4 @@ SIZE="$(wc -c < "$OUT/$ZIP_NAME" | tr -d ' ')"
 echo
 echo "Bundle:  $OUT/$ZIP_NAME  ($SIZE bytes)"
 echo "SHA-256: $SHA"
-echo "Upload it to: https://github.com/Santoshkurmi/antigem/releases/tag/$BUNDLE_TAG (asset name $ZIP_NAME)"
+echo "Upload it to: https://github.com/Santoshkurmi/dui/releases/tag/$BUNDLE_TAG (asset name $ZIP_NAME)"

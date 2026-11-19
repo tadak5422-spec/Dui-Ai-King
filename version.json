@@ -3,9 +3,9 @@
   "version_name": "2.0.0",
   "min_supported_version_code": 2,
   "changelog": [
-    "New app package ai.antigem: AntiGem now runs its own Linux environment, the separate com.termux build is no longer needed",
+    "New app package ai.dui: DuiAI now runs its own Linux environment, the separate com.termux build is no longer needed",
     "Added rootfs v2 (Nov 19) with a choice of GitHub or Hugging Face download, and a link to each page to download the zip by hand",
-    "Added on-the-fly rewriting of Termux packages for AntiGem, so pkg/apt installs work under the new package name",
+    "Added on-the-fly rewriting of Termux packages for DuiAI, so pkg/apt installs work under the new package name",
     "Added Skills and Plugins management for Codex, OpenCode and Claude: install, update and remove from GitHub",
     "Added Setup with AI for skill and plugin repositories that cannot be added directly",
     "Added project checkpoints: snapshot a project and restore it later",

@@ -1,6 +1,6 @@
 # 17 — Building Android Apps on the Phone
 
-AntiGem can build real Android apps **on the phone itself**: Kotlin or Java apps with **Jetpack Compose**, **Flutter** apps and **React Native** apps. Gradle, the Android SDK, Flutter and Node.js run in an **Ubuntu container** (proot-distro) inside the terminal, the same container REA uses, so parts both need (Java 21, Node.js) are installed only once.
+DuiAI can build real Android apps **on the phone itself**: Kotlin or Java apps with **Jetpack Compose**, **Flutter** apps and **React Native** apps. Gradle, the Android SDK, Flutter and Node.js run in an **Ubuntu container** (proot-distro) inside the terminal, the same container REA uses, so parts both need (Java 21, Node.js) are installed only once.
 
 It is not tied to one agent: Antigravity, Claude Code and OpenCode all build apps the same way, with the `adev` command in the terminal. Nothing needs to be added to an agent's MCP settings.
 
@@ -22,7 +22,7 @@ It is not tied to one agent: Antigravity, Claude Code and OpenCode all build app
 
 | Step | What it does |
 | :--- | :--- |
-| **1. Setup files** | Downloads the setup script and the `adev` commands. They are **not part of the app**; they come from the AntiGem plugins repository (`Santoshkurmi/antigem_plugins`, folder `android-dev`). **Change** picks another repository or branch (for testing). |
+| **1. Setup files** | Downloads the setup script and the `adev` commands. They are **not part of the app**; they come from the DuiAI plugins repository (`Santoshkurmi/dui_plugins`, folder `android-dev`). **Change** picks another repository or branch (for testing). |
 | **2. Install** | *What will you build?*: Kotlin / Java, Flutter, React Native. Everything the choice needs is installed one part after another, with a live log and **Stop**. *Extras*: adb and CMake / Ninja. *All parts* installs, repairs or updates a single part. |
 | **3. Build a test app** | Creates and builds a hello world per framework; **Install** opens Android's installer for its APK. |
 | **4. Use it** | The terminal commands and example prompts for agents. |
@@ -52,7 +52,7 @@ The first build of each project downloads Gradle and libraries on top (several h
 
 **Only arm64.** Apps built on the phone are built for the phone: every build (Compose, Flutter, React Native) packages only `arm64-v8a` native code. That makes builds much faster and avoids tools that only exist for PCs. To make an APK for other devices (x86 emulators, old 32-bit phones), build the same project on a PC.
 
-**Why the special parts?** Google builds its Linux SDK tools for x86_64 PCs, and phones are arm64. AntiGem uses Termux's arm64 builds of `aapt2` and `adb`, pins the command-line tools to the last version whose `sdkmanager` is plain Java, swaps the NDK's compilers for Ubuntu's arm64 LLVM of the same version, and runs the two remaining PC-only compilers (Flutter's release compiler and React Native's Hermes compiler) through the qemu emulator.
+**Why the special parts?** Google builds its Linux SDK tools for x86_64 PCs, and phones are arm64. DuiAI uses Termux's arm64 builds of `aapt2` and `adb`, pins the command-line tools to the last version whose `sdkmanager` is plain Java, swaps the NDK's compilers for Ubuntu's arm64 LLVM of the same version, and runs the two remaining PC-only compilers (Flutter's release compiler and React Native's Hermes compiler) through the qemu emulator.
 
 **How long builds take** (measured on a phone, after the first downloads): a Compose hello world ≈2–3 min, Flutter debug ≈1–2 min, Flutter release ≈3 min, React Native debug ≈3 min. The first build of each kind downloads Gradle and libraries and takes 5–15 min.
 
@@ -60,7 +60,7 @@ The first build of each project downloads Gradle and libraries on top (several h
 
 ## ⌨️ 3. The commands
 
-In AntiGem's terminal (and for every agent):
+In DuiAI's terminal (and for every agent):
 
 ```sh
 adev-new compose ~/AndroidProjects/my-app        # also: flutter, rn
@@ -81,13 +81,13 @@ Builds are slower than on a PC: the first build of a project takes several minut
 
 ## 🎓 4. The Android Development skill (recommended)
 
-A skills-only plugin that teaches agents to check what is installed, install what is missing (asking you first), create projects, build, install the APK and fix the usual errors. Install it with **Install skill** on the page, or from **Settings → Custom AntiGem Plugins → Repositories → `Santoshkurmi/antigem_plugins`** → *Android Development*. Then use `/plu:` in chat to give it to an agent.
+A skills-only plugin that teaches agents to check what is installed, install what is missing (asking you first), create projects, build, install the APK and fix the usual errors. Install it with **Install skill** on the page, or from **Settings → Custom DuiAI Plugins → Repositories → `Santoshkurmi/dui_plugins`** → *Android Development*. Then use `/plu:` in chat to give it to an agent.
 
 ---
 
 ## 📱 5. Installing on this phone
 
-- **Install** buttons (test apps) and `termux-open <apk>` open Android's installer; the first time, allow AntiGem to install apps.
+- **Install** buttons (test apps) and `termux-open <apk>` open Android's installer; the first time, allow DuiAI to install apps.
 - With **adb** (Extras) connected once in **Settings → ADB Connect**, agents can install and start apps themselves (`adb install -r …`) and read crash logs.
 
 ---
@@ -107,7 +107,7 @@ A skills-only plugin that teaches agents to check what is installed, install wha
 | :--- | :--- |
 | `Server returned HTTP response code: 504` while downloading Gradle | GitHub, which hosts Gradle's downloads, is having trouble. Build again later; agents can also run `android-setup.sh gradle-dist` (retries; optional mirror, checked against Gradle's official checksum). |
 | A library *requires … compileSdk NN* | Raise `compileSdk` in `app/build.gradle.kts`; Gradle downloads the platform. |
-| Build *Killed* / *daemon disappeared* | Android ran out of memory: close other apps and keep AntiGem open. |
+| Build *Killed* / *daemon disappeared* | Android ran out of memory: close other apps and keep DuiAI open. |
 | Flutter **release** build cannot find `gen_snapshot` | Install *Flutter release builds* (part of Flutter on the page). |
 | Apps with **C/C++ code** (React Native, CMake) fail at CMake / NDK | Install *C/C++ (NDK)*. |
 | React Native app says *Unable to load script* | It is a debug build: start Metro (`adev npx react-native start` in the project folder) or build a release APK. |

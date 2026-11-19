@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 
 const SSHDIR = process.argv[2];
 const PAIR_PORT = Number(process.env.PAIR_PORT || 1250);
-const LABEL = 'antigem-pair-v1';
+const LABEL = 'dui-pair-v1';
 
 const P = BigInt('0x' +
   'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DD' +
@@ -56,7 +56,7 @@ http.createServer((req, res) => {
   req.on('end', () => {
     let j; try { j = JSON.parse(body || '{}'); } catch { return send(res, 400, { error: 'bad json' }); }
     try {
-      if (req.method === 'POST' && req.url === '/antigem/pair/start') {
+      if (req.method === 'POST' && req.url === '/dui/pair/start') {
         if (tries >= 3) { newCode(); return send(res, 423, { error: 'Too many wrong codes. Use the new code shown on the PC.' }); }
         tries++;
         const X = toBig(Buffer.from(j.x, 'hex'));
@@ -73,7 +73,7 @@ http.createServer((req, res) => {
         console.log(`start from ${j.phoneName} (${req.socket.remoteAddress}) try ${tries}`);
         return send(res, 200, { v: 1, session: id, y: toBytes(Y).toString('hex'), confirm: hmac(der('confirm-pc'), tt).toString('hex') });
       }
-      if (req.method === 'POST' && req.url === '/antigem/pair/finish') {
+      if (req.method === 'POST' && req.url === '/dui/pair/finish') {
         const s = sessions.get(j.session);
         if (!s) return send(res, 404, { error: 'No such pairing. Start again.' });
         sessions.delete(j.session);
@@ -84,10 +84,10 @@ http.createServer((req, res) => {
         if (phone.phoneId !== s.phoneId || !/^ecdsa-sha2-nistp256 [A-Za-z0-9+/=]+ /.test(phone.publicKey)) return send(res, 400, { error: 'bad key' });
         // test: only the tunnel to the test bridge; one line per phone (replaces an old one)
         const ak = path.join(SSHDIR, 'authorized_keys');
-        const lines = fs.readFileSync(ak, 'utf8').split('\n').filter((l) => l && !l.includes(`antigem-phone:${phone.phoneId}`));
+        const lines = fs.readFileSync(ak, 'utf8').split('\n').filter((l) => l && !l.includes(`dui-phone:${phone.phoneId}`));
         lines.push(`command="internal-sftp",restrict,port-forwarding,permitopen="127.0.0.1:1294",permitopen="127.0.0.1:1295" ${phone.publicKey}`);
         fs.writeFileSync(ak, lines.join('\n') + '\n', { mode: 0o600 });
-        const token = fs.readFileSync(path.join(os.homedir(), '.antigem_bridge', 'csrf_token.txt'), 'utf8').trim();
+        const token = fs.readFileSync(path.join(os.homedir(), '.dui_bridge', 'csrf_token.txt'), 'utf8').trim();
         const info = { pcId: 'mock-' + os.hostname(), pcName: `${os.hostname()} (test)`, os: process.platform, user: os.userInfo().username, sshPort: 2222,
           addresses: lanAddresses(), hostKeys: hostKeys(), bridgePort: 1294, hubPort: 1295, token };
         console.log(`PAIRED ${phone.phoneName} ${phone.phoneId}`);
@@ -100,6 +100,6 @@ http.createServer((req, res) => {
 }).listen(PAIR_PORT, process.env.BIND || '127.0.0.1', () => console.log(`pairing on ${process.env.BIND || '127.0.0.1'}:${PAIR_PORT}`));
 
 // mDNS announce (avahi) only when asked (MDNS=1): it announces on the LAN
-const av = process.env.MDNS !== '1' ? { kill() {} } : spawn('avahi-publish-service', [`${os.hostname()} (test)`, '_antigem-pc._tcp', String(PAIR_PORT), 'v=1', `id=mock-${os.hostname()}`, `name=${os.hostname()} (test)`, `os=${process.platform}`], { stdio: 'ignore' });
+const av = process.env.MDNS !== '1' ? { kill() {} } : spawn('avahi-publish-service', [`${os.hostname()} (test)`, '_dui-pc._tcp', String(PAIR_PORT), 'v=1', `id=mock-${os.hostname()}`, `name=${os.hostname()} (test)`, `os=${process.platform}`], { stdio: 'ignore' });
 process.on('exit', () => av.kill());
 process.on('SIGTERM', () => process.exit(0));

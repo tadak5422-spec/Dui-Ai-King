@@ -390,13 +390,13 @@ func (s *Session) spawnLocked() error {
 	if root := s.mgr.attachmentsRoot(); os.MkdirAll(root, 0o700) == nil {
 		args = append(args, "--add-dir", root)
 	}
-	// files the app copied from the phone for its chats (~/.antigem/uploads, where the Files screen's "~" points)
+	// files the app copied from the phone for its chats (~/.dui/uploads, where the Files screen's "~" points)
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		if uploads := filepath.Join(home, ".antigem", "uploads"); os.MkdirAll(uploads, 0o700) == nil {
+		if uploads := filepath.Join(home, ".dui", "uploads"); os.MkdirAll(uploads, 0o700) == nil {
 			args = append(args, "--add-dir", uploads)
 		}
 		// Agent memory: memory files and past chats Claude reads when the app tells it about them
-		if mem := filepath.Join(home, ".antigem", "memory"); os.MkdirAll(mem, 0o700) == nil {
+		if mem := filepath.Join(home, ".dui", "memory"); os.MkdirAll(mem, 0o700) == nil {
 			args = append(args, "--add-dir", mem)
 		}
 	}

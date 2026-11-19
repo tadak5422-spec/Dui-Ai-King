@@ -1,5 +1,5 @@
 /*
- * AntiGem Mini Apps SDK: core. Injected first in <head> of every page, before any app script.
+ * DuiAI Mini Apps SDK: core. Injected first in <head> of every page, before any app script.
  * The WebView only renders: storage, network, files, dialogs and devices are native, reached through
  * one origin-locked message channel. window.__AG is the internal API used by net.js and idb.js.
  */
@@ -10,8 +10,8 @@
   try { delete window.__AG_BOOT; } catch (e) { window.__AG_BOOT = undefined; }
 
   // ------------------------------------------------------------------ transport
-  var nativeObj = window.__antigemNative;
-  var legacyObj = window.__antigemNativeLegacy;
+  var nativeObj = window.__duiNative;
+  var legacyObj = window.__duiNativeLegacy;
   var nextId = 1;
   var pending = new Map();
   var listeners = Object.create(null);
@@ -20,7 +20,7 @@
     var s = JSON.stringify(obj);
     if (nativeObj) nativeObj.postMessage(s);
     else if (legacyObj) legacyObj.postMessage(s);
-    else console.warn('[AntiGem] native bridge missing (not running inside AntiGem?)');
+    else console.warn('[DuiAI] native bridge missing (not running inside DuiAI?)');
   }
 
   function makeError(e) {
@@ -103,7 +103,7 @@
 
   function define(obj, name, value) {
     try { Object.defineProperty(obj, name, { value: value, configurable: true, enumerable: true, writable: true }); }
-    catch (e) { try { obj[name] = value; } catch (x) { console.warn('[AntiGem] could not install ' + name, e); } }
+    catch (e) { try { obj[name] = value; } catch (x) { console.warn('[DuiAI] could not install ' + name, e); } }
   }
 
   var backHandlers = [];
@@ -121,14 +121,14 @@
   // ------------------------------------------------------------------ base look & theme
   var head = document.head || document.documentElement;
   var base = document.createElement('style');
-  base.id = 'antigem-base';
+  base.id = 'dui-base';
   base.textContent =
     ':where(html){-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;text-size-adjust:100%}' +
     ':where(body){overscroll-behavior:none;-webkit-touch-callout:none}' +
     ':where(img,a){-webkit-user-drag:none;-webkit-touch-callout:none}';
   head.appendChild(base);
   var themeStyle = document.createElement('style');
-  themeStyle.id = 'antigem-theme';
+  themeStyle.id = 'dui-theme';
   head.appendChild(themeStyle);
 
   var theme = {};
@@ -140,7 +140,7 @@
     css += '--ag-app-color:' + (theme.appColor || colors.primary || '#6750a4') + ';color-scheme:' + (theme.dark ? 'dark' : 'light') + '}';
     themeStyle.textContent = css;
     document.documentElement.setAttribute('data-theme', theme.dark ? 'dark' : 'light');
-    if (window.AntiGem) window.AntiGem.theme = theme;
+    if (window.DuiAI) window.DuiAI.theme = theme;
   }
   applyTheme(BOOT.theme);
   on('theme', function (t) { applyTheme(t); });
@@ -267,9 +267,9 @@
     delete: function (path, o) { return call('fs.delete', { path: path, recursive: !!(o && o.recursive) }).then(function () {}); },
     move: function (from, to) { return call('fs.move', { from: from, to: to }).then(function () {}); },
     /** URL for <img>/<video>/fetch. {thumb: px}: a native JPEG thumbnail (photos and video frames). HEIC/HEIF become JPEG. */
-    url: function (path, o) { return location.origin + '/_antigem/fs?p=' + encodeURIComponent(path) + (o && o.thumb ? '&thumb=' + Math.round(o.thumb) : ''); },
+    url: function (path, o) { return location.origin + '/_dui/fs?p=' + encodeURIComponent(path) + (o && o.thumb ? '&thumb=' + Math.round(o.thumb) : ''); },
     pick: function (o) { return call('fs.pick', { accept: (o && o.accept) || '*/*', multiple: !!(o && o.multiple) }); },
-    /** The user picks a folder in AntiGem's file explorer; the app gets the manifest's "pick" access to it. → {path, access} | null */
+    /** The user picks a folder in DuiAI's file explorer; the app gets the manifest's "pick" access to it. → {path, access} | null */
     pickFolder: function () { return call('fs.pickFolder'); },
     /** Folders this app may use: [{path, access: "read"|"write"|"readwrite", source: "own"|"shared"|"manifest"|"picked"}] */
     folders: function () { return call('fs.folders'); },
@@ -432,7 +432,7 @@
     send: function (o) { return call('intent.send', o || {}); }
   };
   on('intent', function (d) { intentApi.current = d; });
-  var AntiGem = {
+  var DuiAI = {
     sdk: BOOT.sdk || 1,
     app: Object.freeze(Object.assign({}, BOOT.app)),
     page: Object.freeze({ id: (BOOT.page || {}).id, path: (BOOT.page || {}).path, params: Object.freeze(Object.assign({}, (BOOT.page || {}).params)), root: !!(BOOT.page || {}).root, background: !!(BOOT.page || {}).background }),
@@ -464,7 +464,7 @@
     },
     reload: function () { send('app.reload'); }
   };
-  Object.defineProperty(window, 'AntiGem', { value: AntiGem, configurable: false, enumerable: true, writable: false });
+  Object.defineProperty(window, 'DuiAI', { value: DuiAI, configurable: false, enumerable: true, writable: false });
 
   // ------------------------------------------------------------------ running a background task
   // This page is the invisible one of a background task: once the background script has run, call its handler.
@@ -475,7 +475,7 @@
         send('bg.done', { runId: t.runId, ok: ok, error: err ? String((err && err.stack) || (err && err.message) || err) : '' });
       };
       var h = bgHandlers[t.name] || bgHandlers['*'];
-      if (typeof h !== 'function') { finish(false, 'No handler: call AntiGem.background.on("' + t.name + '", fn) in the background script'); return; }
+      if (typeof h !== 'function') { finish(false, 'No handler: call DuiAI.background.on("' + t.name + '", fn) in the background script'); return; }
       Promise.resolve().then(function () { return h({ name: t.name, reason: t.reason, runId: t.runId, data: t.data || null }); })
         .then(function () { finish(true); }, function (e) { console.error(e); finish(false, e); });
     });

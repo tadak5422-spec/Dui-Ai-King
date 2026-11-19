@@ -1,4 +1,4 @@
-/* AntiGem mini apps: IndexedDB stored in native SQLite (MiniAppIdb.kt).
+/* DuiAI mini apps: IndexedDB stored in native SQLite (MiniAppIdb.kt).
  * Replaces window.indexedDB and the IDB* classes. Keys are encoded into strings whose ASCII order is IDB key
  * order, so native range queries are plain TEXT comparisons. Values are a tagged-JSON structured-clone subset.
  * Known gaps: no `blocked`/`versionchange` between connections, prevunique returns the lowest primary key per

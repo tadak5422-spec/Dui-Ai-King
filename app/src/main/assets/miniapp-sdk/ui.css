@@ -1,4 +1,4 @@
-/* AntiGem Mini Apps UI kit: Material 3 look that follows the live AntiGem theme (--ag-* variables). */
+/* DuiAI Mini Apps UI kit: Material 3 look that follows the live DuiAI theme (--ag-* variables). */
 
 :root {
   --_bg: var(--ag-background, #FEF7FF);
@@ -328,7 +328,7 @@ input.ag-checkbox.ag-round::before { width: 13px; height: 7px; }
 .ag-navbar-item.is-active .ag-navbar-icon::before, .ag-navbar-item[aria-selected="true"] .ag-navbar-icon::before { transform: none; opacity: 1; }
 .ag-navbar-label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ---------- In-page bottom sheet (for custom-styled sheets; native ones use AntiGem.ui.sheet) ---------- */
+/* ---------- In-page bottom sheet (for custom-styled sheets; native ones use DuiAI.ui.sheet) ---------- */
 .ag-scrim {
   position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .32);
   opacity: 0; pointer-events: none; transition: opacity .25s linear;

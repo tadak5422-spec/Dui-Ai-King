@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-// BlockLang is the fence an agent writes a memory in: ```antigem-memory … ```.
-const BlockLang = "antigem-memory"
+// BlockLang is the fence an agent writes a memory in: ```dui-memory … ```.
+const BlockLang = "dui-memory"
 
 // ---------------------------------------------------------------------------------------------- fences
 
 type fence struct {
-	info  string   // the text after the opening fence ("antigem-memory", "kotlin", …)
+	info  string   // the text after the opening fence ("dui-memory", "kotlin", …)
 	body  []string // the lines inside
 	start int      // line of the opening fence
 	end   int      // line of the closing fence
@@ -84,7 +84,7 @@ func isMemoryFence(f fence) bool {
 	return strings.EqualFold(strings.Fields(f.info + " x")[0], BlockLang)
 }
 
-// FindBlocks returns the bodies of the top-level ```antigem-memory blocks in a reply.
+// FindBlocks returns the bodies of the top-level ```dui-memory blocks in a reply.
 func FindBlocks(text string) []string {
 	var out []string
 	for _, f := range topFences(splitLines(text)) {

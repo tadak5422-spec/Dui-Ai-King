@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * agapp: package and sign AntiGem mini apps (Node 18+, no dependencies).
+ * agapp: package and sign DuiAI mini apps (Node 18+, no dependencies).
  *
  *   node agapp.mjs keygen --developer "Name" --out dev.agkey [--force]
  *   node agapp.mjs sign <app-folder> --key dev.agkey [--out file.agapp]
@@ -9,7 +9,7 @@
  *   node agapp.mjs publish --key dev.agkey [--repo .] [--apps apps] [--name "Catalog name"] [--force]
  *
  * publish: for a GitHub repository of mini apps. Signs every app folder in <repo>/<apps> that changed into
- * <repo>/dist/<id>-<version>.agapp and writes <repo>/antigem-mini-apps.json, the catalog AntiGem's "Get apps" screen
+ * <repo>/dist/<id>-<version>.agapp and writes <repo>/dui-mini-apps.json, the catalog DuiAI's "Get apps" screen
  * reads (package URL, sha256, size, developer and key fingerprint per app). Commit and push both.
  *
  * Password: env AGAPP_PASSWORD, else asked on the terminal (keygen asks twice).
@@ -30,7 +30,7 @@ const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const META = 'META-INF/';
 const SIGNED = 'META-INF/AGAPP.json', CERT = 'META-INF/AGAPP.CERT.json', SIG = 'META-INF/AGAPP.SIG';
 const ITERATIONS = 210000;
-const INDEX = 'antigem-mini-apps.json';
+const INDEX = 'dui-mini-apps.json';
 
 class Fail extends Error {}
 const fail = (msg) => { throw new Fail(msg); };
@@ -339,7 +339,7 @@ async function publish(args) {
   for (const f of fs.readdirSync(dist)) {
     if (f.endsWith('.agapp') && !keep.has(f)) { fs.rmSync(path.join(dist, f)); console.log(`removed    dist/${f}`); }
   }
-  const index = { name: args.name || old.name || 'AntiGem mini apps', format: 1, generated: new Date().toISOString(), apps };
+  const index = { name: args.name || old.name || 'DuiAI mini apps', format: 1, generated: new Date().toISOString(), apps };
   fs.writeFileSync(indexFile, JSON.stringify(index, null, 2) + '\n');
   console.log(`\n${apps.length} apps → ${posix(path.relative(process.cwd(), indexFile)) || INDEX}\nSigned by ${k.developer} ${shortFingerprint(unb64(k.publicKey))}. Commit dist/ and ${INDEX}, then push.`);
 }
@@ -393,7 +393,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 const commands = { keygen, sign, verify, info, publish };
 try {
   if (!commands[cmd]) {
-    console.log('agapp: package and sign AntiGem mini apps\n  keygen --developer "Name" --out dev.agkey\n  sign <app-folder> --key dev.agkey [--out file.agapp]\n  verify <file.agapp>\n  info <file.agkey>\n  publish --key dev.agkey [--repo .] [--apps apps] [--name "Catalog"] [--force]');
+    console.log('agapp: package and sign DuiAI mini apps\n  keygen --developer "Name" --out dev.agkey\n  sign <app-folder> --key dev.agkey [--out file.agapp]\n  verify <file.agapp>\n  info <file.agkey>\n  publish --key dev.agkey [--repo .] [--apps apps] [--name "Catalog"] [--force]');
     process.exit(cmd ? 1 : 0);
   }
   await commands[cmd](parseArgs(rest));

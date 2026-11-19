@@ -1,22 +1,22 @@
-#!/data/data/ai.antigem/files/usr/bin/bash
+#!/data/data/ai.dui/files/usr/bin/bash
 # If invoked by a different shell or missing shebang interpreter, auto-detect and switch to bash
 if [ -z "${BASH_VERSION:-}" ]; then
     if [ -n "${PREFIX:-}" ] && [ -x "$PREFIX/bin/bash" ]; then
         exec "$PREFIX/bin/bash" "$0" "$@"
-    elif [ -x "/data/data/ai.antigem/files/usr/bin/bash" ]; then
-        exec "/data/data/ai.antigem/files/usr/bin/bash" "$0" "$@"
+    elif [ -x "/data/data/ai.dui/files/usr/bin/bash" ]; then
+        exec "/data/data/ai.dui/files/usr/bin/bash" "$0" "$@"
     elif command -v bash >/dev/null 2>&1; then
         exec bash "$0" "$@"
     fi
 fi
 
 # ==============================================================================
-# antiGem IDE & AGY Projects Restorer
+# DuiAI IDE & AGY Projects Restorer
 # ==============================================================================
 set -euo pipefail
 
-PREFIX_DIR="${PREFIX:-/data/data/ai.antigem/files/usr}"
-HOME_DIR="${HOME:-/data/data/ai.antigem/files/home}"
+PREFIX_DIR="${PREFIX:-/data/data/ai.dui/files/usr}"
+HOME_DIR="${HOME:-/data/data/ai.dui/files/home}"
 TMP_ROOT="${TMPDIR:-${PREFIX_DIR}/tmp}"
 mkdir -p "$TMP_ROOT"
 
@@ -26,7 +26,7 @@ CONFLICT_STRATEGY="${2:-bak}" # "bak" (move existing to .bak.<timestamp>) or "ov
 CUSTOM_RESTORE_DIR="${3:-}"
 
 echo "================================================"
-echo "       antiGem Projects Archive Restorer        "
+echo "       DuiAI Projects Archive Restorer        "
 echo "================================================"
 echo "Input Archive     : ${INPUT_ZIP:-<none>}"
 echo "Conflict Strategy : $CONFLICT_STRATEGY (bak / overwrite)"
@@ -47,7 +47,7 @@ if [ ! -f "$INPUT_ZIP" ]; then
     exit 1
 fi
 
-STAGE_DIR="${TMP_ROOT}/antigem_restore_stage_${TIMESTAMP}_$$"
+STAGE_DIR="${TMP_ROOT}/dui_restore_stage_${TIMESTAMP}_$$"
 rm -rf "$STAGE_DIR"
 mkdir -p "$STAGE_DIR"
 
@@ -62,11 +62,11 @@ echo "      ✅ Archive integrity verified."
 
 # 2. Extract manifest
 echo "[2/4] Reading project manifest..."
-unzip -q "$INPUT_ZIP" "antigem_project_manifest.json" -d "$STAGE_DIR" 2>/dev/null || true
-MANIFEST_FILE="$STAGE_DIR/antigem_project_manifest.json"
+unzip -q "$INPUT_ZIP" "dui_project_manifest.json" -d "$STAGE_DIR" 2>/dev/null || true
+MANIFEST_FILE="$STAGE_DIR/dui_project_manifest.json"
 
 if [ ! -f "$MANIFEST_FILE" ]; then
-    echo "⚠️ Warning: 'antigem_project_manifest.json' not found in archive. Attempting direct folder extraction..."
+    echo "⚠️ Warning: 'dui_project_manifest.json' not found in archive. Attempting direct folder extraction..."
     # Fallback for standard zip archive without manifest
     TARGET_DIR="${CUSTOM_RESTORE_DIR:-${HOME_DIR}/restored_project_${TIMESTAMP}}"
     if [ -d "$TARGET_DIR" ] && [ "$CONFLICT_STRATEGY" = "bak" ]; then

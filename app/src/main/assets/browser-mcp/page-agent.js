@@ -1,6 +1,6 @@
 /*
  * Page helper for the browser MCP (BrowserMcp.kt). Injected on demand into a tab's main frame; lives on
- * window.__antigemAgent. Gives elements stable refs (ref_N, kept per element until the page is replaced),
+ * window.__duiAgent. Gives elements stable refs (ref_N, kept per element until the page is replaced),
  * renders the page as an indented accessibility-style tree, finds elements by words, fills form fields
  * the way frameworks expect, extracts readable text and hit-tests points.
  *
@@ -11,7 +11,7 @@
 (function () {
   'use strict';
   var VERSION = 10;
-  var prev = window.__antigemAgent;
+  var prev = window.__duiAgent;
   if (prev && prev.version === VERSION) return true;
   var store = prev && prev._store ? prev._store : { byRef: new Map(), byEl: new WeakMap(), next: 0 };
   if (!store.meta) store.meta = new Map(); // ref -> {tag, role, name}: lets a ref find its element again after a re-render
@@ -995,7 +995,7 @@
     return { ok: true, text: 'Title: ' + (document.title || '(no title)') + '\nURL: ' + location.href + '\nFrom: ' + source + (includeHidden ? ' (including hidden text)' : '') + '\n\n' + text + (notes.length ? '\n\n' + notes.join('\n') : '') };
   }
 
-  window.__antigemAgent = {
+  window.__duiAgent = {
     version: VERSION, _store: store,
     tree: tree, find: find, resolve: resolve, hitTest: hitTest, focusInfo: focusInfo, viewport: viewport,
     scrollIntoViewRef: scrollIntoViewRef, scrollAt: scrollAt, pointerEvent: pointerEvent, insertText: insertText,

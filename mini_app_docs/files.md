@@ -1,37 +1,37 @@
 # Files
 
-`AntiGem.fs` reads and writes real files natively. Every app has a private `data/` folder it may always use. Folders
-outside it (shared storage like `/sdcard/Download`, the AntiGem home `~/`) are reachable only when the manifest
+`DuiAI.fs` reads and writes real files natively. Every app has a private `data/` folder it may always use. Folders
+outside it (shared storage like `/sdcard/Download`, the DuiAI home `~/`) are reachable only when the manifest
 declares them and the user grants them, or when the user picks a folder at runtime. Every path is checked natively,
 after symlinks are resolved, before anything is read or written. Files are served to `<img>`, `<video>` and `fetch`
-through `AntiGem.fs.url()`, with byte ranges and native thumbnails.
+through `DuiAI.fs.url()`, with byte ranges and native thumbnails.
 
 ## Paths
 
-Every `AntiGem.fs` method takes one of these forms. Anything else (for example a bare `notes.txt`) rejects with
+Every `DuiAI.fs` method takes one of these forms. Anything else (for example a bare `notes.txt`) rejects with
 `TypeError`.
 
 | Form | Means | Access |
 |---|---|---|
-| `data` or `data/…` | The app's private folder (`~/.antigem/mini-apps/<app id>/files/`) | Always read and write |
+| `data` or `data/…` | The app's private folder (`~/.dui/mini-apps/<app id>/files/`) | Always read and write |
 | `app:<id>/…` | The `data/` folder of another app in the same `shared_id` group | Read and write, no prompt. See [shared data](shared-data.md) |
-| `~` or `~/…` | AntiGem's home folder | Only inside granted folders |
+| `~` or `~/…` | DuiAI's home folder | Only inside granted folders |
 | `/…` | An absolute path, e.g. `/sdcard/Download/x.pdf` | Only inside granted folders |
 
 Paths are made canonical before the check: `..` and every symlink are resolved to the real location. `/sdcard/…` is
 reported back as its real path, `/storage/emulated/0/…`.
 
-The same forms (`app:<id>/…` included) work for `AntiGem.ui.viewMedia` items and for notification images (`icon`,
+The same forms (`app:<id>/…` included) work for `DuiAI.ui.viewMedia` items and for notification images (`icon`,
 `smallIcon`, `image`), with the same checks.
 
 Never reachable, whatever is granted:
 
-- AntiGem's own folder `~/.antigem/` (settings, the browser profile, uploads, other apps' data; only the `data/`
+- DuiAI's own folder `~/.dui/` (settings, the browser profile, uploads, other apps' data; only the `data/`
   folders of the app's shared group are reachable) and every app's code (`~/mini-apps/`),
 - hidden folders directly in home (`~/.ssh`, `~/.codex`, …), unless the manifest declares that folder or one inside
   it, for example `{ "path": "~/.gemini", "access": "read" }`, and the user grants it. "All files" and picked folders
-  never open them. Apps not signed with the official AntiGem mini apps key need the typed confirmation for these,
-- anything outside AntiGem's home and the phone's shared storage (`/storage/emulated/0`), such as system folders or a
+  never open them. Apps not signed with the official DuiAI mini apps key need the typed confirmation for these,
+- anything outside DuiAI's home and the phone's shared storage (`/storage/emulated/0`), such as system folders or a
   removable SD card.
 
 ## Granted folders
@@ -60,8 +60,8 @@ manifest:
 | `write` | `write`, `writeJSON`, `mkdir`, `delete`, `move`, `stat`, `exists` (no reading) |
 | `readwrite` | Everything |
 
-A granted folder also covers everything below it. `AntiGem.permissions.request('storage')` asks for every declared
-folder that isn't granted yet; `AntiGem.permissions.query('storage:/sdcard/DCIM')` checks one. `query('storage')` is
+A granted folder also covers everything below it. `DuiAI.permissions.request('storage')` asks for every declared
+folder that isn't granted yet; `DuiAI.permissions.query('storage:/sdcard/DCIM')` checks one. `query('storage')` is
 `granted` only when every declared folder is granted, `prompt` while any is undecided, and `denied` otherwise.
 
 ## Reading and writing
@@ -74,21 +74,21 @@ folder that isn't granted yet; `AntiGem.permissions.query('storage:/sdcard/DCIM'
 | `writeJSON(path, value)` | `Promise<void>` | `JSON.stringify(value, null, 2)` |
 
 ```js
-await AntiGem.fs.write('data/notes.txt', 'Hello');
-await AntiGem.fs.write('data/log.txt', `${new Date().toISOString()} started\n`, { append: true });
-const text = await AntiGem.fs.read('data/notes.txt');
+await DuiAI.fs.write('data/notes.txt', 'Hello');
+await DuiAI.fs.write('data/log.txt', `${new Date().toISOString()} started\n`, { append: true });
+const text = await DuiAI.fs.read('data/notes.txt');
 
-await AntiGem.fs.writeJSON('data/state.json', { count: 3 });
-const state = await AntiGem.fs.readJSON('data/state.json').catch(() => ({ count: 0 }));
+await DuiAI.fs.writeJSON('data/state.json', { count: 3 });
+const state = await DuiAI.fs.readJSON('data/state.json').catch(() => ({ count: 0 }));
 
 // binary
 const blob = await (await fetch('https://example.com/a.png')).blob();
-await AntiGem.fs.write('data/images/a.png', blob);
-const b64 = await AntiGem.fs.read('data/images/a.png', { encoding: 'base64' });
+await DuiAI.fs.write('data/images/a.png', blob);
+const b64 = await DuiAI.fs.read('data/images/a.png', { encoding: 'base64' });
 ```
 
 Whole-file reads and writes travel through the bridge as text or base64. For big files (videos, large photos) use
-`AntiGem.fs.url()` to stream them instead of reading them into JavaScript.
+`DuiAI.fs.url()` to stream them instead of reading them into JavaScript.
 
 ## Folders and file info
 
@@ -109,11 +109,11 @@ passed straight back to other methods.
 with `NotAllowedError` rather than returning `false`.
 
 ```js
-const entries = await AntiGem.fs.list('/sdcard/Download');
+const entries = await DuiAI.fs.list('/sdcard/Download');
 for (const e of entries) console.log(e.type, e.name, e.size);
-await AntiGem.fs.mkdir('data/exports');
-await AntiGem.fs.move('data/draft.txt', 'data/exports/final.txt');
-await AntiGem.fs.delete('data/cache', { recursive: true });
+await DuiAI.fs.mkdir('data/exports');
+await DuiAI.fs.move('data/draft.txt', 'data/exports/final.txt');
+await DuiAI.fs.delete('data/cache', { recursive: true });
 ```
 
 Root folders can't be deleted or moved as a whole: the app's own `data` folder, a shared-group app's `data` folder, a
@@ -129,17 +129,17 @@ granted folder itself, home and `/sdcard` (`NotAllowedError`).
 - `delete(path, {recursive: true})` removes links inside the folder, never what they point to.
 - `move` across storages skips symlinks when it copies.
 
-## Showing files: AntiGem.fs.url()
+## Showing files: DuiAI.fs.url()
 
-`AntiGem.fs.url(path, {thumb?})` returns a same-origin URL (synchronously) that streams the file natively. Use it in
+`DuiAI.fs.url(path, {thumb?})` returns a same-origin URL (synchronously) that streams the file natively. Use it in
 `<img>`, `<video>`, `<audio>`, CSS, or `fetch()`.
 
 ```js
-img.src = AntiGem.fs.url('data/photo.jpg');
-video.src = AntiGem.fs.url('/sdcard/DCIM/Camera/clip.mp4');   // seeking works (Range requests)
-grid.append(...photos.map((p) => Object.assign(new Image(), { src: AntiGem.fs.url(p.path, { thumb: 320 }), loading: 'lazy' })));
+img.src = DuiAI.fs.url('data/photo.jpg');
+video.src = DuiAI.fs.url('/sdcard/DCIM/Camera/clip.mp4');   // seeking works (Range requests)
+grid.append(...photos.map((p) => Object.assign(new Image(), { src: DuiAI.fs.url(p.path, { thumb: 320 }), loading: 'lazy' })));
 
-const blob = await (await fetch(AntiGem.fs.url('data/report.pdf'))).blob();
+const blob = await (await fetch(DuiAI.fs.url('data/report.pdf'))).blob();
 ```
 
 | Option | Type | Default | Meaning |
@@ -157,15 +157,15 @@ const blob = await (await fetch(AntiGem.fs.url('data/report.pdf'))).blob();
 
 ## Picking files
 
-### AntiGem.fs.pick()
+### DuiAI.fs.pick()
 
 Opens Android's file picker. The chosen files are **copied** into `data/imports/` (the app never gets the original);
 a name that already exists gets ` (1)`, ` (2)`… added.
 
 ```js
-const files = await AntiGem.fs.pick({ accept: 'image/*', multiple: true });
+const files = await DuiAI.fs.pick({ accept: 'image/*', multiple: true });
 // [{name: 'IMG_1.jpg', path: 'data/imports/IMG_1.jpg', size: 204800, type: 'image/jpeg'}]
-for (const f of files) addPhoto(AntiGem.fs.url(f.path));
+for (const f of files) addPhoto(DuiAI.fs.url(f.path));
 ```
 
 | Option | Type | Default | Meaning |
@@ -181,7 +181,7 @@ A file input opens the same native picker. The first type in `accept` is used (`
 into MIME types) and `multiple` works. The page gets normal `File` objects; nothing is copied into `data/`.
 
 With the `capture` attribute and `accept="image/*"` (or `video/*`), the input opens the camera app instead, when the
-app declares the `camera` permission and the user allows it (Android's camera permission for AntiGem is needed too).
+app declares the `camera` permission and the user allows it (Android's camera permission for DuiAI is needed too).
 The photo or video comes back as a file in the input. Without the permission, the normal file picker opens and the
 console logs a warning.
 
@@ -189,15 +189,15 @@ console logs a warning.
 <input type="file" accept="image/*" capture>
 ```
 
-### AntiGem.fs.pickFolder()
+### DuiAI.fs.pickFolder()
 
-The user picks any folder in AntiGem's own file explorer (phone storage or the AntiGem home), and the app gets the
+The user picks any folder in DuiAI's own file explorer (phone storage or the DuiAI home), and the app gets the
 manifest's `pick` access to it, kept until the app gives it back. The manifest must allow it with
 `"storage": {"pick": "read" | "write" | "readwrite"}` (`true` means `read`).
 
 ```js
-const picked = await AntiGem.fs.pickFolder();   // {path: '/storage/emulated/0/Music', access: 'read'} or null
-if (picked) render(await AntiGem.fs.list(picked.path));
+const picked = await DuiAI.fs.pickFolder();   // {path: '/storage/emulated/0/Music', access: 'read'} or null
+if (picked) render(await DuiAI.fs.list(picked.path));
 ```
 
 - Resolves `null` when the user cancels.
@@ -210,7 +210,7 @@ if (picked) render(await AntiGem.fs.list(picked.path));
   have nothing in common (`read` and `write`), the folder no longer counts. Removing `pick` from the manifest disables
   all picked folders.
 
-### AntiGem.fs.folders() and forgetFolder()
+### DuiAI.fs.folders() and forgetFolder()
 
 `folders()` lists every folder the app may use right now:
 
@@ -228,22 +228,22 @@ Manifest folders appear only when granted, with their real path (`/storage/emula
 all picked folders when called without a path. The user can also remove them in App info.
 
 ```js
-for (const f of await AntiGem.fs.folders()) {
-  if (f.source === 'picked') await AntiGem.fs.forgetFolder(f.path);
+for (const f of await DuiAI.fs.folders()) {
+  if (f.source === 'picked') await DuiAI.fs.forgetFolder(f.path);
 }
 ```
 
 ## Files sent by other apps
 
-When another mini app sends a file with `AntiGem.intent.send({path})`, the receiving app gets a **one-day read grant
+When another mini app sends a file with `DuiAI.intent.send({path})`, the receiving app gets a **one-day read grant
 for that one file**: `read`, `stat`, `exists` and `url` work on the exact `path` from the `intent` event, nothing else
 in its folder, and no writes. Copy it into `data/` if you want to keep it:
 
 ```js
-AntiGem.on('intent', async (it) => {
+DuiAI.on('intent', async (it) => {
   if (!it.path) return;
-  const blob = await (await fetch(AntiGem.fs.url(it.path))).blob();
-  await AntiGem.fs.write(`data/inbox/${it.path.split('/').pop()}`, blob);
+  const blob = await (await fetch(DuiAI.fs.url(it.path))).blob();
+  await DuiAI.fs.write(`data/inbox/${it.path.split('/').pop()}`, blob);
 });
 ```
 

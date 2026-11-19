@@ -1,6 +1,6 @@
-# chrome.antigem — AntiGem native API
+# chrome.dui — DuiAI native API
 
-These are app additions, not Chrome APIs. Every call requires the manifest permission **`antigemFiles`**, including automation. Every method takes one object and returns a Promise; callback overloads are not supported. Errors reject. Page automation additionally checks the selected tab's host permission/activeTab access.
+These are app additions, not Chrome APIs. Every call requires the manifest permission **`duiFiles`**, including automation. Every method takes one object and returns a Promise; callback overloads are not supported. Errors reject. Page automation additionally checks the selected tab's host permission/activeTab access.
 
 ## automation({tabId,busy?,locked?,tap?})
 
@@ -24,7 +24,7 @@ const [frame] = await chrome.scripting.executeScript({
             fy:(r.top+r.height/2-(v?.offsetTop||0))/(v?.height||innerHeight)};
   }
 });
-await chrome.antigem.automation({tabId, tap:frame.result});
+await chrome.dui.automation({tabId, tap:frame.result});
 ```
 
 Use try/finally around leases. Disabling/reloading through the app manager releases ownership. A crashed worker's busy lease expires after60 seconds; explicit interaction locks need manager release. Do not hold the input lock after a finished job. Website acceptance/network results still need checking: a successful native tap only means the touch was dispatched.
@@ -47,16 +47,16 @@ A successful upload only means the site received the files. Wait for its preview
 
 ```js
 // e.g. a "post with a photo" tool
-await chrome.antigem.automation({tabId, busy:true});
+await chrome.dui.automation({tabId, busy:true});
 try {
   await chrome.scripting.executeScript({target:{tabId}, world:'MAIN', func:text => {
     const box = document.querySelector('[contenteditable=true][role=textbox]');
     box.focus(); document.execCommand('insertText', false, text);
   }, args:[message.args.text]});
-  const upload = await chrome.antigem.uploadFiles({tabId, files:[message.args.image_path], selector:'input[type=file][accept*=image]'});
+  const upload = await chrome.dui.uploadFiles({tabId, files:[message.args.image_path], selector:'input[type=file][accept*=image]'});
   // then wait until the page shows the preview, and tap the site's Post button with automation({tap})
 } finally {
-  await chrome.antigem.automation({tabId, busy:false});
+  await chrome.dui.automation({tabId, busy:false});
 }
 ```
 
@@ -64,17 +64,17 @@ Sites change their markup often: prefer stable selectors (accept types, aria lab
 
 ## Local paths and bytes
 
-Paths may be absolute inside the local terminal home, `~/...`, or `/sdcard/...` when Android grants access. Relative paths resolve against the Node host working directory (normally terminal home). File APIs are not per-extension private sandboxes: `antigemFiles` permits access within these roots. For private extension data use storage.local. File methods do not open Android's system document picker; ZIP installation is an app settings feature.
+Paths may be absolute inside the local terminal home, `~/...`, or `/sdcard/...` when Android grants access. Relative paths resolve against the Node host working directory (normally terminal home). File APIs are not per-extension private sandboxes: `duiFiles` permits access within these roots. For private extension data use storage.local. File methods do not open Android's system document picker; ZIP installation is an app settings feature.
 
 | Method | Arguments → result |
 | --- | --- |
-| `antigem.stat` | `{path}` → `{path:absolute,size:bytes,modified:epochMs,isFile:boolean}`. Missing files reject. |
-| `antigem.readFile` | `{path,encoding?:"utf8"|"base64"}` → string. Entire file is read; use sensible file sizes. Default UTF8. |
-| `antigem.writeFile` | `{path,data:string,encoding?:"utf8"|"base64",append?:boolean}` → `{path:absolute}`. Creates parents; overwrite by default. |
-| `antigem.listFiles` | `{path,recursive?:boolean,limit?:number}` → `{name,path,isFile,isDirectory,size,modified}[]`. Default limit500, capped2000; includes directories; skips symlink entries. No ordering guarantee or pagination. |
-| `antigem.copyFile` | `{from,to}` → `{path:absoluteDestination}`. Creates parents, overwrites destination; same source/destination is a no-op. |
-| `antigem.download` | `{url,path,reuse?:boolean}` → `{path:absolute}` after completion. With reuse, an existing nonempty file is reused. Otherwise streams to a temporary file then atomically replaces destination. Deadline180 seconds. Fetch is Node-side and does not inherit WebView auth cookies. |
-| `antigem.mediaInfo` | `{path}` → `{duration:numberSeconds}` using Android MediaMetadataRetriever. Local supported media file required. |
-| `antigem.mediaFrame` | `{path,at_seconds?:number}` → `{path:absolutePng}`. Omit time for a frame near the video's end (duration minus50ms). Explicit time is clamped to clip bounds. PNG is written beside source as `frame_<stem>_<milliseconds>.png`; nearest decoded frame is used, so timestamp accuracy depends on codec. |
+| `dui.stat` | `{path}` → `{path:absolute,size:bytes,modified:epochMs,isFile:boolean}`. Missing files reject. |
+| `dui.readFile` | `{path,encoding?:"utf8"|"base64"}` → string. Entire file is read; use sensible file sizes. Default UTF8. |
+| `dui.writeFile` | `{path,data:string,encoding?:"utf8"|"base64",append?:boolean}` → `{path:absolute}`. Creates parents; overwrite by default. |
+| `dui.listFiles` | `{path,recursive?:boolean,limit?:number}` → `{name,path,isFile,isDirectory,size,modified}[]`. Default limit500, capped2000; includes directories; skips symlink entries. No ordering guarantee or pagination. |
+| `dui.copyFile` | `{from,to}` → `{path:absoluteDestination}`. Creates parents, overwrites destination; same source/destination is a no-op. |
+| `dui.download` | `{url,path,reuse?:boolean}` → `{path:absolute}` after completion. With reuse, an existing nonempty file is reused. Otherwise streams to a temporary file then atomically replaces destination. Deadline180 seconds. Fetch is Node-side and does not inherit WebView auth cookies. |
+| `dui.mediaInfo` | `{path}` → `{duration:numberSeconds}` using Android MediaMetadataRetriever. Local supported media file required. |
+| `dui.mediaFrame` | `{path,at_seconds?:number}` → `{path:absolutePng}`. Omit time for a frame near the video's end (duration minus50ms). Explicit time is clamped to clip bounds. PNG is written beside source as `frame_<stem>_<milliseconds>.png`; nearest decoded frame is used, so timestamp accuracy depends on codec. |
 
 To reuse generated image media as a Flow reference, pass its `media_id` to a Flow tool. Calling readFile/upload again is unnecessary. Local file uploads are cached by canonical stat path, size and modification time for the life of the Flow worker.

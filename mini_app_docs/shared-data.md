@@ -25,7 +25,7 @@ Two apps share data when all of this is true:
 | …or both development apps | Both folders in `~/mini-apps`. A development app never reaches an installed app's data, nor the other way round. |
 | Neither is modified | An installed app whose files no longer match its signature is cut off from the group. |
 
-AntiGem enforces the key rule when installing: a package whose `shared_id` group already holds an installed app signed by another key is not installed. The install screen says:
+DuiAI enforces the key rule when installing: a package whose `shared_id` group already holds an installed app signed by another key is not installed. The install screen says:
 
 > It shares data with the apps of "com.you.suite", and Notes there is signed by Someone Else (key AB12:CD34:EF56:7890), not by this package's developer. Only apps signed with the same key can share data.
 
@@ -33,11 +33,11 @@ This applies to updates too: an update can't move an app into a group signed by 
 
 ## What is shared
 
-Only each app's `data/` folder (on disk: `~/.antigem/mini-apps/<id>/files/`). Everything else stays per app:
+Only each app's `data/` folder (on disk: `~/.dui/mini-apps/<id>/files/`). Everything else stays per app:
 
 | Shared | Not shared |
 |---|---|
-| `data/` files, read and write | `AntiGem.storage`, `localStorage`, `sessionStorage` |
+| `data/` files, read and write | `DuiAI.storage`, `localStorage`, `sessionStorage` |
 | | IndexedDB |
 | | Cookies |
 | | Permissions, picked folders, reminders, background tasks, notifications |
@@ -50,24 +50,24 @@ Each app still uses `data/…` for its own folder. The other apps' folders are `
 
 ```js
 // in com.you.tasks
-await AntiGem.fs.write('app:com.you.notes/inbox/todo.txt', 'Buy milk');
-const items = await AntiGem.fs.list('app:com.you.notes/inbox');
-const text = await AntiGem.fs.read('app:com.you.notes/inbox/todo.txt');
+await DuiAI.fs.write('app:com.you.notes/inbox/todo.txt', 'Buy milk');
+const items = await DuiAI.fs.list('app:com.you.notes/inbox');
+const text = await DuiAI.fs.read('app:com.you.notes/inbox/todo.txt');
 ```
 
 - `app:<own id>/…` is the same as `data/…`.
 - The other app must be present on the phone (installed, or a development folder). Until then, and for any app outside the group, the path is refused with `NotAllowedError` (`app:<id>/… is protected`).
 - The other app is checked on disk on every access. If it is deleted, uninstalled, or its manifest no longer has the same `id` and `shared_id`, its folder can't be reached from that moment on.
 - The root of another app's `data/` folder can't be deleted or moved as a whole; its contents can.
-- `AntiGem.fs.url('app:<id>/photo.jpg')` works like any other readable path (for `<img>`, `<video>`, `fetch`).
-- `app:<id>/…` paths also work in `AntiGem.ui.viewMedia` items and in notification images (`icon`, `smallIcon`, `image`).
+- `DuiAI.fs.url('app:<id>/photo.jpg')` works like any other readable path (for `<img>`, `<video>`, `fetch`).
+- `app:<id>/…` paths also work in `DuiAI.ui.viewMedia` items and in notification images (`icon`, `smallIcon`, `image`).
 
 ## Finding the group
 
-`AntiGem.fs.folders()` lists the group's folders with `source: "shared"`:
+`DuiAI.fs.folders()` lists the group's folders with `source: "shared"`:
 
 ```js
-const shared = (await AntiGem.fs.folders()).filter(f => f.source === 'shared');
+const shared = (await DuiAI.fs.folders()).filter(f => f.source === 'shared');
 // [{ path: 'app:com.you.notes', access: 'readwrite', source: 'shared', app: { id: 'com.you.notes', name: 'Notes' } }]
 ```
 
@@ -80,21 +80,21 @@ Notes collects items, Tasks drops new ones into Notes' inbox.
 ```js
 // Tasks: send a task to Notes, if Notes is installed
 async function sendToNotes(title) {
-  const notes = (await AntiGem.fs.folders()).find(f => f.source === 'shared' && f.app.id === 'com.you.notes');
-  if (!notes) return AntiGem.ui.toast('Install Notes to send tasks there');
-  await AntiGem.fs.writeJSON(`app:com.you.notes/inbox/${Date.now()}.json`, { title, from: 'tasks' });
+  const notes = (await DuiAI.fs.folders()).find(f => f.source === 'shared' && f.app.id === 'com.you.notes');
+  if (!notes) return DuiAI.ui.toast('Install Notes to send tasks there');
+  await DuiAI.fs.writeJSON(`app:com.you.notes/inbox/${Date.now()}.json`, { title, from: 'tasks' });
 }
 ```
 
 ```js
 // Notes: read its own inbox (the same folder, seen from inside)
 async function readInbox() {
-  if (!(await AntiGem.fs.exists('data/inbox'))) return;   // list() fails on a missing folder
-  const files = await AntiGem.fs.list('data/inbox');
+  if (!(await DuiAI.fs.exists('data/inbox'))) return;   // list() fails on a missing folder
+  const files = await DuiAI.fs.list('data/inbox');
   for (const f of files.filter(f => f.type === 'file')) {
-    const item = await AntiGem.fs.readJSON(f.path);
+    const item = await DuiAI.fs.readJSON(f.path);
     addNote(item.title);
-    await AntiGem.fs.delete(f.path);
+    await DuiAI.fs.delete(f.path);
   }
 }
 ```

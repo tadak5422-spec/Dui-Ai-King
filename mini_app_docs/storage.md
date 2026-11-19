@@ -1,26 +1,26 @@
 # Storage
 
-A mini app keeps its data natively, outside the WebView: `localStorage`, `sessionStorage` and `AntiGem.storage` live
+A mini app keeps its data natively, outside the WebView: `localStorage`, `sessionStorage` and `DuiAI.storage` live
 in a native key-value store, IndexedDB is stored in SQLite, cookies are in the app's own persistent jar, and files go
 in the app's private `data/` folder (see [files](files.md)). None of this needs a permission. Each app's data is
-separate from every other app's, survives app updates and AntiGem restarts, and is removed by "Clear data" or
+separate from every other app's, survives app updates and DuiAI restarts, and is removed by "Clear data" or
 uninstall.
 
 ## Where data lives
 
-All of an app's data is in `~/.antigem/mini-apps/<app id>/`, never in the app folder itself:
+All of an app's data is in `~/.dui/mini-apps/<app id>/`, never in the app folder itself:
 
 | File / folder | Holds |
 |---|---|
-| `kv.db` | `localStorage` and `AntiGem.storage` (SQLite) |
+| `kv.db` | `localStorage` and `DuiAI.storage` (SQLite) |
 | `idb.db` | Every IndexedDB database of the app (SQLite) |
 | `cookies.db` | The cookie jar |
 | `files/` | The app's `data/` folder |
 | `net-cache/` | HTTP cache of the native network layer (up to 50 MB) |
-| `thumbs/` | Cached thumbnails from `AntiGem.fs.url(path, {thumb})` |
+| `thumbs/` | Cached thumbnails from `DuiAI.fs.url(path, {thumb})` |
 | `console.log` | Console output (see [troubleshooting](troubleshooting.md)) |
 
-Reminders and background tasks are kept by AntiGem itself, not in this folder.
+Reminders and background tasks are kept by DuiAI itself, not in this folder.
 
 ## localStorage and sessionStorage
 
@@ -45,7 +45,7 @@ window.addEventListener('storage', (e) => {
 });
 ```
 
-## AntiGem.storage
+## DuiAI.storage
 
 A small key-value API on the same native store, in its own namespace (its keys never clash with `localStorage`).
 Values are saved as JSON, so objects and arrays come back as objects and arrays.
@@ -55,19 +55,19 @@ Values are saved as JSON, so objects and arrays come back as objects and arrays.
 | `get(key, fallback?)` | value | Parsed value, or `fallback` when the key is missing. A stored value that isn't valid JSON comes back as a string |
 | `set(key, value)` | `undefined` | Saves `JSON.stringify(value)`; `undefined` is saved as `null` |
 | `remove(key)` | `undefined` | Deletes the key |
-| `keys()` | `string[]` | Keys of `AntiGem.storage` only |
-| `clear()` | `undefined` | Deletes all `AntiGem.storage` keys (not `localStorage`) |
+| `keys()` | `string[]` | Keys of `DuiAI.storage` only |
+| `clear()` | `undefined` | Deletes all `DuiAI.storage` keys (not `localStorage`) |
 
 ```js
-const settings = AntiGem.storage.get('settings', { units: 'metric', alerts: true });
+const settings = DuiAI.storage.get('settings', { units: 'metric', alerts: true });
 settings.alerts = false;
-AntiGem.storage.set('settings', settings);
+DuiAI.storage.set('settings', settings);
 
-// another page of the app changed AntiGem.storage
-AntiGem.on('storage', ({ key }) => { if (key === 'settings' || key === null) reload(); });
+// another page of the app changed DuiAI.storage
+DuiAI.on('storage', ({ key }) => { if (key === 'settings' || key === null) reload(); });
 ```
 
-`AntiGem.storage` changes made by other pages fire `AntiGem.on('storage', …)` with `{key}` (`key` is `null` after
+`DuiAI.storage` changes made by other pages fire `DuiAI.on('storage', …)` with `{key}` (`key` is `null` after
 `clear()`), not the `window` `storage` event. Like `localStorage`, it is synchronous, write-behind, and not available
 in workers.
 
@@ -121,7 +121,7 @@ tx.oncomplete = () => console.log('saved');
   browsers allow.
 - Class instances are stored as plain objects (their own enumerable properties). Two references to the same object
   are stored as two copies.
-- `Blob` and `File` contents are stored inside the database row. Keep large media in files (`AntiGem.fs`) and store
+- `Blob` and `File` contents are stored inside the database row. Keep large media in files (`DuiAI.fs`) and store
   the path instead.
 
 ### Known limits
@@ -146,9 +146,9 @@ Errors use the standard names: `ConstraintError`, `DataError`, `DataCloneError`,
 Each app has its own permanent cookie jar, like a browser profile. The native network layer sends its cookies on every
 HTTP request (`fetch`, `XMLHttpRequest`, `EventSource`, `sendBeacon`, WebSocket handshakes, notification images, and
 `https` images, styles, fonts and scripts) and stores every `Set-Cookie` it receives, including on redirects. A login cookie therefore keeps working after
-AntiGem restarts. See [network](network.md#cookies-and-credentials) for how requests use it.
+DuiAI restarts. See [network](network.md#cookies-and-credentials) for how requests use it.
 
-`AntiGem.cookies` reads and changes the jar. Every `url` must be a host the app may reach (its `network` hosts, or
+`DuiAI.cookies` reads and changes the jar. Every `url` must be a host the app may reach (its `network` hosts, or
 `localhost` with that permission); others reject with `NotAllowedError`.
 
 | Method | Returns | Meaning |
@@ -181,16 +181,16 @@ Without `expires` or `maxAge`, a cookie the app sets lasts 400 days.
 
 ```js
 // a token the user pasted from a browser session
-const n = await AntiGem.cookies.import('https://api.example.com/', userPastedHeader);
+const n = await DuiAI.cookies.import('https://api.example.com/', userPastedHeader);
 
-await AntiGem.cookies.set({ url: 'https://api.example.com/', name: 'lang', value: 'en', maxAge: 30 * 86400 });
-const all = await AntiGem.cookies.list('https://api.example.com/');
-await AntiGem.cookies.clear('https://api.example.com/');
+await DuiAI.cookies.set({ url: 'https://api.example.com/', name: 'lang', value: 'en', maxAge: 30 * 86400 });
+const all = await DuiAI.cookies.list('https://api.example.com/');
+await DuiAI.cookies.clear('https://api.example.com/');
 ```
 
 Jar rules:
 
-- Session cookies from servers (no expiry) are kept in memory until AntiGem's process ends.
+- Session cookies from servers (no expiry) are kept in memory until DuiAI's process ends.
 - A cookie whose name plus value is longer than 4096 characters is dropped. At most 180 cookies per domain and 3000 per
   app; the oldest go first.
 - A server cookie with a past date deletes the cookie, as in browsers.
@@ -198,13 +198,13 @@ Jar rules:
 
 ## Quotas
 
-There is no fixed quota on `localStorage`, `AntiGem.storage`, IndexedDB or files. The practical limits are the phone's
+There is no fixed quota on `localStorage`, `DuiAI.storage`, IndexedDB or files. The practical limits are the phone's
 free space and these:
 
 | What | Limit |
 |---|---|
-| `localStorage` + `AntiGem.storage` | No quota, but the whole store is copied into every page when it loads: keep it small (settings, small state) and put bulk data in IndexedDB or files |
-| `AntiGem.fs.read` | 64 MB per call (`QuotaExceededError`); stream bigger files with `AntiGem.fs.url()` |
+| `localStorage` + `DuiAI.storage` | No quota, but the whole store is copied into every page when it loads: keep it small (settings, small state) and put bulk data in IndexedDB or files |
+| `DuiAI.fs.read` | 64 MB per call (`QuotaExceededError`); stream bigger files with `DuiAI.fs.url()` |
 | HTTP cache | 50 MB per app |
 | Cookies | 4096 characters per cookie, 180 per domain, 3000 per app |
 
@@ -217,15 +217,15 @@ free space and these:
   until they reload.
 - **Uninstalling** an installed app removes the app and all of the above. See
   [signing and distribution](signing-and-distribution.md).
-- From code, clear what you own: `localStorage.clear()`, `AntiGem.storage.clear()`, `indexedDB.deleteDatabase(name)`,
-  `AntiGem.cookies.clear()`, `AntiGem.fs.delete('data/x', {recursive: true})`.
+- From code, clear what you own: `localStorage.clear()`, `DuiAI.storage.clear()`, `indexedDB.deleteDatabase(name)`,
+  `DuiAI.cookies.clear()`, `DuiAI.fs.delete('data/x', {recursive: true})`.
 
 ## Limits and errors
 
-- Writes to `localStorage` and `AntiGem.storage` are asynchronous on disk. They are safe across page reloads and
+- Writes to `localStorage` and `DuiAI.storage` are asynchronous on disk. They are safe across page reloads and
   normal app closes, but a write in the last moment before the process is killed can be lost. Keep critical data in
   IndexedDB (its transactions commit to SQLite before `complete` fires) or in files.
-- `localStorage`, `sessionStorage` and `AntiGem.storage` are not available in workers. IndexedDB, files and cookies
+- `localStorage`, `sessionStorage` and `DuiAI.storage` are not available in workers. IndexedDB, files and cookies
   are.
-- `AntiGem.cookies` rejects with `NotAllowedError` for hosts the app may not reach and with `TypeError` for an invalid
+- `DuiAI.cookies` rejects with `NotAllowedError` for hosts the app may not reach and with `TypeError` for an invalid
   or missing `url` or an `expires` it can't read.

@@ -167,7 +167,7 @@ func relocateDeb(path string, rw *rewriter) (bool, error) {
 	}
 
 	dir := filepath.Dir(path)
-	dataTmp, err := os.CreateTemp(dir, ".antigem-data-*")
+	dataTmp, err := os.CreateTemp(dir, ".dui-data-*")
 	if err != nil {
 		return false, err
 	}
@@ -192,7 +192,7 @@ func relocateDeb(path string, rw *rewriter) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	out, err := os.CreateTemp(dir, ".antigem-deb-*")
+	out, err := os.CreateTemp(dir, ".dui-deb-*")
 	if err != nil {
 		return false, err
 	}

@@ -1,9 +1,9 @@
 # Notifications
 
-`AntiGem.notify` posts real Android notifications, with what an installed app gets: the app's own channels in
+`DuiAI.notify` posts real Android notifications, with what an installed app gets: the app's own channels in
 Android settings, accent colors, big text / picture / inbox / chat styles, progress bars, countdowns and stopwatches
 the system ticks by itself, ongoing notifications, up to three buttons and an inline reply box. Taps, buttons, replies
-and swipe-aways come back to the app as `notification` events. Reminders (`AntiGem.notify.schedule`) are kept
+and swipe-aways come back to the app as `notification` events. Reminders (`DuiAI.notify.schedule`) are kept
 natively: they fire with the app closed and survive restarts and reboots. Showing, scheduling and creating channels
 need the `notifications` permission.
 
@@ -12,8 +12,8 @@ need the `notifications` permission.
 ```
 
 ```js
-if (await AntiGem.permissions.request('notifications') === 'granted') {
-  await AntiGem.notify.show({ id: 'hello', title: 'Hello', body: 'From a mini app' });
+if (await DuiAI.permissions.request('notifications') === 'granted') {
+  await DuiAI.notify.show({ id: 'hello', title: 'Hello', body: 'From a mini app' });
 }
 ```
 
@@ -42,7 +42,7 @@ Every option is optional. The same `id` updates a notification in place (no new 
 | `body` | string | `''` | Up to 4000 characters. Longer than 40 characters: shown expandable (big text) |
 | `subtext` | string | the app name | Small text in the header |
 | `channel` | string | see below | The id of a channel made with `channel()` |
-| `ongoing` | boolean | `false` | Stays until the app removes it (on Android 14+ the user can still swipe it away). Without `channel`, it goes to AntiGem's "Mini apps (running)" channel: no sound, no vibration |
+| `ongoing` | boolean | `false` | Stays until the app removes it (on Android 14+ the user can still swipe it away). Without `channel`, it goes to DuiAI's "Mini apps (running)" channel: no sound, no vibration |
 | `silent` | boolean | `false` | No sound or vibration. Without `channel`, it goes to the "Mini apps (silent)" channel |
 | `onlyAlertOnce` | boolean | same as `ongoing` | Sound and vibration only the first time, not on updates |
 | `autoCancel` | boolean | `!ongoing` | Removed when tapped |
@@ -50,7 +50,7 @@ Every option is optional. The same `id` updates a notification in place (no new 
 | `color` | string | the manifest's `theme_color` | Accent of the icon, app name and buttons: `#rgb`, `#rrggbb`, `#rrggbbaa` or a basic color name like `red` (not `rgb()` or `var()`) |
 | `colorized` | boolean | `false` | Asks Android to fill the whole notification with `color` (only some kinds of notification are allowed to) |
 | `icon` | string | the app icon | Large icon: a file of the app (`img/x.png`; for an installed app, only if it matches the signature), a `data/…`, `app:<id>/…`, `~/…` or `/…` file the app may read, or an `http(s)` URL it may reach (fetched as the app: its hosts list, cookies and `localhost` rules) |
-| `smallIcon` | string | AntiGem's icon | Status bar icon: a white-on-transparent PNG (same sources as `icon`) |
+| `smallIcon` | string | DuiAI's icon | Status bar icon: a white-on-transparent PNG (same sources as `icon`) |
 | `image` | string | none | Big picture (same sources as `icon`). Takes priority over `lines` and `messages` |
 | `lines` | string[] | none | Inbox style, up to 7 lines; `body` becomes the summary |
 | `messages` | `[{from?, text, time?}]` | none | Chat style. `from` empty = the user; `time` is a `Date` or epoch ms (default now); `title` is the conversation name |
@@ -94,15 +94,15 @@ the reply is added to the conversation.
 
 ## Channels
 
-Without `channel`, notifications use one of AntiGem's three shared channels: "Mini apps" (pops up, with sound),
+Without `channel`, notifications use one of DuiAI's three shared channels: "Mini apps" (pops up, with sound),
 "Mini apps (running)" for `ongoing` (no sound or vibration, main part of the shade) and "Mini apps (silent)" for
 `silent` (the Silent section). For control per kind of notification, make your own channels. They appear in Android's
 notification settings under "Mini app: <name>", where the user can tune each one.
 
 ```js
-await AntiGem.notify.channel({ id: 'timer', name: 'Running timer', importance: 'default', sound: false, vibrate: false });
-await AntiGem.notify.channel({ id: 'messages', name: 'Messages', importance: 'high', vibrate: [0, 120, 80, 120], lights: '#6750A4' });
-await AntiGem.notify.show({ id: 'timer', channel: 'timer', ongoing: true, title: 'Focus', countdown: Date.now() + 25 * 60_000 });
+await DuiAI.notify.channel({ id: 'timer', name: 'Running timer', importance: 'default', sound: false, vibrate: false });
+await DuiAI.notify.channel({ id: 'messages', name: 'Messages', importance: 'high', vibrate: [0, 120, 80, 120], lights: '#6750A4' });
+await DuiAI.notify.show({ id: 'timer', channel: 'timer', ongoing: true, title: 'Focus', countdown: Date.now() + 25 * 60_000 });
 ```
 
 | Option | Type | Default | Meaning |
@@ -122,7 +122,7 @@ vibration can't be changed. To change them, use a new channel id (and `deleteCha
 ## Events
 
 ```js
-AntiGem.on('notification', (e) => {
+DuiAI.on('notification', (e) => {
   // e = {id, action, reply?, queued?}
   if (e.id === 'timer' && e.action === 'pause') pauseTimer();
   if (e.action === 'reply') sendMessage(e.reply);
@@ -152,25 +152,25 @@ Register the listener when the page starts, so queued events find it.
 
 ## Reminders
 
-`AntiGem.notify.schedule()` keeps a notification to show later, natively. No app code runs when it fires: the
-notification is shown exactly as described by its options. Reminders survive app restarts, AntiGem restarts and
+`DuiAI.notify.schedule()` keeps a notification to show later, natively. No app code runs when it fires: the
+notification is shown exactly as described by its options. Reminders survive app restarts, DuiAI restarts and
 reboots, and are re-planned after time or time-zone changes. Scheduling the same `id` again replaces the reminder.
 
 ```js
 // in 10 minutes
-await AntiGem.notify.schedule({ id: 'tea', title: 'Tea is ready', delay: '10m' });
+await DuiAI.notify.schedule({ id: 'tea', title: 'Tea is ready', delay: '10m' });
 
 // every day at 07:00
-await AntiGem.notify.schedule({ id: 'morning', title: 'Good morning', body: 'Plan your day', at: '07:00', repeat: 'daily' });
+await DuiAI.notify.schedule({ id: 'morning', title: 'Good morning', body: 'Plan your day', at: '07:00', repeat: 'daily' });
 
 // Monday and Thursday at 08:00, until the end of the year
-await AntiGem.notify.schedule({
+await DuiAI.notify.schedule({
   id: 'gym', title: 'Gym', at: '08:00',
   repeat: { days: ['mon', 'thu'], until: new Date('2026-12-31T23:59') },
 });
 
 // a one-off at a local date and time, with a button and a color
-await AntiGem.notify.schedule({
+await DuiAI.notify.schedule({
   id: 'party', title: 'Party', body: 'Leave in 30 minutes', at: '2026-12-24T18:00',
   color: '#C62828', actions: [{ id: 'snooze', title: 'Snooze', open: false }],
 });
@@ -216,7 +216,7 @@ What happens around a reminder:
   stays scheduled either way.
 - A reminder missed while the phone was off is shown at boot if it is at most 6 hours late; otherwise it moves on to
   its next time.
-- On Android 12 and later, exact timing needs AntiGem's "Alarms & reminders" access. Without it, reminders fire within
+- On Android 12 and later, exact timing needs DuiAI's "Alarms & reminders" access. Without it, reminders fire within
   a window Android chooses. App info shows a warning with a "Fix" button.
 - `cancel(id)` and `cancelAll()` also remove the notification if it is on screen.
 - Buttons and replies on a reminder's notification produce `notification` events like any other.
@@ -235,7 +235,7 @@ What happens around a reminder:
 
 | Error | When |
 |---|---|
-| `NotAllowedError` | No `notifications` permission; notifications for AntiGem are turned off in Android settings; repeating more often than every 15 minutes |
+| `NotAllowedError` | No `notifications` permission; notifications for DuiAI are turned off in Android settings; repeating more often than every 15 minutes |
 | `NotFoundError` | `channel` names a channel that wasn't created |
 | `TypeError` | Bad channel id; a reminder without title and body; a bad `at`, duration, day or repeat; a one-off time in the past |
 | `QuotaExceededError` | See the limits above |

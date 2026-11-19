@@ -1,4 +1,4 @@
-# ProGuard & R8 optimization rules for AntiGem
+# ProGuard & R8 optimization rules for DuiAI
 
 # Kotlin Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}

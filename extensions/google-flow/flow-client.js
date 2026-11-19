@@ -56,10 +56,10 @@ export class FlowClient {
   async statusVideos(tabId, ids) { return this.rpc(tabId, RPC.VIDEO_STATUS, [null,null,ids.map(id => [id])], 'videoStatus'); }
   async begin(tabId) {
     const count = this.active.get(tabId) || 0; this.active.set(tabId, count + 1);
-    if (!count) try { await this.chrome.antigem.automation({ tabId, busy:true }); await this.js(tabId, 's.freezeZoom(true)'); } catch(error) { this.active.delete(tabId); throw error; }
-    if(!this.heartbeat)this.heartbeat=setInterval(()=>{for(const tabId of this.active.keys())this.chrome.antigem.automation({tabId,busy:true}).catch(console.error);},15000);
+    if (!count) try { await this.chrome.dui.automation({ tabId, busy:true }); await this.js(tabId, 's.freezeZoom(true)'); } catch(error) { this.active.delete(tabId); throw error; }
+    if(!this.heartbeat)this.heartbeat=setInterval(()=>{for(const tabId of this.active.keys())this.chrome.dui.automation({tabId,busy:true}).catch(console.error);},15000);
   }
-  async end(tabId) { const count = Math.max(0, (this.active.get(tabId) || 0) - 1); if (count) { this.active.set(tabId,count); return; } this.active.delete(tabId); if(!this.active.size){clearInterval(this.heartbeat);this.heartbeat=null;} await this.js(tabId, '(s.blurAll(),s.freezeZoom(false))').catch(() => {}); await this.chrome.antigem.automation({ tabId,busy:false }).catch(() => {}); }
+  async end(tabId) { const count = Math.max(0, (this.active.get(tabId) || 0) - 1); if (count) { this.active.set(tabId,count); return; } this.active.delete(tabId); if(!this.active.size){clearInterval(this.heartbeat);this.heartbeat=null;} await this.js(tabId, '(s.blurAll(),s.freezeZoom(false))').catch(() => {}); await this.chrome.dui.automation({ tabId,busy:false }).catch(() => {}); }
   async clear(tabId) {
     await this.evaluate(tabId, async () => { const s = window.__agFlow; if (s.clearPromptFast().ok) return; s.clickAria('Clear prompt'); const until = Date.now() + 2000; while (s.chipIds().length && Date.now() < until) await new Promise(r => setTimeout(r,30)); if (s.chipIds().length) throw new Error('Old reference chips could not be cleared'); if (!s.setPrompt('').ok) throw new Error('Prompt could not be cleared'); s.blurAll(); });
   }
@@ -106,13 +106,13 @@ export class FlowClient {
   async resolveReference(tabId, value) {
     if(this.referenceResolver)value=await this.referenceResolver(value);
     if (/^[a-zA-Z0-9_-]{20,}$/.test(value) && !value.includes('/')) return value;
-    const file = await this.chrome.antigem.stat({ path:value }); const key = `${this.currentProjectId||''}|${file.path}|${file.size}|${file.modified}`;
+    const file = await this.chrome.dui.stat({ path:value }); const key = `${this.currentProjectId||''}|${file.path}|${file.size}|${file.modified}`;
     if (this.uploads.has(key)) return this.uploads.get(key);
     const mark = await this.js(tabId, 's.capMark().n');
     // Match flow_mcp's upload path: composer Upload -> DataTransfer, with CDP fallback.
     const name=file.path.split('/').at(-1), extension=name.split('.').at(-1).toLowerCase();
     const mime={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',mp4:'video/mp4',mov:'video/quicktime'}[extension]||'application/octet-stream';
-    const base64=file.size<=8*1024*1024?await this.chrome.antigem.readFile({path:file.path,encoding:'base64'}):null;
+    const base64=file.size<=8*1024*1024?await this.chrome.dui.readFile({path:file.path,encoding:'base64'}):null;
     let chooser;const onChooser=(source,event,params)=>{if(source.tabId===tabId&&event==='Page.fileChooserOpened')chooser=params;};
     this.chrome.debugger.onEvent.addListener(onChooser);
     try {
@@ -151,7 +151,7 @@ export class FlowClient {
         input.dispatchEvent(new Event('change',{bubbles:true}));return {injected:true};
       },[{name,mime,base64}]);
       if(!prepared.injected&&prepared.tap){
-        if(!chooser?.backendNodeId)await this.chrome.antigem.automation({tabId,tap:prepared.tap});
+        if(!chooser?.backendNodeId)await this.chrome.dui.automation({tabId,tap:prepared.tap});
         await this.wait(()=>chooser?.backendNodeId,6000,20);
         await this.chrome.debugger.sendCommand({tabId},'DOM.setFileInputFiles',{files:[file.path],backendNodeId:chooser.backendNodeId});
       }else if(!prepared.injected){
@@ -187,7 +187,7 @@ export class FlowClient {
         const target = prepared?.target || await this.evaluate(tabId, async () => { const s = window.__agFlow; const end = Date.now() + 10000; let previous;
           while (Date.now() < end) { const info = s.submitInfo(); if (info.canTap && !info.disabled && previous && Math.abs(previous.fx-info.fx)<0.002 && Math.abs(previous.fy-info.fy)<0.002) return info; previous=info; await new Promise(r => requestAnimationFrame(r)); } throw new Error('Flow Send button is not ready'); });
         // Preserve Android's trusted touch path and CSS-to-viewport conversion.
-        await this.chrome.antigem.automation({ tabId, tap:{ fx:target.fx,fy:target.fy } });
+        await this.chrome.dui.automation({ tabId, tap:{ fx:target.fx,fy:target.fy } });
       }
       const outcome = await this.evaluate(tabId,async n=>{const end=Date.now()+30000;while(Date.now()<end){const r=window.__agFlow.capSent(n);if(r.found)return r;await new Promise(r=>setTimeout(r,15));}throw new Error('Flow did not issue a generation request');},[armed.n]);
       if (outcome.blocked && outcome.problems?.[0] !== 'dry-run') { await this.js(tabId,'s.invalidateSettings()'); throw new Error('Request blocked before sending: ' + outcome.problems.join('; ')); }
@@ -247,7 +247,7 @@ export class FlowClient {
       this.history.push(...job.files);this.history=this.history.slice(-200);job.status='done';job.stage='done';
     } finally { await this.end(tabId); }
   }
-  async file(tabId,id,url) { const media=await this.media(tabId,id),type=media.type==='video'?'video':'image';const filename=`~/flow-media/flow_${id}.${type==='video'?'mp4':'jpg'}`;const saved=await this.chrome.antigem.download({url:url || media.url,path:filename,reuse:true});return {media_id:id,type,path:saved.path,title:media.title || ''}; }
+  async file(tabId,id,url) { const media=await this.media(tabId,id),type=media.type==='video'?'video':'image';const filename=`~/flow-media/flow_${id}.${type==='video'?'mp4':'jpg'}`;const saved=await this.chrome.dui.download({url:url || media.url,path:filename,reuse:true});return {media_id:id,type,path:saved.path,title:media.title || ''}; }
   async tileAction(tabId,title,steps) { await this.js(tabId,`s.gridSearch(${quoted(title)})`);await this.wait(async()=> (await this.js(tabId,`s.tileCount(${quoted(title)})`)).count===1,6000);await this.wait(async()=> (await this.js(tabId,`s.tileMenu(${quoted(title)})`)).ok,4000);for(const step of steps)await this.wait(async()=>{const r=await this.js(tabId,`s.menuClick(${quoted(step)})`);if(r.disabled)throw new Error('Flow action is disabled: '+step);return r.ok;},4000); }
   async submitEdit(job) {
     const req=job.request,tabId=await this.tab();job.tabId=tabId;await this.begin(tabId);

@@ -10,7 +10,7 @@ body:
         "It doesn't work" or "App not working" without details will be **closed**.
         Tell us **what** you did, **when** it happened, **what** you expected and **what** happened instead.
 
-        - App **crashed** (the "AntiGem stopped" screen)? Use **💥 Crash** instead.
+        - App **crashed** (the "DuiAI stopped" screen)? Use **💥 Crash** instead.
         - Problem **installing** the APK or **setting up** the Linux environment? Use **📦 Install / setup problem**.
         - Problem with an **agent, model, sign-in or API key**? Use **🤖 Agent / model problem**.
 
@@ -19,9 +19,9 @@ body:
     attributes:
       label: Before you start
       options:
-        - label: I searched the [existing issues](https://github.com/Santoshkurmi/antigem/issues?q=is%3Aissue) and this is not a duplicate.
+        - label: I searched the [existing issues](https://github.com/Santoshkurmi/dui/issues?q=is%3Aissue) and this is not a duplicate.
           required: true
-        - label: I am on the [latest release](https://github.com/Santoshkurmi/antigem/releases/latest), or I wrote below why I can't update.
+        - label: I am on the [latest release](https://github.com/Santoshkurmi/dui/releases/latest), or I wrote below why I can't update.
           required: true
 
   - type: input
@@ -37,9 +37,9 @@ body:
     id: build
     attributes:
       label: Build
-      description: "Which AntiGem app is installed."
+      description: "Which DuiAI app is installed."
       options:
-        - ai.antigem (the current app)
+        - ai.dui (the current app)
         - com.termux (the old build)
         - I built it from source myself
         - I don't know
@@ -55,7 +55,7 @@ body:
         - On this phone (default)
         - Server mode, SSH tunnel
         - Server mode, domain / open ports
-        - Connected to a PC (AntiGem for VS Code)
+        - Connected to a PC (DuiAI for VS Code)
     validations:
       required: true
 

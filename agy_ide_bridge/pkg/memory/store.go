@@ -1,16 +1,16 @@
-// Package memory is AntiGem's agent memory: short Markdown memory files the agents read with their own file tools,
+// Package memory is DuiAI's agent memory: short Markdown memory files the agents read with their own file tools,
 // and a cleaned copy of every chat (the user's messages and the assistants' replies) for looking up earlier work.
 // Everything lives on the machine the agents run on, so it works the same with the bridge on the phone or on a server.
 // The app turns it on per agent and attaches the text from /api/memory/context to the first message of a chat; the
-// agents save memories by writing an ```antigem-memory block in their reply, which the app sends back with /sync.
+// agents save memories by writing an ```dui-memory block in their reply, which the app sends back with /sync.
 //
-//	~/.antigem/memory/                      readable by the agents (they never write here themselves)
+//	~/.dui/memory/                      readable by the agents (they never write here themselves)
 //	  INDEX.md                              every memory, one line each
 //	  global/<name>.md                      memories for every project
 //	  projects/<name>-<hash8>/<name>.md     memories for one project
 //	  history/<name>-<hash8>/INDEX.md       that project's past chats, newest first
 //	  history/<name>-<hash8>/<date>_<chat>_<title>.md
-//	~/.antigem_bridge/memory/state.json     applied memory blocks (for undo) and chat → history file
+//	~/.dui_bridge/memory/state.json     applied memory blocks (for undo) and chat → history file
 package memory
 
 import (
@@ -63,7 +63,7 @@ type fileChange struct {
 	Prev *string `json:"prev"`
 }
 
-// appliedBlock records what one ```antigem-memory block did, so it is applied once and can be undone.
+// appliedBlock records what one ```dui-memory block did, so it is applied once and can be undone.
 type appliedBlock struct {
 	ID          string       `json:"id"`
 	Action      string       `json:"action"` // saved | updated | deleted | error
@@ -96,8 +96,8 @@ type state struct {
 
 // Manager serves /api/memory/.
 type Manager struct {
-	root      string // ~/.antigem/memory
-	statePath string // ~/.antigem_bridge/memory/state.json
+	root      string // ~/.dui/memory
+	statePath string // ~/.dui_bridge/memory/state.json
 
 	mu sync.Mutex
 	st *state
@@ -105,8 +105,8 @@ type Manager struct {
 
 func NewManager(homeDir string) *Manager {
 	return &Manager{
-		root:      filepath.Join(homeDir, ".antigem", "memory"),
-		statePath: filepath.Join(homeDir, ".antigem_bridge", "memory", "state.json"),
+		root:      filepath.Join(homeDir, ".dui", "memory"),
+		statePath: filepath.Join(homeDir, ".dui_bridge", "memory", "state.json"),
 	}
 }
 
@@ -183,7 +183,7 @@ func normPath(p string) string {
 	return p
 }
 
-// projectDir is a project's folder name: its own folder name plus a short hash of its full path ("antigem-3f9a1c2b").
+// projectDir is a project's folder name: its own folder name plus a short hash of its full path ("dui-3f9a1c2b").
 func projectDir(path string) string {
 	if path == "" {
 		return ""
@@ -462,7 +462,7 @@ func (m *Manager) restoreLocked(id string, prev *string) error {
 func (m *Manager) writeIndexLocked() {
 	all := m.allLocked()
 	var b strings.Builder
-	b.WriteString("# AntiGem agent memory\n\n")
+	b.WriteString("# DuiAI agent memory\n\n")
 	b.WriteString("Every memory, one line each: file · mode · description · last updated. Open a file to read it in full.\n")
 	if len(all) == 0 {
 		b.WriteString("\nNo memories saved yet.\n")
