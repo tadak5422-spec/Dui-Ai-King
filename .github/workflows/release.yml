@@ -89,6 +89,7 @@ jobs:
               KeyStore ks = open(a[0]);
               System.out.println("alias exists: " + ks.containsAlias(a[1]));
               System.out.println("raw key password: " + (keyOk(ks, a[1], a[2]) ? "ok" : "wrong"));
+              System.out.println("store password as key password: " + (keyOk(ks, a[1], a[0]) ? "ok" : "wrong"));
               String trimmed = a[2].replaceAll("[\\r\\n]+$", "");
               if (!trimmed.equals(a[2])) {
                 System.out.println("trimmed key password: " + (keyOk(ks, a[1], trimmed) ? "ok" : "wrong"));
