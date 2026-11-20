@@ -423,6 +423,7 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
     val models = remember { mutableStateListOf<OpenCodeCustomModel>().apply { addAll(initial.models) } }
     var newModel by remember { mutableStateOf("") }
     var fetched by remember { mutableStateOf<List<OpenCodeCustomModel>?>(null) }
+    var modelSearch by remember { mutableStateOf("") }
     var fetching by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -462,6 +463,7 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
                                 backend.client.fetchModels(kind, baseUrl.trim(), apiKey.trim(), initial.id)
                                     .onSuccess { list ->
                                         fetched = list
+                                        modelSearch = ""
                                         if (list.isEmpty()) error = "The endpoint listed no models."
                                         // nothing chosen yet (a new provider): every model the endpoint lists is on; untick the unwanted ones
                                         else if (models.isEmpty()) models.addAll(list.distinctBy { it.id })
@@ -491,17 +493,42 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
                 }
                 fetched?.takeIf { it.isNotEmpty() }?.let { list ->
                     Spacer(Modifier.height(6.dp))
-                    val chosen = list.count { f -> models.any { it.id == f.id } }
-                    val all = chosen == list.size
+                    OutlinedTextField(
+                        modelSearch, { modelSearch = it }, singleLine = true,
+                        label = { Text("Search models") },
+                        placeholder = { Text("type a model name or id…") },
+                        leadingIcon = { Icon(Icons.Outlined.Search, null, Modifier.size(18.dp)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    val q = modelSearch.trim()
+                    val shown = if (q.isBlank()) list else list.filter { m ->
+                        m.id.contains(q, ignoreCase = true) || m.name?.contains(q, ignoreCase = true) == true
+                    }
+                    val chosen = shown.count { f -> models.any { it.id == f.id } }
+                    val all = shown.isNotEmpty() && chosen == shown.size
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("$chosen of ${list.size} found are added:", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.weight(1f))
-                        TextButton(onClick = {
-                            if (all) models.removeAll { m -> list.any { it.id == m.id } }
-                            else list.forEach { f -> if (models.none { it.id == f.id }) models.add(f) }
-                        }) { Text(if (all) "Select none" else "Select all", fontSize = 12.sp) }
+                        Text(
+                            "$chosen of ${shown.size} shown are added:" +
+                                if (shown.size != list.size) " (${list.size} total)" else "",
+                            fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            onClick = {
+                                if (all) models.removeAll { m -> shown.any { it.id == m.id } }
+                                else shown.forEach { f -> if (models.none { it.id == f.id }) models.add(f) }
+                            },
+                            enabled = shown.isNotEmpty()
+                        ) { Text(if (all) "Select none" else if (modelSearch.isBlank()) "Select all" else "Select shown", fontSize = 12.sp) }
                     }
                     Column(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState())) {
-                        list.forEach { m ->
+                        if (shown.isEmpty()) {
+                            Text(
+                                "No model matches \"${modelSearch.trim()}\".",
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                        shown.forEach { m ->
                             val on = models.any { it.id == m.id }
                             Row(
                                 Modifier.fillMaxWidth().clickable { if (on) models.removeAll { it.id == m.id } else models.add(m) },
