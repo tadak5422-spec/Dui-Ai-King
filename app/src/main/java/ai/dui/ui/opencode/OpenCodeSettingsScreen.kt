@@ -150,6 +150,7 @@ fun OpenCodeSettingsScreen(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            ai.dui.ui.settings.MySkillsPanel()
             ai.dui.ui.settings.AgentSkillsPanel(ai.dui.domain.model.AgentKind.OPENCODE, OpenCodeAccent)
         }
         return

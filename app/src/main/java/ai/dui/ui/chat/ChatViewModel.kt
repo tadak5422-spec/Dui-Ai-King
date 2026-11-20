@@ -716,6 +716,27 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun installCascadeMcpPlugin(plugin: ai.dui.data.remote.dto.AvailableCascadePluginDto) = mcpManager.installCascadeMcpPlugin(plugin)
 
     val allSkills = pluginsManager.allSkills
+
+    // User-typed skills (save via Settings -> OpenCode -> Skills, reuse with /skill:).
+    private val _userSkills = MutableStateFlow(ai.dui.data.remote.UserSkills.list(application))
+    val userSkills = _userSkills.asStateFlow()
+    private fun refreshUserSkills() { _userSkills.value = ai.dui.data.remote.UserSkills.list(getApplication()) }
+    fun createUserSkill(name: String, description: String, instruction: String): ai.dui.data.remote.UserSkills.UserSkill {
+        val skill = ai.dui.data.remote.UserSkills.upsert(
+            getApplication(),
+            ai.dui.data.remote.UserSkills.UserSkill("", name, description, instruction)
+        )
+        refreshUserSkills()
+        return skill
+    }
+    fun updateUserSkill(id: String, name: String, description: String, instruction: String) {
+        ai.dui.data.remote.UserSkills.update(getApplication(), ai.dui.data.remote.UserSkills.UserSkill(id, name, description, instruction))
+        refreshUserSkills()
+    }
+    fun deleteUserSkill(id: String) {
+        if (ai.dui.data.remote.UserSkills.delete(getApplication(), id)) refreshUserSkills()
+    }
+
     val isSkillsLoading = pluginsManager.isSkillsLoading
     val skillsFilterScope = pluginsManager.skillsFilterScope
     val installedPlugins = pluginsManager.installedPlugins

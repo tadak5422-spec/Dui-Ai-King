@@ -198,10 +198,16 @@ object PromptExpansion {
     private fun skillGuide(skill: SavedSkillInfo): String {
         val lines = mutableListOf<String>()
         lines += "The user picked the saved skill \"${skill.name}\" (id: ${skill.id}). Use it for this task."
-        if (skill.path.isNotBlank()) lines += "- Read the skill file fully before acting: ${skill.path}"
-        if (skill.description.isNotBlank()) lines += "- What it does: ${skill.description}"
-        if (skill.kind.equals("plugin", ignoreCase = true)) lines += "- This entry is a saved plugin; follow its instructions."
-        lines += "- If that file cannot be read, tell the user instead of guessing its contents."
+        if (skill.kind == "user" || skill.instruction.isNotBlank()) {
+            lines += "Use the instructions below."
+            if (skill.description.isNotBlank()) lines += "- What it does: ${skill.description}"
+            if (skill.instruction.isNotBlank()) lines += skill.instruction
+        } else {
+            if (skill.path.isNotBlank()) lines += "- Read the skill file fully before acting: ${skill.path}"
+            if (skill.description.isNotBlank()) lines += "- What it does: ${skill.description}"
+            if (skill.kind.equals("plugin", ignoreCase = true)) lines += "- This entry is a saved plugin; follow its instructions."
+            lines += "- If that file cannot be read, tell the user instead of guessing its contents."
+        }
         return lines.joinToString("\n")
     }
 

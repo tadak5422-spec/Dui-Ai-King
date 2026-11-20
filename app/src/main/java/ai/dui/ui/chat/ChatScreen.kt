@@ -827,6 +827,7 @@ fun ChatScreen(
     val installingCascadePluginId by viewModel.installingCascadePluginId.collectAsState()
 
     val allSkills by viewModel.allSkills.collectAsState()
+    val userSkills by viewModel.userSkills.collectAsState()
     val isSkillsLoading by viewModel.isSkillsLoading.collectAsState()
     val skillsFilterScope by viewModel.skillsFilterScope.collectAsState()
 
@@ -2475,7 +2476,7 @@ fun ChatScreen(
                             val clean = { s: String -> s.trim().replace(Regex("[^A-Za-z0-9._-]"), "-").trim('-') }
                             return clean(raw).ifBlank { clean(fallback) }.ifBlank { "skill" }
                         }
-                        val items = if (isAgyChat) {
+                        val agentItems = if (isAgyChat) {
                             allSkills.mapIndexed { index, skill ->
                                 ai.dui.data.remote.SavedSkillInfo(
                                     id = safeId(skill.name.ifBlank { skill.path }, "saved-${index + 1}"),
@@ -2496,6 +2497,16 @@ fun ChatScreen(
                                 )
                             }
                         }
+                        val userItems = userSkills.map { skill ->
+                            ai.dui.data.remote.SavedSkillInfo(
+                                id = skill.id.ifBlank { safeId(skill.name, "user-${agentItems.size}") },
+                                name = skill.name.ifBlank { "Skill ${agentItems.size + 1}" },
+                                description = skill.description,
+                                instruction = skill.instruction,
+                                kind = "user"
+                            )
+                        }
+                        val items = (agentItems + userItems).distinctBy { it.id }
                         slashSavedSkills = items
                         ai.dui.data.remote.SavedCommandRegistry.rememberSkills(items)
                     }

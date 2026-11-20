@@ -11,7 +11,8 @@ data class SavedSkillInfo(
     val name: String,
     val description: String = "",
     val path: String = "",
-    val kind: String = "skill"
+    val kind: String = "skill",
+    val instruction: String = ""
 )
 
 /**
