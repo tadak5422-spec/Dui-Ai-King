@@ -1684,6 +1684,21 @@ object LocalEnvironmentManager {
             try { parts.delete() } catch (_: Exception) {}
         }
         if (!parts.exists()) parts.mkdirs()
+
+        // Without a chosen mirror, Termux's `pkg` re-tests every mirror on each run and can land on a
+        // rate-limited (HTTP 429) or dead one. Pin the bundled Cloudflare mirror so `pkg update` is stable
+        // for agents that are not allowed to run the interactive `termux-change-repo`.
+        try {
+            val mirrorDefault = File(prefixDir, "etc/termux/mirrors/default")
+            val chosen = File(prefixDir, "etc/termux/chosen_mirrors")
+            val target = if (isSymlink(chosen)) Os.readlink(chosen.absolutePath) else null
+            if (mirrorDefault.exists() && target != mirrorDefault.absolutePath) {
+                if (chosen.exists() || isSymlink(chosen)) chosen.delete()
+                Os.symlink(mirrorDefault.absolutePath, chosen.absolutePath)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "mirror config repair failed: ${e.message}")
+        }
     }
 
     private fun extractGlibcMinAsset(context: Context, prefixDir: File): Boolean {
