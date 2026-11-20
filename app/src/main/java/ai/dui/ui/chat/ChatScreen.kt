@@ -147,6 +147,11 @@ fun ChatScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    // The sidebar is a 2.5k-line screen. Build it the first time it is opened instead of behind the
+    // chat at launch, so the chat can draw immediately on a cold start.
+    var hasEverOpenedDrawer by rememberSaveable { mutableStateOf(false) }
+    val drawerComposed = hasEverOpenedDrawer || drawerState.isOpen || drawerState.targetValue == DrawerValue.Open
+    LaunchedEffect(drawerState.isOpen) { if (drawerState.isOpen) hasEverOpenedDrawer = true }
     // The sidebar is 82% of the screen width, so turning the phone (e.g. a landscape full-screen video)
     // changes its width; the drawer then moves to whichever position is nearest and can open by itself.
     // Remember where it was before the width changed and put it back once the new layout is in.
@@ -1339,7 +1344,8 @@ fun ChatScreen(
             ModalNavigationDrawer(
                 drawerState = drawerState,
         drawerContent = {
-            ChatHistoryDrawer(
+            if (drawerComposed) {
+                ChatHistoryDrawer(
                 conversations = conversations,
                 jarvisEnabled = jarvisEnabled,
                 jarvisConversations = jarvisConversations,
@@ -1449,6 +1455,7 @@ fun ChatScreen(
                     )
                 }
             )
+            }
         }
     ) {
         // IDE bridge version update dialog disabled on request.

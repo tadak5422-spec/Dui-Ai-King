@@ -42,8 +42,12 @@ class DuiAIApplication : Application(), coil.ImageLoaderFactory {
         ai.dui.data.preferences.AuthPreferences(this)
         // the chosen light / dark themes and the custom ones, before the first screen draws
         ai.dui.theme.ThemeManager.init(this)
-        UpdateCheckWorker.schedule(this)
-        PluginUpdateCheckWorker.schedule(this)
+        // WorkManager initialization touches disk and can take a chunk of the cold start; none of it
+        // is needed for the first chat frame, so schedule the periodic checks off the main thread.
+        Thread {
+            runCatching { UpdateCheckWorker.schedule(this) }
+            runCatching { PluginUpdateCheckWorker.schedule(this) }
+        }.start()
         // mini app reminders and exact-time tasks: alarms again (Android may have dropped them), off the main thread
         ai.dui.data.miniapps.MiniAppScheduler.rearmAsync(this)
         Thread { ai.dui.ui.miniapps.MiniAppShortcuts.migrate(this) }.start()

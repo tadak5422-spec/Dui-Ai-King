@@ -69,22 +69,8 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
         }
 
-        if (ai.dui.ui.components.PermissionUtils.hasNotificationPermission(this)) {
-            ai.dui.data.service.DuiAIService.start(this)
-            ai.dui.data.local.LocalServerManager.autoStartOnAppLaunch(this)
-        }
-        ai.dui.data.daemon.IdeDaemonManager.init(this)
-        ai.dui.ui.browser.BrowserSessionManager.instance.init(this)
-        ai.dui.data.local.LocalTerminalBridge.instance.init(this)
-        ai.dui.data.notes.NotesRepository.init(this)
-        ai.dui.data.files.ExplorerPrefs.init(this)
         // temporary video / attachment / share copies left from earlier runs
         lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) { ai.dui.data.files.CacheJanitor.trimAll(applicationContext, force = true) }
-        resetTerminalLauncherOnce()
-        ai.dui.data.remote.AndroidLocalBridgeServer.instance.start(this)
-        ai.dui.data.jarvis.JarvisController.attach(application, chatViewModel)
-        ai.dui.data.agent.ChatCompletionMonitor.start(application, chatViewModel)
-        ai.dui.data.memory.MemorySync.start(chatViewModel)
         handleIncomingFileIntent(intent)
         handleJarvisIntent(intent)
 
@@ -114,6 +100,19 @@ class MainActivity : ComponentActivity() {
             }
             var currentViewMode by remember { mutableStateOf(initialViewMode) }
             var previousViewMode by remember { mutableStateOf(AppViewMode.CHAT) }
+            // The IDE, browser and notes screens are heavy (file trees, WebViews). Compose them the first
+            // time they are opened, not behind the chat at launch: that alone cost seconds on a cold start.
+            var hasEverOpenedIde by remember { mutableStateOf(initialViewMode == AppViewMode.IDE) }
+            var hasEverOpenedBrowser by remember { mutableStateOf(initialViewMode == AppViewMode.BROWSER) }
+            var hasEverOpenedNotes by remember { mutableStateOf(initialViewMode == AppViewMode.NOTES) }
+            LaunchedEffect(currentViewMode) {
+                when (currentViewMode) {
+                    AppViewMode.IDE -> hasEverOpenedIde = true
+                    AppViewMode.BROWSER -> hasEverOpenedBrowser = true
+                    AppViewMode.NOTES -> hasEverOpenedNotes = true
+                    else -> {}
+                }
+            }
 
             LaunchedEffect(requestedMode) {
                 requestedMode?.let { mode ->
@@ -344,25 +343,27 @@ class MainActivity : ComponentActivity() {
                                             translationX = if (isVisible) 0f else 20000f
                                         }
                                 ) {
-                                    IdeScreen(
-                                        viewModel = chatViewModel,
-                                        isVisible = currentViewMode == AppViewMode.IDE,
-                                        onNavigateToChat = {
-                                            previousViewMode = currentViewMode
-                                            currentViewMode = AppViewMode.CHAT
-                                        },
-                                        onExecuteRunCommand = { cmd ->
-                                            // Connect with terminal / chat execution
-                                        },
-                                        onNavigateToTerminal = {
-                                            previousViewMode = currentViewMode
-                                            currentViewMode = AppViewMode.TERMINAL
-                                        },
-                                        onNavigateToBrowser = {
-                                            previousViewMode = currentViewMode
-                                            currentViewMode = AppViewMode.BROWSER
-                                        }
-                                    )
+                                    if (hasEverOpenedIde || currentViewMode == AppViewMode.IDE) {
+                                        IdeScreen(
+                                            viewModel = chatViewModel,
+                                            isVisible = currentViewMode == AppViewMode.IDE,
+                                            onNavigateToChat = {
+                                                previousViewMode = currentViewMode
+                                                currentViewMode = AppViewMode.CHAT
+                                            },
+                                            onExecuteRunCommand = { cmd ->
+                                                // Connect with terminal / chat execution
+                                            },
+                                            onNavigateToTerminal = {
+                                                previousViewMode = currentViewMode
+                                                currentViewMode = AppViewMode.TERMINAL
+                                            },
+                                            onNavigateToBrowser = {
+                                                previousViewMode = currentViewMode
+                                                currentViewMode = AppViewMode.BROWSER
+                                            }
+                                        )
+                                    }
                                 }
 
                                 // Persistent Terminal Screen (Retains terminal tmux sessions & state)
@@ -395,13 +396,15 @@ class MainActivity : ComponentActivity() {
                                             translationX = if (isVisible) 0f else 20000f
                                         }
                                 ) {
-                                    BrowserScreen(
-                                        isVisible = currentViewMode == AppViewMode.BROWSER,
-                                        onClose = {
-                                            currentViewMode =
-                                                if (previousViewMode == AppViewMode.BROWSER) AppViewMode.CHAT else previousViewMode
-                                        }
-                                    )
+                                    if (hasEverOpenedBrowser || currentViewMode == AppViewMode.BROWSER) {
+                                        BrowserScreen(
+                                            isVisible = currentViewMode == AppViewMode.BROWSER,
+                                            onClose = {
+                                                currentViewMode =
+                                                    if (previousViewMode == AppViewMode.BROWSER) AppViewMode.CHAT else previousViewMode
+                                            }
+                                        )
+                                    }
                                 }
 
                                 // Persistent Notes Screen (Notes & to-do lists; open note and scroll survive switching away)
@@ -414,13 +417,15 @@ class MainActivity : ComponentActivity() {
                                             translationX = if (isVisible) 0f else 20000f
                                         }
                                 ) {
-                                    ai.dui.ui.notes.NotesScreen(
-                                        isVisible = currentViewMode == AppViewMode.NOTES,
-                                        onClose = {
-                                            currentViewMode =
-                                                if (previousViewMode == AppViewMode.NOTES) AppViewMode.CHAT else previousViewMode
-                                        }
-                                    )
+                                    if (hasEverOpenedNotes || currentViewMode == AppViewMode.NOTES) {
+                                        ai.dui.ui.notes.NotesScreen(
+                                            isVisible = currentViewMode == AppViewMode.NOTES,
+                                            onClose = {
+                                                currentViewMode =
+                                                    if (previousViewMode == AppViewMode.NOTES) AppViewMode.CHAT else previousViewMode
+                                            }
+                                        )
+                                    }
                                 }
 
                                 // Persistent Files Screen (file explorer: folder, history and clipboard survive switching away)
@@ -681,16 +686,52 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // The chat draws first; the service, bridge and other startup work follow right after that frame.
+        android.view.Choreographer.getInstance().postFrameCallback { startDeferredWork() }
+        // safety net: if the frame callback never arrives, still start the background work
+        lifecycleScope.launch {
+            kotlinx.coroutines.delay(2_000)
+            if (!deferredWorkStarted) startDeferredWork()
+        }
     }
 
+    @Volatile private var deferredWorkStarted = false
+    @Volatile private var firstFrameDrawn = false
 
-    override fun onResume() {
-        super.onResume()
-        instanceRef = java.lang.ref.WeakReference(this)
+    /**
+     * The rest of the startup work runs after the chat has drawn its first frame. Doing all of it in
+     * [onCreate] before [setContent] kept the window empty for seconds on a cold start.
+     */
+    private fun startDeferredWork() {
+        if (deferredWorkStarted) return
+        deferredWorkStarted = true
+        firstFrameDrawn = true
+        runCatching { resetTerminalLauncherOnce() }
+        runCatching { ai.dui.data.daemon.IdeDaemonManager.init(this) }
+        runCatching { ai.dui.ui.browser.BrowserSessionManager.instance.init(this) }
+        runCatching { ai.dui.data.local.LocalTerminalBridge.instance.init(this) }
+        runCatching { ai.dui.data.notes.NotesRepository.init(this) }
+        runCatching { ai.dui.data.files.ExplorerPrefs.init(this) }
+        runCatching { ai.dui.data.remote.AndroidLocalBridgeServer.instance.start(this) }
+        runCatching { ai.dui.data.jarvis.JarvisController.attach(application, chatViewModel) }
+        runCatching { ai.dui.data.agent.ChatCompletionMonitor.start(application, chatViewModel) }
+        runCatching { ai.dui.data.memory.MemorySync.start(chatViewModel) }
+        startForegroundServiceAndServer()
+    }
+
+    private fun startForegroundServiceAndServer() {
         if (ai.dui.ui.components.PermissionUtils.hasNotificationPermission(this)) {
             ai.dui.data.service.DuiAIService.start(this)
             ai.dui.data.local.LocalServerManager.autoStartOnAppLaunch(this)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        instanceRef = java.lang.ref.WeakReference(this)
+        // the first start waits for the first frame (onCreate); later resumes keep the server alive
+        if (firstFrameDrawn) startForegroundServiceAndServer()
     }
 
     override fun onNewIntent(intent: Intent) {
