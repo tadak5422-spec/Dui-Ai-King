@@ -386,6 +386,14 @@ class OpenCodeChatBackend(
                     .onSuccess { res ->
                         val list = res.obj().a("data").orEmpty().mapNotNull { it.obj() }
                             .filter { (it.str("type") ?: "chat") == "chat" && it.bool("enabled") != false && it.str("status") != "deprecated" }
+                            // Only no-cost models reach the chat picker and the settings list. A model is free when
+                            // OpenCode reports zero cost, or when its id is OpenRouter's `:free` / `openrouter/free`.
+                            .filter { m ->
+                                val freeByCost = m.a("cost").orEmpty().firstOrNull().obj()?.let { c ->
+                                    (c.dbl("input") ?: 1.0) == 0.0 && (c.dbl("output") ?: 1.0) == 0.0
+                                } == true
+                                OpenCodeModelFilter.isFree(m.str("id").orEmpty(), freeByCost)
+                            }
                             .map { m ->
                                 val provider = m.str("providerID").orEmpty()
                                 val id = "$provider/${m.str("id")}"
@@ -450,8 +458,8 @@ class OpenCodeChatBackend(
         val list = all.filter { isModelVisible(it.id) }
         _availableModels.value = list
         _modelsError.value = when {
-            all.isEmpty() -> "No models: connect a provider in Settings → OpenCode."
-            list.isEmpty() -> "All models are turned off: turn some on in Settings → OpenCode → Providers."
+            all.isEmpty() -> "No free models: connect a provider with a free model in Settings → OpenCode."
+            list.isEmpty() -> "All free models are turned off: turn some on in Settings → OpenCode → Providers."
             else -> null
         }
         val cur = _selectedModelId.value

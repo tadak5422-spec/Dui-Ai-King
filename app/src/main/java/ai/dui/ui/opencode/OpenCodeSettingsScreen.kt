@@ -87,6 +87,9 @@ import kotlinx.serialization.json.put
 /** A built-in OpenCode provider (integration) and the saved connections the user made for it. */
 private data class Integration(val id: String, val name: String, val keyLogin: Boolean, val envNames: List<String>, val connections: List<Pair<String, String>>)
 
+/** Same free-model rule the chat picker and settings list use. */
+private fun isFreeModel(id: String) = ai.dui.data.agent.opencode.OpenCodeModelFilter.isFreeId(id)
+
 private fun toast(msg: String, ok: Boolean = true) =
     AppToastHelper.showToast(msg, if (ok) ChatToastType.SUCCESS else ChatToastType.ERROR)
 
@@ -424,9 +427,13 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
     var newModel by remember { mutableStateOf("") }
     var fetched by remember { mutableStateOf<List<OpenCodeCustomModel>?>(null) }
     var modelSearch by remember { mutableStateOf("") }
+    var freeOnly by remember { mutableStateOf(false) }
     var fetching by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    val usableFetched = if (freeOnly) fetched.orEmpty().filter { isFreeModel(it.id) } else fetched.orEmpty()
+    val savingFreeOnly = freeOnly || baseUrl.contains("openrouter.ai", ignoreCase = true)
+    val modelsToSave = if (savingFreeOnly) models.filter { isFreeModel(it.id) } else models.toList()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -464,9 +471,13 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
                                     .onSuccess { list ->
                                         fetched = list
                                         modelSearch = ""
+                                        // OpenRouter returns hundreds of paid models; open on free ones so chat and model lists stay usable
+                                        freeOnly = baseUrl.contains("openrouter.ai", ignoreCase = true)
+                                        val usable = if (freeOnly) list.filter { isFreeModel(it.id) } else list
                                         if (list.isEmpty()) error = "The endpoint listed no models."
-                                        // nothing chosen yet (a new provider): every model the endpoint lists is on; untick the unwanted ones
-                                        else if (models.isEmpty()) models.addAll(list.distinctBy { it.id })
+                                        else if (freeOnly && usable.isEmpty()) error = "This endpoint listed no free models. Turn off \"Free models only\" to see all."
+                                        // nothing chosen yet (a new provider): only the models we are showing get added
+                                        else if (models.isEmpty()) models.addAll(usable.distinctBy { it.id })
                                     }
                                     .onFailure { error = it.message }
                                 fetching = false
@@ -487,12 +498,27 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
                     OutlinedTextField(newModel, { newModel = it }, singleLine = true, placeholder = { Text("model id, e.g. llama3.1") }, modifier = Modifier.weight(1f))
                     IconButton(onClick = {
                         val id = newModel.trim()
-                        if (id.isNotBlank() && models.none { it.id == id }) models.add(OpenCodeCustomModel(id))
+                        if (id.isNotBlank() && models.none { it.id == id }) {
+                            if (savingFreeOnly && !isFreeModel(id)) error = "Free models only is on — use a :free model id."
+                            else { models.add(OpenCodeCustomModel(id)); error = null }
+                        }
                         newModel = ""
                     }) { Icon(Icons.Outlined.Add, "Add model") }
                 }
                 fetched?.takeIf { it.isNotEmpty() }?.let { list ->
                     Spacer(Modifier.height(6.dp))
+                    val available = if (freeOnly) list.filter { isFreeModel(it.id) } else list
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FilterChip(
+                            selected = freeOnly, onClick = { freeOnly = !freeOnly },
+                            label = { Text("Free models only") }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (freeOnly) "${available.size} free of ${list.size}" else "${list.size} models",
+                            fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                     OutlinedTextField(
                         modelSearch, { modelSearch = it }, singleLine = true,
                         label = { Text("Search models") },
@@ -501,7 +527,7 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
                         modifier = Modifier.fillMaxWidth()
                     )
                     val q = modelSearch.trim()
-                    val shown = if (q.isBlank()) list else list.filter { m ->
+                    val shown = if (q.isBlank()) available else available.filter { m ->
                         m.id.contains(q, ignoreCase = true) || m.name?.contains(q, ignoreCase = true) == true
                     }
                     val chosen = shown.count { f -> models.any { it.id == f.id } }
@@ -509,7 +535,7 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "$chosen of ${shown.size} shown are added:" +
-                                if (shown.size != list.size) " (${list.size} total)" else "",
+                                if (shown.size != available.size) " (${available.size} ${if (freeOnly) "free" else "total"})" else "",
                             fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.weight(1f)
                         )
                         TextButton(
@@ -550,13 +576,13 @@ private fun CustomProviderDialog(backend: OpenCodeChatBackend, initial: OpenCode
                     error = null
                     scope.launch {
                         backend.client.saveCustomProvider(
-                            initial.copy(name = name.trim(), kind = kind, base_url = baseUrl.trim(), api_key = apiKey.trim().ifBlank { null }, models = models.toList())
+                            initial.copy(name = name.trim(), kind = kind, base_url = baseUrl.trim(), api_key = apiKey.trim().ifBlank { null }, models = modelsToSave)
                         ).onSuccess { toast("${it.name} saved"); onSaved() }
                             .onFailure { error = it.message }
                         saving = false
                     }
                 },
-                enabled = !saving && name.isNotBlank() && baseUrl.isNotBlank() && models.isNotEmpty()
+                enabled = !saving && name.isNotBlank() && baseUrl.isNotBlank() && modelsToSave.isNotEmpty()
             ) { Text(if (saving) "Saving…" else "Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
