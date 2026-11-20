@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme: no logo or wordmark on startup. Android 12+ always draws a system
-         splash, so it is a plain graphite window (transparent icon, no branding image). -->
+    <!-- Base application theme: no startup window at all. No preview window, no splash icon,
+         no wordmark and a transparent background, so the launcher stays visible until the chat
+         draws its first frame (Android 12+ still creates its system splash window, but it is
+         transparent). -->
     <style name="Theme.Dui" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/splash_bg</item>
-        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowSplashScreenBackground">@android:color/transparent</item>
         <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
         <item name="android:windowSplashScreenAnimationDuration">0</item>
-        <item name="android:statusBarColor">@color/splash_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">@bool/splash_light_bars</item>
     </style>
 
