@@ -1,17 +1,18 @@
 package ai.dui.data.remote
 
+import ai.dui.domain.model.McpServerState
 import ai.dui.ui.browser.BrowserExtension
 import ai.dui.ui.browser.BrowserExtensionManager
 
 /**
- * Turns `/plu:<plugin>[:<skill>]` and custom slash commands into instructions for the model when a message is sent.
+ * Turns `/plu:<plugin>[:<skill>]`, `/skill:<saved>`, `/mcp:<saved>` and custom slash commands into instructions for the model when a message is sent.
  * Each expansion is wrapped in an `<dui-expansion command="…">` block; [collapse] puts the command back for
  * display, so the chat shows what the user typed even after the history is reloaded from the backend.
  */
 object PromptExpansion {
     private const val TAG = "dui-expansion"
     // `/plu:<plugin>:` with no skill after the colon (left by the picker) counts as `/plu:<plugin>`
-    private val TOKEN = Regex("(?<=^|\\s)/(plu:[A-Za-z0-9_-]+(?::[A-Za-z0-9._-]*)?|[A-Za-z0-9][A-Za-z0-9_-]{0,47})(?=\\s|$)")
+    private val TOKEN = Regex("(?<=^|\\s)/(plu:[A-Za-z0-9_-]+(?::[A-Za-z0-9._-]*)?|skill:[A-Za-z0-9._-]+|mcp:[A-Za-z0-9._-]+|[A-Za-z0-9][A-Za-z0-9_-]{0,47})(?=\\s|$)")
     private val BLOCK = Regex("<$TAG command=\"([^\"]*)\">[\\s\\S]*?</$TAG>")
 
     fun expand(text: String): String {
@@ -27,6 +28,18 @@ object PromptExpansion {
                 val guide = pluginGuide(parts[0], skill) ?: continue
                 // The chat shows the command without the dangling colon
                 out.append(text, last, match.range.first).append(block(if (skill == null) "/plu:${parts[0]}" else match.value, guide))
+                last = match.range.last + 1
+                continue
+            }
+            if (token.startsWith("skill:")) {
+                val skill = SavedCommandRegistry.skill(token.removePrefix("skill:")) ?: continue
+                out.append(text, last, match.range.first).append(block(match.value, skillGuide(skill)))
+                last = match.range.last + 1
+                continue
+            }
+            if (token.startsWith("mcp:")) {
+                val server = SavedCommandRegistry.server(token.removePrefix("mcp:")) ?: continue
+                out.append(text, last, match.range.first).append(block(match.value, mcpGuide(server)))
                 last = match.range.last + 1
                 continue
             }
@@ -52,8 +65,12 @@ object PromptExpansion {
         if (!text.contains('/')) return emptyList()
         return TOKEN.findAll(text).filter { match ->
             val token = match.groupValues[1]
-            if (token.startsWith("plu:")) enabledPlugin(token.removePrefix("plu:").substringBefore(':')) != null
-            else CustomSlashCommands.find(token) != null
+            when {
+                token.startsWith("plu:") -> enabledPlugin(token.removePrefix("plu:").substringBefore(':')) != null
+                token.startsWith("skill:") -> SavedCommandRegistry.skill(token.removePrefix("skill:")) != null
+                token.startsWith("mcp:") -> SavedCommandRegistry.server(token.removePrefix("mcp:")) != null
+                else -> CustomSlashCommands.find(token) != null
+            }
         }.map { it.range }.toList()
     }
 
@@ -141,9 +158,64 @@ object PromptExpansion {
         return if (query.isBlank()) listOf(whole) + skills else skills
     }
 
-    /** The `/plu` entry point and the user's custom commands, shown in the normal `/` list. */
+    /** The `/plu`, `/skill`, `/mcp` entry points and the user's custom commands, shown in the normal `/` list. */
     fun baseSlashItems(): List<SlashCommandItem> =
-        listOf(SlashCommandItem("plu", "/plu:", "Use a custom DuiAI plugin and its skills", "plugin")) + CustomSlashCommands.slashItems()
+        listOf(
+            SlashCommandItem("plu", "/plu:", "Use a custom DuiAI plugin and its skills", "plugin"),
+            SlashCommandItem("skill", "/skill:", "Use a skill you saved for this agent", "custom"),
+            SlashCommandItem("mcp", "/mcp:", "Use an MCP server you saved", "custom")
+        ) + CustomSlashCommands.slashItems()
+
+    /** Saved skills of the current agent for the `/skill:` picker (agents read their own skills folder). */
+    fun skillSuggestions(query: String, skills: List<SavedSkillInfo>): List<SlashCommandItem> =
+        skills.filter { skill ->
+            query.isBlank() || skill.name.contains(query, true) || skill.id.contains(query, true) || skill.description.contains(query, true)
+        }.map { skill ->
+            SlashCommandItem(
+                skill.id,
+                "/skill:${skill.id}",
+                listOfNotNull(skill.description.ifBlank { null }, skill.path.ifBlank { null }).joinToString(" · "),
+                "custom"
+            )
+        }
+
+    /** Saved MCP servers for the `/mcp:` picker; the guide sent with the token names the server and its tools. */
+    fun mcpSuggestions(query: String, servers: List<McpServerState>): List<SlashCommandItem> =
+        servers.filter { server ->
+            query.isBlank() || server.name.contains(query, true) ||
+                server.tools.any { it.name.contains(query, true) } ||
+                server.spec?.serverName?.contains(query, true) == true
+        }.map { server ->
+            val detail = buildList {
+                add("${server.tools.size} tools")
+                add(if (server.isEnabled) "enabled" else "disabled")
+                server.error?.takeIf { it.isNotBlank() }?.let { add(it.take(60)) }
+            }.joinToString(" · ")
+            SlashCommandItem(server.name, "/mcp:${server.name}", detail, "custom")
+        }
+
+    /** Hidden instruction for a skill picked in `/skill:` — works for every agent, no agent-specific syntax. */
+    private fun skillGuide(skill: SavedSkillInfo): String {
+        val lines = mutableListOf<String>()
+        lines += "The user picked the saved skill \"${skill.name}\" (id: ${skill.id}). Use it for this task."
+        if (skill.path.isNotBlank()) lines += "- Read the skill file fully before acting: ${skill.path}"
+        if (skill.description.isNotBlank()) lines += "- What it does: ${skill.description}"
+        if (skill.kind.equals("plugin", ignoreCase = true)) lines += "- This entry is a saved plugin; follow its instructions."
+        lines += "- If that file cannot be read, tell the user instead of guessing its contents."
+        return lines.joinToString("\n")
+    }
+
+    /** Hidden instruction for an MCP server picked in `/mcp:`. */
+    private fun mcpGuide(server: McpServerState): String {
+        val lines = mutableListOf<String>()
+        lines += "The user picked the saved MCP server \"${server.name}\". Use it for this task."
+        lines += "- It is ${if (server.isEnabled) "enabled" else "disabled"} (status: ${server.status})."
+        if (server.tools.isNotEmpty()) lines += "- Its tools: ${server.tools.joinToString(", ") { it.name }}. Use the ones this task needs."
+        if (!server.instructions.isNullOrBlank()) lines += "- Server instructions: ${server.instructions}"
+        if (!server.error.isNullOrBlank()) lines += "- Last reported error: ${server.error}"
+        lines += "- If those tools are not available in this chat, tell the user to enable/reload the server in DuiAI → Settings → MCP Servers & Tools."
+        return lines.joinToString("\n")
+    }
 
     private fun escape(value: String) = value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;")
     private fun unescape(value: String) = value.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&amp;", "&")

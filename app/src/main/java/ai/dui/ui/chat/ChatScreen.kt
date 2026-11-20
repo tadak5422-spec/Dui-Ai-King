@@ -2455,6 +2455,56 @@ fun ChatScreen(
                     val isSlashActive = slash != null
                     val slashQuery = slash?.query ?: ""
 
+                    // `/skill:` shows the skills saved for the open agent. AGY reads them from its hub skill list;
+                    // Claude / Codex / OpenCode read their own skills folders through the local bridge.
+                    var slashSavedSkills by remember { mutableStateOf<List<ai.dui.data.remote.SavedSkillInfo>>(emptyList()) }
+                    val slashAgent = currentConv?.agent ?: when {
+                        isClaudeChat -> ai.dui.domain.model.AgentKind.CLAUDE
+                        isCodexChat -> ai.dui.domain.model.AgentKind.CODEX
+                        isOpenCodeChat -> ai.dui.domain.model.AgentKind.OPENCODE
+                        else -> ai.dui.domain.model.AgentKind.AGY
+                    }
+                    val skillPickerOpen = isSlashActive && slashQuery.startsWith("skill:", ignoreCase = true)
+                    // Refresh once when the picker opens; do not key this on allSkills, or a fresh list would loop.
+                    LaunchedEffect(skillPickerOpen, isAgyChat) {
+                        if (skillPickerOpen && isAgyChat) viewModel.loadAllSkills()
+                    }
+                    LaunchedEffect(skillPickerOpen, slashAgent, allSkills) {
+                        if (!skillPickerOpen) return@LaunchedEffect
+                        fun safeId(raw: String, fallback: String): String {
+                            val clean = { s: String -> s.trim().replace(Regex("[^A-Za-z0-9._-]"), "-").trim('-') }
+                            return clean(raw).ifBlank { clean(fallback) }.ifBlank { "skill" }
+                        }
+                        val items = if (isAgyChat) {
+                            allSkills.mapIndexed { index, skill ->
+                                ai.dui.data.remote.SavedSkillInfo(
+                                    id = safeId(skill.name.ifBlank { skill.path }, "saved-${index + 1}"),
+                                    name = skill.displayName?.takeIf { it.isNotBlank() } ?: skill.name.ifBlank { skill.path.substringAfterLast('/') },
+                                    description = skill.description,
+                                    path = skill.path,
+                                    kind = skill.pluginName?.takeIf { it.isNotBlank() }?.let { "plugin" } ?: "skill"
+                                )
+                            }
+                        } else {
+                            ai.dui.data.skills.AgentSkillsClient.list(slashAgent).getOrNull()?.skills.orEmpty().mapIndexed { index, skill ->
+                                ai.dui.data.remote.SavedSkillInfo(
+                                    id = safeId(skill.id.ifBlank { skill.name }, "saved-${index + 1}"),
+                                    name = skill.name.ifBlank { skill.id },
+                                    description = skill.description,
+                                    path = skill.path,
+                                    kind = skill.kind
+                                )
+                            }
+                        }
+                        slashSavedSkills = items
+                        ai.dui.data.remote.SavedCommandRegistry.rememberSkills(items)
+                    }
+                    LaunchedEffect(isSlashActive, slashQuery.startsWith("mcp:", ignoreCase = true)) {
+                        if (isSlashActive && slashQuery.startsWith("mcp:", ignoreCase = true) && systemConnectionState.isHubOnline) {
+                            viewModel.loadMcpServers()
+                        }
+                    }
+
                     // opening the "/" menu reads the agent's skills again (at most every 10 s), so ones added meanwhile show
                     var lastSlashRefresh by remember { mutableStateOf(0L) }
                     LaunchedEffect(isSlashActive) {
@@ -2473,9 +2523,18 @@ fun ChatScreen(
                     // `/plu:` browses custom DuiAI plugins and their skills; custom commands join the normal list
                     val customCommands = ai.dui.data.remote.CustomSlashCommands.commands.toList()
                     val installedPlugins = ai.dui.ui.browser.BrowserExtensionManager.instance.extensions.toList()
-                    val slashSuggestions = remember(slashQuery, effectiveSlashCommands, isSlashActive, customCommands, installedPlugins) {
+                    val slashSuggestions = remember(slashQuery, effectiveSlashCommands, isSlashActive, customCommands, installedPlugins, slashSavedSkills, mcpServers) {
                         if (!isSlashActive) emptyList()
                         else if (slashQuery.startsWith("plu:", ignoreCase = true)) ai.dui.data.remote.PromptExpansion.pluginSuggestions(slashQuery.substring(4))
+                        else if (slashQuery.startsWith("skill:", ignoreCase = true)) {
+                            ai.dui.data.remote.SavedCommandRegistry.rememberSkills(slashSavedSkills)
+                            ai.dui.data.remote.PromptExpansion.skillSuggestions(slashQuery.substring(6), slashSavedSkills)
+                        }
+                        else if (slashQuery.startsWith("mcp:", ignoreCase = true)) {
+                            val savedServers = mcpServers.filter { it.isEnabled }
+                            ai.dui.data.remote.SavedCommandRegistry.rememberServers(savedServers)
+                            ai.dui.data.remote.PromptExpansion.mcpSuggestions(slashQuery.substring(5), savedServers)
+                        }
                         else {
                             (ai.dui.data.remote.PromptExpansion.baseSlashItems() + effectiveSlashCommands).filter { item ->
                                 slashQuery.isBlank() ||
