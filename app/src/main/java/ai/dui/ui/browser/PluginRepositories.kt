@@ -59,9 +59,11 @@ object PluginRepositories {
      * repository added later still reaches users who already got the earlier ones. A removed one stays removed.
      */
     private val DEFAULT_REPOS = listOf(
-        "dipeshkrydv/dui_plugins" to "default_repo_added",
-        "Santoshkurmi/dui_plugins" to "default_repo_added_santoshkurmi"
+        "Santoshkurmi/antigem_plugins" to "default_repo_added_santoshkurmi"
     )
+    /** The old plugin repository was renamed; keep existing users' lists working. */
+    private const val OLD_REPO = "Santoshkurmi/dui_plugins"
+    private const val NEW_REPO = "Santoshkurmi/antigem_plugins"
     private val NAME = "[A-Za-z0-9_.-]+"
 
     val repos = mutableStateListOf<PluginRepo>()
@@ -82,6 +84,7 @@ object PluginRepositories {
         prefs.getString("repos", null)?.let { stored ->
             runCatching { val array = JSONArray(stored); repos.addAll((0 until array.length()).map { parse(array.getString(it)) }) }
         }
+        migrateOfficialRepos()
         // Each official repository is added once, at the top in this order; if the user removes it, it stays removed
         DEFAULT_REPOS.forEachIndexed { index, (repo, addedKey) ->
             if (prefs.getBoolean(addedKey, false)) return@forEachIndexed
@@ -90,6 +93,17 @@ object PluginRepositories {
             prefs.edit().putBoolean(addedKey, true).apply()
             persist()
         }
+    }
+
+    /** Renames the old official repository in saved lists and drops the dead default from older builds. */
+    private fun migrateOfficialRepos() {
+        val old = repos.firstOrNull { it.slug.equals(OLD_REPO, ignoreCase = true) }
+        if (old != null) {
+            if (repos.any { it.slug.equals(NEW_REPO, ignoreCase = true) }) repos.remove(old)
+            else repos[repos.indexOf(old)] = parse(NEW_REPO)
+        }
+        repos.removeAll { it.slug.equals("dipeshkrydv/dui_plugins", ignoreCase = true) }
+        persist()
     }
 
     /** Accepts `owner/repo`, `owner/repo@branch`, `https://github.com/owner/repo` and `…/tree/branch` URLs. */

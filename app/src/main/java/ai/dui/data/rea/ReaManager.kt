@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit
  * take apart APKs, Flutter and React Native apps and native code, in a proot-distro Ubuntu container of the
  * terminal.
  *
- * Nothing of REA ships in the APK: the setup scripts live in the dui_plugins repository
+ * Nothing of REA ships in the APK: the setup scripts live in the antigem_plugins repository
  * (rea/skills/rea/scripts) and are downloaded into $PREFIX/share/dui-rea when the user asks for them. Every
  * install step runs `rea-setup.sh <step>`, the same script the REA skill plugin tells agents to run.
  *
@@ -45,7 +45,15 @@ object ReaManager {
     private const val PREFS = "rea_settings"
 
     /** Where the setup files and the skill plugin come from (owner/repo@branch). */
-    const val DEFAULT_SOURCE = "Santoshkurmi/dui_plugins@main"
+    const val DEFAULT_SOURCE = "Santoshkurmi/antigem_plugins@main"
+    /** Older builds pointed at a repository that was renamed; saved sources are migrated to the new name. */
+    private const val OLD_SOURCE = "Santoshkurmi/dui_plugins"
+
+    /** A saved source from an older build (or blank) → the current repository, keeping a custom branch. */
+    fun migrateSource(saved: String?): String {
+        val value = saved?.replace(OLD_SOURCE, "Santoshkurmi/antigem_plugins")
+        return value?.takeIf { it.isNotBlank() } ?: DEFAULT_SOURCE
+    }
     private const val SCRIPTS_PATH = "rea/skills/rea/scripts"
     const val PLUGIN_ID = "rea"
     const val CONTAINER = "ubuntu"
@@ -231,7 +239,10 @@ object ReaManager {
     fun init(context: Context) {
         if (::appContext.isInitialized) return
         appContext = context.applicationContext
-        _state.update { it.copy(source = prefs.getString("source", null) ?: DEFAULT_SOURCE, webEnabled = prefs.getBoolean(WEB_PREF, false)) }
+        val saved = prefs.getString("source", null)
+        val source = migrateSource(saved)
+        if (source != saved) prefs.edit().putString("source", source).apply()
+        _state.update { it.copy(source = source, webEnabled = prefs.getBoolean(WEB_PREF, false)) }
     }
 
     fun clearMessage() = _state.update { it.copy(message = null, isError = false) }

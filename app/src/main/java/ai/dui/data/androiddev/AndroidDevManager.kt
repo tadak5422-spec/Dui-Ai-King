@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit
  * Kotlin / Java / Jetpack Compose with Gradle, Flutter and React Native, in the proot-distro Ubuntu container of the
  * terminal. It is the same container REA uses, so Java 21 and Node.js are shared.
  *
- * Nothing ships in the APK: the setup scripts live in the dui_plugins repository
+ * Nothing ships in the APK: the setup scripts live in the antigem_plugins repository
  * (android-dev/skills/android-dev/scripts) and are downloaded into $PREFIX/share/dui-android when needed. Every
  * install step runs `android-setup.sh <step>`, the same script the Android Development skill tells agents to run.
  * Agents build with the `adev` command (a command in the container with the tools on PATH) and create projects
@@ -159,7 +159,10 @@ object AndroidDevManager {
     fun init(context: Context) {
         if (::appContext.isInitialized) return
         appContext = context.applicationContext
-        _state.update { it.copy(source = prefs.getString("source", null) ?: DEFAULT_SOURCE) }
+        val saved = prefs.getString("source", null)
+        val source = ReaManager.migrateSource(saved)
+        if (source != saved) prefs.edit().putString("source", source).apply()
+        _state.update { it.copy(source = source) }
     }
 
     fun clearMessage() = _state.update { it.copy(message = null, isError = false) }

@@ -553,7 +553,7 @@ private fun SwitchRow(title: String, text: String, checked: Boolean, enabled: Bo
 private fun ManualSetupCard(state: ReaManager.State, cardBg: Color, cardBorder: BorderStroke) {
     var open by remember { mutableStateOf(false) }
     val repo = runCatching { ai.dui.ui.browser.PluginRepositories.parse(state.source) }.getOrNull()
-    val raw = "https://raw.githubusercontent.com/${repo?.slug ?: "Santoshkurmi/dui_plugins"}/${repo?.ref?.ifBlank { "main" } ?: "main"}/rea/skills/rea/scripts"
+    val raw = "https://raw.githubusercontent.com/${repo?.slug ?: "Santoshkurmi/antigem_plugins"}/${repo?.ref?.ifBlank { "main" } ?: "main"}/rea/skills/rea/scripts"
     val steps = listOf(
         "1. Download the setup files" to
             "mkdir -p \$PREFIX/share/dui-rea && cd \$PREFIX/share/dui-rea && for f in files.json rea-setup.sh rea-mcp rea-shell rea-filter.mjs groups.default.json; do curl -fsSLO $raw/\$f; done",

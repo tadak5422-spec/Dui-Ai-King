@@ -1212,10 +1212,7 @@ object LocalEnvironmentManager {
                                 }
 
                                 if (entry.isSymbolicLink) {
-                                    if (targetFile.exists() || isSymlink(targetFile)) {
-                                        targetFile.setWritable(true, true)
-                                        try { targetFile.delete() } catch (_: Exception) {}
-                                    }
+                                    deleteForReplace(targetFile)
                                     val symlinkTarget = entry.linkName
                                     if (!symlinkTarget.isNullOrBlank()) {
                                         try {
@@ -1225,14 +1222,12 @@ object LocalEnvironmentManager {
                                         }
                                     }
                                 } else if (entry.isDirectory) {
+                                    if (!targetFile.isDirectory) deleteForReplace(targetFile)
                                     targetFile.mkdirs()
                                     val dirMode = if (entry.mode != 0) (entry.mode and 511) or 493 else 493
                                     try { Os.chmod(targetFile.absolutePath, dirMode) } catch (_: Exception) {}
                                 } else {
-                                    if (targetFile.exists() || isSymlink(targetFile)) {
-                                        targetFile.setWritable(true, true)
-                                        try { targetFile.delete() } catch (_: Exception) {}
-                                    }
+                                    deleteForReplace(targetFile)
                                     try {
                                         FileOutputStream(targetFile).use { fos ->
                                             tarIn.copyTo(fos)
@@ -1315,10 +1310,7 @@ object LocalEnvironmentManager {
                                             try { Os.chmod(p.absolutePath, 493) } catch (_: Exception) {}
                                         }
                                     }
-                                    if (targetFile.exists() || isSymlink(targetFile)) {
-                                        targetFile.setWritable(true, true)
-                                        try { targetFile.delete() } catch (_: Exception) {}
-                                    }
+                                    deleteForReplace(targetFile)
                                     val symlinkTarget = zip.getUnixSymlink(entry)
                                     if (!symlinkTarget.isNullOrBlank()) {
                                         Os.symlink(symlinkTarget, targetFile.absolutePath)
@@ -1327,6 +1319,7 @@ object LocalEnvironmentManager {
                                     Log.w(TAG, "Failed creating embedded symlink for $rawName: ${e.message}")
                                 }
                             } else if (entry.isDirectory) {
+                                if (!targetFile.isDirectory) deleteForReplace(targetFile)
                                 targetFile.mkdirs()
                                 val dirMode = if (unixMode != 0) unixMode else 493 // 0755
                                 try {
@@ -1342,12 +1335,7 @@ object LocalEnvironmentManager {
                                     }
                                 }
 
-                                if (targetFile.exists() || isSymlink(targetFile)) {
-                                    targetFile.setWritable(true, true)
-                                    try {
-                                        targetFile.delete()
-                                    } catch (_: Exception) {}
-                                }
+                                deleteForReplace(targetFile)
 
                                 try {
                                     zip.getInputStream(entry).use { inStream ->
@@ -1649,6 +1637,55 @@ object LocalEnvironmentManager {
         }
     }
 
+    /**
+     * Removes whatever sits at [file] so an archive entry can replace it. An older install can leave a directory
+     * where a file belongs (apt then fails with "read (21: Is a directory)") or a file where a directory belongs.
+     */
+    private fun deleteForReplace(file: File) {
+        if (isSymlink(file)) {
+            try { file.delete() } catch (_: Exception) {}
+            return
+        }
+        if (!file.exists()) return
+        if (file.isDirectory) {
+            try {
+                file.walkBottomUp().forEach { child ->
+                    try {
+                        if (isSymlink(child)) child.delete()
+                        else { child.setWritable(true, true); child.delete() }
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+            if (file.exists()) {
+                try { file.deleteRecursively() } catch (_: Exception) {}
+            }
+        } else {
+            try { file.setWritable(true, true); file.delete() } catch (_: Exception) {}
+        }
+    }
+
+    /** Repairs the apt config if an older extraction left sources.list as a directory (apt error exit 100). */
+    private fun repairAptConfig(prefixDir: File) {
+        val aptDir = File(prefixDir, "etc/apt")
+        val list = File(aptDir, "sources.list")
+        if (isSymlink(list)) {
+            if (list.isDirectory || !list.exists()) try { list.delete() } catch (_: Exception) {}
+        } else if (list.isDirectory) {
+            try { list.deleteRecursively() } catch (_: Exception) {}
+        }
+        if (!list.exists()) {
+            try {
+                aptDir.mkdirs()
+                list.writeText("deb https://packages-cf.termux.dev/apt/termux-main/ stable main\n")
+            } catch (_: Exception) {}
+        }
+        val parts = File(aptDir, "sources.list.d")
+        if (parts.exists() && !parts.isDirectory) {
+            try { parts.delete() } catch (_: Exception) {}
+        }
+        if (!parts.exists()) parts.mkdirs()
+    }
+
     private fun extractGlibcMinAsset(context: Context, prefixDir: File): Boolean {
         log("Checking for bundled minimal Glibc runtime...")
         // shipped xz-compressed: 4.3 MB -> 1.2 MB in the APK
@@ -1676,6 +1713,7 @@ object LocalEnvironmentManager {
                         if (entryName.isNotBlank() && entryName != "/") {
                             val targetFile = File(glibcDir, entryName)
                             if (entry.isDirectory) {
+                                if (!targetFile.isDirectory) deleteForReplace(targetFile)
                                 targetFile.mkdirs()
                             } else if (entry.isSymbolicLink) {
                                 targetFile.parentFile?.mkdirs()
@@ -1770,6 +1808,13 @@ object LocalEnvironmentManager {
             TermuxRelocation.repairPaths(glibcDir, context.packageName)
         } catch (e: Exception) {
             Log.w(TAG, "Glibc path repair failed: ${e.message}")
+        }
+        // Older rootfs extractions could leave apt/sources.list as a directory: every apt command then fails with
+        // "E: Read error - read (21: Is a directory)" and exit 100.
+        try {
+            repairAptConfig(prefixDir)
+        } catch (e: Exception) {
+            Log.w(TAG, "apt config repair failed: ${e.message}")
         }
         return ldLinux.exists()
     }
@@ -1924,6 +1969,7 @@ object LocalEnvironmentManager {
                         if (normalized.isNotBlank() && normalized != "/") {
                             val targetFile = File(prefixDir, normalized)
                             if (tarEntry.isDirectory) {
+                                if (!targetFile.isDirectory) deleteForReplace(targetFile)
                                 targetFile.mkdirs()
                             } else if (tarEntry.isSymbolicLink) {
                                 try {

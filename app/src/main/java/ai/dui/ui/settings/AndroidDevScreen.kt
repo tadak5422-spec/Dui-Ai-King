@@ -465,7 +465,7 @@ private fun SkillCard(state: AndroidDevManager.State, busy: Boolean, cardBg: Col
 private fun TerminalCard(state: AndroidDevManager.State, cardBg: Color, cardBorder: BorderStroke) {
     var open by remember { mutableStateOf(false) }
     val repo = runCatching { ai.dui.ui.browser.PluginRepositories.parse(state.source) }.getOrNull()
-    val raw = "https://raw.githubusercontent.com/${repo?.slug ?: "Santoshkurmi/dui_plugins"}/${repo?.ref?.ifBlank { "main" } ?: "main"}/android-dev/skills/android-dev/scripts"
+    val raw = "https://raw.githubusercontent.com/${repo?.slug ?: "Santoshkurmi/antigem_plugins"}/${repo?.ref?.ifBlank { "main" } ?: "main"}/android-dev/skills/android-dev/scripts"
     val s = "\$PREFIX/share/dui-android/android-setup.sh"
     val steps = listOf(
         "1. Download the setup files" to

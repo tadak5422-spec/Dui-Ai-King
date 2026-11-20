@@ -19,6 +19,9 @@ import (
 
 const repoIndex = "dui-plugins.json"
 
+// repoIndexAlternates are accepted too: the official repository publishes its index as antigem-plugins.json.
+var repoIndexAlternates = []string{"antigem-plugins.json", "antigem_plugins.json"}
+
 // Repo is a public GitHub repository of plugin folders; Ref is a branch or tag, empty for the default branch.
 type Repo struct {
 	Owner, Name, Ref string
@@ -173,8 +176,22 @@ func (m *Manager) tree(r Repo) ([]treeEntry, error) {
 
 // ---- listing ----
 
+// repoIndex returns the first index file the repository publishes, with its name.
+func (m *Manager) repoIndex(r Repo) (string, string, bool, error) {
+	for _, name := range append([]string{repoIndex}, repoIndexAlternates...) {
+		body, ok, err := m.text(m.rawURL(r, name))
+		if err != nil {
+			return "", name, false, err
+		}
+		if ok {
+			return body, name, true, nil
+		}
+	}
+	return "", repoIndex, false, nil
+}
+
 func (m *Manager) listRepo(r Repo) (RepoListing, error) {
-	index, ok, err := m.text(m.rawURL(r, repoIndex))
+	index, indexName, ok, err := m.repoIndex(r)
 	if err != nil {
 		return RepoListing{}, err
 	}
@@ -184,10 +201,10 @@ func (m *Manager) listRepo(r Repo) (RepoListing, error) {
 			Plugins []map[string]interface{} `json:"plugins"`
 		}
 		if err := json.Unmarshal([]byte(index), &parsed); err != nil {
-			return RepoListing{}, fmt.Errorf("%s is not valid JSON: %w", repoIndex, err)
+			return RepoListing{}, fmt.Errorf("%s is not valid JSON: %w", indexName, err)
 		}
 		if parsed.Plugins == nil {
-			return RepoListing{}, fmt.Errorf("%s has no \"plugins\" array", repoIndex)
+			return RepoListing{}, fmt.Errorf("%s has no \"plugins\" array", indexName)
 		}
 		plugins := make([]RepoPlugin, len(parsed.Plugins))
 		errs := make([]error, len(parsed.Plugins))
