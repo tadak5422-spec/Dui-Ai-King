@@ -2324,7 +2324,10 @@ fun ChatScreen(
                                                     else -> false
                                                 }
                                                 CompositionLocalProvider(ai.dui.ui.components.LocalWebViewSlot provides feedItem.key) {
-                                                    if (selectable) SelectionContainer { blockView() } else blockView()
+                                                    if (selectable) {
+                                                        val selectionScrollState = rememberScrollState()
+                                                        SelectionContainer(modifier = Modifier.verticalScroll(selectionScrollState)) { blockView() }
+                                                    } else blockView()
                                                 }
                                             }
                                         }
