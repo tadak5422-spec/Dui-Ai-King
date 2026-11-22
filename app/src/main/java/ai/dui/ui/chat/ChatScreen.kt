@@ -1983,7 +1983,6 @@ fun ChatScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .verticalScroll(emptyScrollState)
                                     .heightIn(min = minHeight)
                                     .padding(horizontal = 24.dp, vertical = 24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -2012,7 +2011,6 @@ fun ChatScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .verticalScroll(emptyScrollState)
                                         .heightIn(min = minHeight)
                                         .padding(horizontal = 24.dp, vertical = 24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -2093,7 +2091,6 @@ fun ChatScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .verticalScroll(emptyScrollState)
                                     .heightIn(min = minHeight)
                                     .padding(horizontal = 24.dp, vertical = 24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
