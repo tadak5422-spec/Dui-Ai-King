@@ -1723,7 +1723,10 @@ private fun ChatHistoryItemRow(
                         onSelectConversation(conv.id)
                     }
                 },
-                onLongClick = { if (isSelectionMode) onToggleConversationSelection(conv) }
+                onLongClick = {
+                    Log.d("CHAT_OPEN_DEBUG", "📂 [Drawer Row] Long pressed: id=${conv.id}, title='${conv.title}'")
+                    onToggleConversationSelection(conv)
+                }
             )
             .padding(
                 horizontal = if (isSubagent) 8.dp else 10.dp,
