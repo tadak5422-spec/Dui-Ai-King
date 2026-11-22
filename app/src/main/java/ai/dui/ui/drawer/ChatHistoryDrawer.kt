@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -1713,7 +1714,7 @@ private fun ChatHistoryItemRow(
                 if (rowSelected) MaterialTheme.colorScheme.surfaceVariant
                 else Color.Transparent
             )
-            .clickable(
+            .combinedClickable(
                 onClick = {
                     if (isSelectionMode) {
                         onToggleConversationSelection(conv)
