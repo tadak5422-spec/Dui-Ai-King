@@ -1410,24 +1410,26 @@ object LocalEnvironmentManager {
                 }
             }
 
-            // Termux files are built for com.termux: rewrite them for this app's package name (same length)
-            TermuxRelocation.targetPackage(appContext)?.let { pkg ->
-                log("Adapting Termux files for $pkg...")
-                _installerState.value = LocalInstallerState.Configuring(
-                    stepDescription = "Adapting Termux files for $pkg...",
-                    progressFraction = 0.88f
-                )
-                updateInstallNotification(appContext, "Adapting Linux Environment", "Rewriting com.termux paths for $pkg...", -1, force = true)
-                val onProgress: (Int) -> Unit = { n ->
+            // Termux files are built for com.termux, and the published rootfs was built for an earlier package of this
+            // app (ai.antigem): rewrite every path for this app before the shell is started
+            run {
+                val pkg = appContext.packageName
+                if (pkg != TermuxRelocation.TERMUX_PACKAGE) {
+                    log("Adapting Linux files for $pkg...")
                     _installerState.value = LocalInstallerState.Configuring(
-                        stepDescription = "Adapting Termux files for $pkg ($n files checked)...",
+                        stepDescription = "Adapting Linux files for $pkg...",
                         progressFraction = 0.88f
                     )
+                    updateInstallNotification(appContext, "Adapting Linux Environment", "Rewriting Linux paths for $pkg...", -1, force = true)
+                    val onProgress: (Int) -> Unit = { n ->
+                        _installerState.value = LocalInstallerState.Configuring(
+                            stepDescription = "Adapting Linux files for $pkg ($n files checked)...",
+                            progressFraction = 0.88f
+                        )
+                    }
+                    val stats = TermuxRelocation.relocateInstall(appContext, prefixDir, homeDir, onProgress)
+                    log("✓ Adapted ${stats.patchedFiles} files and ${stats.links} symlinks (${stats.files} files checked)")
                 }
-                val usr = TermuxRelocation.relocateTree(prefixDir, pkg, onProgress)
-                // the home folder holds the user's own files: only paths there (see TermuxRelocation)
-                val home = TermuxRelocation.relocateTree(homeDir, pkg, onProgress, pathsOnly = true)
-                log("✓ Adapted ${usr.patchedFiles + home.patchedFiles} files and ${usr.links + home.links} symlinks (${usr.files + home.files} files checked)")
             }
 
             // Clean up downloaded zip

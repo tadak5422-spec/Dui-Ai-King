@@ -27,7 +27,7 @@ object TermuxRelocation {
     const val TERMUX_PACKAGE = "com.termux"
 
     /** Packages an earlier build may have rewritten the files for (all as long as [TERMUX_PACKAGE]). */
-    private val LEGACY_PACKAGES = listOf(TERMUX_PACKAGE, "ai.antigem", "ai.antidev")
+    val LEGACY_PACKAGES = listOf(TERMUX_PACKAGE, "ai.antigem", "ai.antidev")
 
     /** [repairPaths] reads a file as a whole; bigger ones are left alone. */
     private const val MAX_REPAIR_BYTES = 64L * 1024 * 1024
@@ -53,7 +53,10 @@ object TermuxRelocation {
     private const val FAST_RELOCATOR_MARKER = "dui-relocate-debs/1"
     private const val SLASH = '/'.code.toByte()
 
-    data class Stats(var files: Int = 0, var patchedFiles: Int = 0, var links: Int = 0)
+    data class Stats(var files: Int = 0, var patchedFiles: Int = 0, var links: Int = 0) {
+        operator fun plus(other: Stats) =
+            Stats(files + other.files, patchedFiles + other.patchedFiles, links + other.links)
+    }
 
     /** This app's package name, which Termux files are rewritten for; null when it cannot be (another length). */
     fun targetPackage(context: Context): String? =
@@ -66,6 +69,30 @@ object TermuxRelocation {
     }
 
     /**
+     * Rewrites a freshly extracted rootfs for this app. The Termux bootstrap is built for [TERMUX_PACKAGE], but a
+     * published rootfs may have been made for an earlier package of this app ([LEGACY_PACKAGES], e.g. ai.antigem).
+     * With a package name of the same length every file is rewritten byte for byte; a shorter one (ai.dui) uses
+     * [repairPaths], which pads the paths inside binaries with NUL bytes.
+     */
+    fun relocateInstall(
+        context: Context,
+        prefixDir: File,
+        homeDir: File,
+        onProgress: ((Int) -> Unit)? = null
+    ): Stats {
+        val pkg = context.packageName
+        if (pkg == TERMUX_PACKAGE) return Stats()
+        return if (pkg.length == TERMUX_PACKAGE.length) {
+            relocateTree(prefixDir, pkg, onProgress, oldPackages = LEGACY_PACKAGES) +
+                // the home folder holds the user's own files: only paths there (see relocateTree)
+                relocateTree(homeDir, pkg, onProgress, pathsOnly = true, oldPackages = LEGACY_PACKAGES)
+        } else {
+            repairPaths(prefixDir, pkg, LEGACY_PACKAGES) +
+                repairPaths(homeDir, pkg, LEGACY_PACKAGES, pathsOnly = true)
+        }
+    }
+
+    /**
      * Rewrites absolute paths of [oldPackages] to [newPackage] in [root] even when the names differ in length, which
      * the byte-for-byte [relocateTree] cannot do. Text files are rewritten as a whole; in binaries only NUL-terminated
      * absolute paths are rewritten and padded with NUL bytes, so the file size and every offset inside it stay the
@@ -73,7 +100,12 @@ object TermuxRelocation {
      * nsswitch.conf, locale, ...), and a foreign package name there makes DNS lookups fail with
      * `getaddrinfo EAI_AGAIN` even though the device's network is fine.
      */
-    fun repairPaths(root: File, newPackage: String, oldPackages: Collection<String> = LEGACY_PACKAGES): Stats {
+    fun repairPaths(
+        root: File,
+        newPackage: String,
+        oldPackages: Collection<String> = LEGACY_PACKAGES,
+        pathsOnly: Boolean = false
+    ): Stats {
         val stats = Stats()
         if (!root.exists()) return stats
         val new = newPackage.toByteArray(Charsets.US_ASCII)
@@ -85,10 +117,11 @@ object TermuxRelocation {
             for (f in dir.listFiles() ?: continue) {
                 val mode = try { Os.lstat(f.absolutePath).st_mode } catch (_: Exception) { continue }
                 when {
+                    OsConstants.S_ISLNK(mode) -> if (repairLink(f, olds, newPackage, pathsOnly)) stats.links++
                     OsConstants.S_ISDIR(mode) -> dirs.add(f)
                     OsConstants.S_ISREG(mode) -> {
                         stats.files++
-                        if (repairFile(f, mode, olds, new)) stats.patchedFiles++
+                        if (repairFile(f, mode, olds, new, pathsOnly)) stats.patchedFiles++
                     }
                 }
             }
@@ -96,14 +129,45 @@ object TermuxRelocation {
         return stats
     }
 
-    private fun repairFile(file: File, mode: Int, olds: List<ByteArray>, new: ByteArray): Boolean {
+    private fun repairLink(link: File, olds: List<ByteArray>, newPackage: String, pathsOnly: Boolean): Boolean {
+        val target = try { Os.readlink(link.absolutePath) } catch (_: Exception) { return false }
+        val newTarget = rewriteTarget(target, olds.map { String(it, Charsets.US_ASCII) }, newPackage, pathsOnly)
+        if (newTarget == target) return false
+        return try {
+            link.delete()
+            Os.symlink(newTarget, link.absolutePath)
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "Repairing symlink ${link.absolutePath} -> $target failed: ${e.message}")
+            false
+        }
+    }
+
+    /** [target] with every old package name replaced; with [pathsOnly] only right after a "/". */
+    private fun rewriteTarget(target: String, olds: List<String>, newPackage: String, pathsOnly: Boolean): String {
+        val sb = StringBuilder(target.length)
+        var i = 0
+        while (i < target.length) {
+            val hit = olds.firstOrNull { target.startsWith(it, i) }
+            if (hit != null && (!pathsOnly || (i > 0 && target[i - 1] == '/'))) {
+                sb.append(newPackage)
+                i += hit.length
+            } else {
+                sb.append(target[i])
+                i++
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun repairFile(file: File, mode: Int, olds: List<ByteArray>, new: ByteArray, pathsOnly: Boolean): Boolean {
         if (file.extension.lowercase() in SKIPPED_EXTENSIONS) return false
         if (try { file.length() } catch (_: Exception) { return false } > MAX_REPAIR_BYTES) return false
         val data = try { file.readBytes() } catch (_: Exception) { return false }
         if (data.size < olds.minOf { it.size }) return false
         val isElf = data.size >= 4 && data[0] == 0x7f.toByte() && data[1] == 'E'.code.toByte() &&
             data[2] == 'L'.code.toByte() && data[3] == 'F'.code.toByte()
-        val out = (if (isElf) repairElf(data, olds, new) else repairBytes(data, olds, new)) ?: return false
+        val out = (if (isElf) repairElf(data, olds, new) else repairBytes(data, olds, new, pathsOnly)) ?: return false
         val perms = mode and 0xFFF
         val ownerWritable = (perms and 0x80) != 0 // S_IWUSR
         if (!ownerWritable) Os.chmod(file.absolutePath, perms or 0x80)
@@ -170,13 +234,14 @@ object TermuxRelocation {
     }
 
     /** The whole file with the old packages replaced (text/config files, where a shorter name is fine). */
-    private fun repairBytes(data: ByteArray, olds: List<ByteArray>, new: ByteArray): ByteArray? {
+    private fun repairBytes(data: ByteArray, olds: List<ByteArray>, new: ByteArray, pathsOnly: Boolean): ByteArray? {
         val out = ByteArrayOutputStream(data.size)
         var i = 0
         var changed = false
         while (i < data.size) {
             val hit = matchOld(data, i, data.size, olds)
-            if (hit != null) {
+            val inPath = !pathsOnly || (i > 0 && data[i - 1] == SLASH)
+            if (hit != null && inPath) {
                 out.write(new)
                 i += hit.size
                 changed = true
@@ -206,13 +271,16 @@ object TermuxRelocation {
         root: File,
         newPackage: String,
         onProgress: ((Int) -> Unit)? = null,
-        pathsOnly: Boolean = false
+        pathsOnly: Boolean = false,
+        oldPackages: Collection<String> = listOf(TERMUX_PACKAGE)
     ): Stats {
-        val old = TERMUX_PACKAGE.toByteArray(Charsets.US_ASCII)
         val new = newPackage.toByteArray(Charsets.US_ASCII)
-        require(old.size == new.size) { "$newPackage must have the length of $TERMUX_PACKAGE" }
+        require(oldPackages.all { it.length == newPackage.length }) {
+            "$newPackage must have the length of ${TERMUX_PACKAGE}"
+        }
+        val olds = oldPackages.filter { it != newPackage }.map { it.toByteArray(Charsets.US_ASCII) }
         val stats = Stats()
-        if (!root.exists()) return stats
+        if (olds.isEmpty() || !root.exists()) return stats
         val dirs = ArrayDeque<File>().apply { add(root) }
         while (dirs.isNotEmpty()) {
             val dir = dirs.removeLast()
@@ -222,11 +290,11 @@ object TermuxRelocation {
             for (f in children) {
                 val mode = try { Os.lstat(f.absolutePath).st_mode } catch (_: Exception) { continue }
                 when {
-                    OsConstants.S_ISLNK(mode) -> if (relink(f, newPackage, pathsOnly)) stats.links++
+                    OsConstants.S_ISLNK(mode) -> if (relink(f, olds, newPackage, pathsOnly)) stats.links++
                     OsConstants.S_ISDIR(mode) -> dirs.add(f)
                     OsConstants.S_ISREG(mode) -> {
                         stats.files++
-                        if (patchFile(f, mode, old, new, pathsOnly)) stats.patchedFiles++
+                        if (patchFile(f, mode, olds, new, pathsOnly)) stats.patchedFiles++
                         if (stats.files % 500 == 0) onProgress?.invoke(stats.files)
                     }
                 }
@@ -235,10 +303,9 @@ object TermuxRelocation {
         return stats
     }
 
-    private fun relink(link: File, newPackage: String, pathsOnly: Boolean): Boolean {
+    private fun relink(link: File, olds: List<ByteArray>, newPackage: String, pathsOnly: Boolean): Boolean {
         val target = try { Os.readlink(link.absolutePath) } catch (_: Exception) { return false }
-        if (!target.contains(TERMUX_PACKAGE)) return false
-        val newTarget = String(rewrite(target.toByteArray(Charsets.UTF_8), newPackage, pathsOnly), Charsets.UTF_8)
+        val newTarget = rewriteTarget(target, olds.map { String(it, Charsets.US_ASCII) }, newPackage, pathsOnly)
         if (newTarget == target) return false
         return try {
             link.delete()
@@ -250,10 +317,10 @@ object TermuxRelocation {
         }
     }
 
-    private fun patchFile(file: File, mode: Int, old: ByteArray, new: ByteArray, pathsOnly: Boolean): Boolean {
+    private fun patchFile(file: File, mode: Int, olds: List<ByteArray>, new: ByteArray, pathsOnly: Boolean): Boolean {
         if (file.extension.lowercase() in SKIPPED_EXTENSIONS) return false
         return try {
-            val offsets = findAll(file, old, pathsOnly)
+            val offsets = olds.flatMap { findAll(file, it, pathsOnly) }.distinct()
             if (offsets.isEmpty()) return false
             val perms = mode and 0xFFF
             val ownerWritable = (perms and 0x80) != 0 // S_IWUSR
