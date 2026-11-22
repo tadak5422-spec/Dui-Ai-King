@@ -1699,7 +1699,6 @@ fun ChatScreen(
                                         .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
                                         .clickable {
                                             if (!isChatStarted) showProjectPickerDialog = true
-                                            else if (showStatusDot) statusMenuOpen = true
                                         }
                                         .padding(start = if (showStatusDot) 4.dp else 10.dp, end = if (isChatStarted) 10.dp else 4.dp, top = 3.dp, bottom = 3.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -1711,8 +1710,7 @@ fun ChatScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(20.dp)
-                                                .clip(CircleShape)
-                                                .clickable { statusMenuOpen = true },
+                                                .clip(CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             ai.dui.ui.agents.AgentStatusDot(

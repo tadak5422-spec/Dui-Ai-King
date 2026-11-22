@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.Public
 import ai.dui.ui.components.AppToastHelper
 import ai.dui.ui.components.ChatToastType
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Palette
@@ -147,6 +148,24 @@ fun ChatHistoryDrawer(
     var showExitConfirmDialog by remember { mutableStateOf(false) }
     var conversationToDelete by remember { mutableStateOf<Conversation?>(null) }
     var isInitialGracePeriod by remember { mutableStateOf(true) }
+
+    // Recent Chats multi-select: long-press to select, delete the selected ones.
+    var isChatSelectionActive by remember { mutableStateOf(false) }
+    var selectedConversationIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var conversationsToDelete by remember { mutableStateOf<List<Conversation>?>(null) }
+
+    fun toggleConversationSelection(conv: Conversation) {
+        val current = selectedConversationIds
+        val updated = if (conv.id in current) current - conv.id else current + conv.id
+        selectedConversationIds = updated
+        if (updated.isEmpty()) isChatSelectionActive = false
+        else isChatSelectionActive = true
+    }
+
+    fun clearConversationSelection() {
+        selectedConversationIds = emptySet()
+        isChatSelectionActive = false
+    }
 
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(3500)
@@ -542,6 +561,78 @@ fun ChatHistoryDrawer(
         )
     }
 
+    if (conversationsToDelete != null) {
+        val deleteTargets = conversationsToDelete!!
+        AlertDialog(
+            onDismissRequest = { conversationsToDelete = null },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Delete ${deleteTargets.size} chats?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to permanently delete the ${deleteTargets.size} selected chats? This will permanently remove all messages and trajectory data of each.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val ids = deleteTargets.map { it.id }.toSet()
+                        conversationsToDelete = null
+                        clearConversationSelection()
+                        ids.forEach { onDeleteConversation(it) }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Permanently Delete", fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { conversationsToDelete = null },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Cancel", fontSize = 13.5.sp)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(18.dp)
+        )
+    }
+
     if (conversationToDelete != null) {
         val targetConv = conversationToDelete!!
         AlertDialog(
@@ -611,6 +702,11 @@ fun ChatHistoryDrawer(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             shape = RoundedCornerShape(18.dp)
         )
+    }
+
+    // multi-select: the back gesture exits the selection instead of closing the drawer
+    BackHandler(enabled = isChatSelectionActive) {
+        clearConversationSelection()
     }
 
     ModalDrawerSheet(
@@ -817,6 +913,53 @@ fun ChatHistoryDrawer(
                             .clickable { showFullSearchDialog = true }
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     )
+                }
+            }
+
+            // ---------------- multi-select bar: shown only while a selection is active ----------------
+            AnimatedVisibility(
+                visible = isChatSelectionActive,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { clearConversationSelection() },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel selection",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(
+                        text = "${selectedConversationIds.size} selected",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = {
+                            val targets = filtered.filter { it.id in selectedConversationIds }
+                            if (targets.isNotEmpty()) conversationsToDelete = targets
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete selected chats",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -1053,6 +1196,9 @@ fun ChatHistoryDrawer(
                                             onSelectConversation(conv.id)
                                         },
                                         onForkConversation = onForkConversation,
+                                        isSelectionMode = isChatSelectionActive,
+                                        selectedConversationIds = selectedConversationIds,
+                                        onToggleConversationSelection = { conv -> toggleConversationSelection(conv) },
                                         onRequestDelete = { conversationToDelete = it },
                                         claudeActions = claudeActions,
                                         onTerminateInstance = { inst, title ->
@@ -1163,6 +1309,9 @@ fun ChatHistoryDrawer(
                                                 onSelectConversation(conv.id)
                                             },
                                             onForkConversation = onForkConversation,
+                                            isSelectionMode = isChatSelectionActive,
+                                            selectedConversationIds = selectedConversationIds,
+                                            onToggleConversationSelection = { conv -> toggleConversationSelection(conv) },
                                             onRequestDelete = { conversationToDelete = it },
                                             claudeActions = claudeActions,
                                             onTerminateInstance = { inst, title ->
@@ -1528,6 +1677,9 @@ private fun ChatHistoryItemRow(
     isActivelyRunning: Boolean,
     isScheduledOrBackground: Boolean,
     depth: Int = 0,
+    isSelectionMode: Boolean = false,
+    selectedConversationIds: Set<String> = emptySet(),
+    onToggleConversationSelection: (Conversation) -> Unit = {},
     displayName: String = conv.title,
     subagents: List<Conversation> = emptyList(),
     isSubagentsExpanded: Boolean = false,
@@ -1545,6 +1697,8 @@ private fun ChatHistoryItemRow(
         isScheduledOrBackground -> ai.dui.theme.AppColors.warning
         else -> null
     }
+    // while multi-selecting, the row's own highlight marks the selected chats
+    val rowSelected = if (isSelectionMode) conv.id in selectedConversationIds else isSelected
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1556,13 +1710,20 @@ private fun ChatHistoryItemRow(
             )
             .clip(RoundedCornerShape(8.dp))
             .background(
-                if (isSelected) MaterialTheme.colorScheme.surfaceVariant
+                if (rowSelected) MaterialTheme.colorScheme.surfaceVariant
                 else Color.Transparent
             )
-            .clickable {
-                Log.d("CHAT_OPEN_DEBUG", "📂 [Drawer Row] User clicked: id=${conv.id}, title='${conv.title}'")
-                onSelectConversation(conv.id)
-            }
+            .clickable(
+                onClick = {
+                    if (isSelectionMode) {
+                        onToggleConversationSelection(conv)
+                    } else {
+                        Log.d("CHAT_OPEN_DEBUG", "📂 [Drawer Row] User clicked: id=${conv.id}, title='${conv.title}'")
+                        onSelectConversation(conv.id)
+                    }
+                },
+                onLongClick = { if (isSelectionMode) onToggleConversationSelection(conv) }
+            )
             .padding(
                 horizontal = if (isSubagent) 8.dp else 10.dp,
                 vertical = if (isSubagent) 7.dp else 9.dp
