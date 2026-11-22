@@ -1983,6 +1983,7 @@ fun ChatScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .verticalScroll(emptyScrollState)
                                     .heightIn(min = minHeight)
                                     .padding(horizontal = 24.dp, vertical = 24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -2011,6 +2012,7 @@ fun ChatScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .verticalScroll(emptyScrollState)
                                         .heightIn(min = minHeight)
                                         .padding(horizontal = 24.dp, vertical = 24.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -2091,6 +2093,7 @@ fun ChatScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .verticalScroll(emptyScrollState)
                                     .heightIn(min = minHeight)
                                     .padding(horizontal = 24.dp, vertical = 24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -2213,6 +2216,33 @@ fun ChatScreen(
                                 // iOS-style vertical bounce at the top and bottom (also for a short chat that cannot scroll);
                                 // only this list: code blocks and other sideways scrollers keep Android's own edge effect
                                 val chatBounce = ai.dui.ui.components.rememberBouncyLazyScroll(listState)
+                                // Consecutive plain-text blocks of one reply share one selection container: a selection
+                                // can then run across paragraphs and the list auto-scrolls while a handle is dragged,
+                                // instead of the selection stopping at the end of the block it started in.
+                                val (groupedTextBlocks, groupedAwayBlockKeys) = remember(feedItems) {
+                                    val groups = mutableMapOf<String, List<ChatFeedItem.AssistantBlock>>()
+                                    val hidden = mutableSetOf<String>()
+                                    var run = mutableListOf<ChatFeedItem.AssistantBlock>()
+                                    fun flush() {
+                                        if (run.size > 1) {
+                                            groups[run.first().key] = run.toList()
+                                            run.drop(1).forEach { hidden.add(it.key) }
+                                        }
+                                        run = mutableListOf()
+                                    }
+                                    feedItems.forEach { item ->
+                                        if (item is ChatFeedItem.AssistantBlock && item.isSelectableTextBlock() &&
+                                            (run.isEmpty() || run.last().messageId == item.messageId)
+                                        ) {
+                                            run.add(item)
+                                        } else {
+                                            flush()
+                                            if (item is ChatFeedItem.AssistantBlock && item.isSelectableTextBlock()) run.add(item)
+                                        }
+                                    }
+                                    flush()
+                                    groups to hidden
+                                }
                                 LazyColumn(
                                     state = listState,
                                     modifier = Modifier.fillMaxSize().then(chatBounce.modifier),
@@ -2295,6 +2325,38 @@ fun ChatScreen(
                                             }
                                         }
                                         is ChatFeedItem.AssistantBlock -> {
+                                            val groupedBlocks = groupedTextBlocks[feedItem.key]
+                                            if (feedItem.key in groupedAwayBlockKeys) {
+                                                // drawn inside the first block's group
+                                            } else if (groupedBlocks != null) {
+                                                // One selection container for a run of plain-text blocks of this reply:
+                                                // the selection can cross paragraphs and the list auto-scrolls while a
+                                                // handle is dragged past the viewport, instead of stopping at a block end.
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                                                ) {
+                                                    SelectionContainer {
+                                                        Column(Modifier.fillMaxWidth()) {
+                                                            groupedBlocks.forEach { groupedBlock ->
+                                                                CompositionLocalProvider(ai.dui.ui.components.LocalWebViewSlot provides groupedBlock.key) {
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .fillMaxWidth()
+                                                                            .padding(vertical = 2.dp)
+                                                                    ) {
+                                                                        MarkdownBlockView(
+                                                                            block = groupedBlock.block,
+                                                                            modifier = Modifier.fillMaxWidth()
+                                                                        )
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -2311,21 +2373,11 @@ fun ChatScreen(
                                                         onSkipChoices = if (isTool) { { toolCall, responses -> viewModel.skipUserChoices(toolCall, feedItem.messageId, responses) } } else null
                                                     )
                                                 }
-                                                // Text is selectable per block: each list item has its own selection container, so a
-                                                // selection never outlives the item when it scrolls away (one container spanning many
-                                                // items crashed). Interactive blocks (tool cards, web views, media) keep their own gestures.
-                                                val selectable = when (feedItem.block) {
-                                                    is MarkdownBlock.Paragraph, is MarkdownBlock.Header, is MarkdownBlock.Bullet,
-                                                    is MarkdownBlock.Numbered, is MarkdownBlock.Task, is MarkdownBlock.Blockquote,
-                                                    is MarkdownBlock.Alert, is MarkdownBlock.Table -> true
-                                                    else -> false
-                                                }
+                                                // Interactive blocks (tool cards, web views, media) keep their own gestures.
                                                 CompositionLocalProvider(ai.dui.ui.components.LocalWebViewSlot provides feedItem.key) {
-                                                    if (selectable) {
-                                                        val selectionScrollState = rememberScrollState()
-                                                        SelectionContainer(modifier = Modifier.verticalScroll(selectionScrollState)) { blockView() }
-                                                    } else blockView()
+                                                    if (feedItem.isSelectableTextBlock()) SelectionContainer { blockView() } else blockView()
                                                 }
+                                            }
                                             }
                                         }
                                         // with the working animation on, the working row below replaces these dots
@@ -4107,6 +4159,15 @@ private data class SlashTrigger(val index: Int, val query: String, val nothingBe
 
 /** An `@file` mention being typed (no space after it yet): where its `@` is and the text after it. */
 private data class MentionTrigger(val index: Int, val query: String)
+
+/** Plain text blocks can share one selection container, so a selection can cross paragraphs. */
+private fun ChatFeedItem.AssistantBlock.isSelectableTextBlock(): Boolean = when (block) {
+    is MarkdownBlock.Paragraph, is MarkdownBlock.Header, is MarkdownBlock.Bullet,
+    is MarkdownBlock.Numbered, is MarkdownBlock.Task, is MarkdownBlock.Blockquote,
+    is MarkdownBlock.Alert, is MarkdownBlock.Table -> true
+    else -> false
+}
+
 
 /**
  * A file link from a chat as a full path: a relative one ([Foo.kt](src/Foo.kt), as VS Code chats write them) is a file
