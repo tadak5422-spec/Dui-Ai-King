@@ -62,7 +62,7 @@ android {
     }
 
     // Local ports differ per app so they can all run side by side: the old com.termux build uses 1234/1235/8765,
-    // release (ai.dui) 1236/1237/8767, debug (ai.duidev, see androidComponents below) 1238/1239/8768
+    // release (ai.dui) 1236/1237/8767, debug (ai.dui.dev, see androidComponents below) 1238/1239/8768
     buildTypes {
         debug {
             buildConfigField("int", "BRIDGE_PORT", "1238")
@@ -452,9 +452,9 @@ androidComponents {
     onVariants { variant ->
         variant.sources.kotlin?.addGeneratedSourceDirectory(generateChangelog, GenerateChangelogTask::outputDir)
 
-        // Debug builds are their own app, ai.duidev ("DuiAI Dev"), so they install next to the release one. It must
+        // Debug builds are their own app, ai.dui.dev ("DuiAI Dev"), so they install next to the release one. It must
         // have the length of com.termux (10): the Termux packages are rewritten for it byte for byte.
-        if (variant.buildType == "debug") variant.applicationId.set("ai.duidev")
+        if (variant.buildType == "debug") variant.applicationId.set("ai.dui.dev")
 
         val amBuildType = if (variant.buildType == "release") "release" else "debug"
         val termuxAm = tasks.register<TermuxAmAssetTask>("termuxAm${variant.name.replaceFirstChar { it.uppercase() }}") {

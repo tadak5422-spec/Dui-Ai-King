@@ -82,13 +82,72 @@ object TermuxRelocation {
     ): Stats {
         val pkg = context.packageName
         if (pkg == TERMUX_PACKAGE) return Stats()
+        // shell scripts of a rootfs made for ai.antigem call its components and actions (ai.antigem.app.TermuxService,
+        // ai.antigem.service_wake_lock): those class names live in the ai.dui namespace, not in the app id
+        rewriteLegacyComponentRefs(prefixDir)
+        rewriteLegacyComponentRefs(homeDir)
+        // the environment is freshly extracted (no user files yet), so the home folder is rewritten like the prefix
         return if (pkg.length == TERMUX_PACKAGE.length) {
             relocateTree(prefixDir, pkg, onProgress, oldPackages = LEGACY_PACKAGES) +
-                // the home folder holds the user's own files: only paths there (see relocateTree)
-                relocateTree(homeDir, pkg, onProgress, pathsOnly = true, oldPackages = LEGACY_PACKAGES)
+                relocateTree(homeDir, pkg, onProgress, oldPackages = LEGACY_PACKAGES)
         } else {
             repairPaths(prefixDir, pkg, LEGACY_PACKAGES) +
-                repairPaths(homeDir, pkg, LEGACY_PACKAGES, pathsOnly = true)
+                repairPaths(homeDir, pkg, LEGACY_PACKAGES)
+        }
+    }
+
+    /** Class and action names of the earlier app name that a rootfs' shell scripts contain, and their ai.dui names. */
+    private val LEGACY_COMPONENT_REPLACEMENTS = listOf(
+        "ai.antigem.data.receiver." to "ai.dui.data.receiver.",
+        "ai.antigem.app." to "ai.dui.app.",
+        "ai.antigem.service_" to "ai.dui.service_",
+        "ai.antigem.api" to "ai.dui.api"
+    )
+
+    /**
+     * Fixes the components and actions in a rootfs that was made for ai.antigem: its scripts start
+     * `ai.antigem/ai.antigem.app.TermuxService`, send `ai.antigem.service_wake_lock` / `ai.antigem.api` and target
+     * `ai.antigem.data.receiver.TermuxApiReceiver`. The package part is rewritten with the app id later; the class and
+     * action part has to become the ai.dui namespace. Only text files are touched, so binaries are never corrupted.
+     */
+    private fun rewriteLegacyComponentRefs(root: File) {
+        if (!root.exists()) return
+        val dirs = ArrayDeque<File>().apply { add(root) }
+        while (dirs.isNotEmpty()) {
+            val dir = dirs.removeLast()
+            for (f in dir.listFiles() ?: continue) {
+                val mode = try { Os.lstat(f.absolutePath).st_mode } catch (_: Exception) { continue }
+                when {
+                    OsConstants.S_ISDIR(mode) -> dirs.add(f)
+                    OsConstants.S_ISREG(mode) -> rewriteComponentFile(f)
+                }
+            }
+        }
+    }
+
+    private fun rewriteComponentFile(file: File) {
+        if (file.extension.lowercase() in SKIPPED_EXTENSIONS) return
+        if (try { file.length() } catch (_: Exception) { return } > MAX_REPAIR_BYTES) return
+        val data = try { file.readBytes() } catch (_: Exception) { return }
+        if (data.size >= 4 && data[0] == 0x7f.toByte() && data[1] == 'E'.code.toByte() &&
+            data[2] == 'L'.code.toByte() && data[3] == 'F'.code.toByte()) return
+        // a NUL byte early on means a binary: only scripts and config files are rewritten here
+        if (data.take(8192).any { it == 0.toByte() }) return
+        var text = String(data, Charsets.UTF_8)
+        var changed = false
+        for ((old, new) in LEGACY_COMPONENT_REPLACEMENTS) {
+            if (text.contains(old)) {
+                text = text.replace(old, new)
+                changed = true
+            }
+        }
+        if (!changed) return
+        val perms = try { Os.lstat(file.absolutePath).st_mode } catch (_: Exception) { 0 }
+        try {
+            file.writeText(text)
+            if (perms != 0) Os.chmod(file.absolutePath, perms and 0xFFF)
+        } catch (e: Exception) {
+            Log.w(TAG, "Rewriting component names in ${file.absolutePath} failed: ${e.message}")
         }
     }
 
