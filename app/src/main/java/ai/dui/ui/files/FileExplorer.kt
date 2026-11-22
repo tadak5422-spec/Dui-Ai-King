@@ -974,7 +974,7 @@ fun FileExplorer(
 
     if (placesOpen) {
         PlacesSheet(
-            roots = roots, projects = projects, recent = ExplorerPrefs.recentFolders(), currentPath = path,
+            roots = roots, projects = projects.filter { !it.fromChat }, recent = ExplorerPrefs.recentFolders(), currentPath = path,
             onPick = { placesOpen = false; go(it) }, onDismiss = { placesOpen = false }
         )
     }

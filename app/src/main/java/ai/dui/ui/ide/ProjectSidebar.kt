@@ -57,6 +57,8 @@ fun ProjectSidebar(
     onSelectProject: (ProjectItem) -> Unit,
     onOpenFileManager: () -> Unit = {},
     onRemoveProject: (ProjectItem) -> Unit = {},
+    onProjectActions: (ProjectItem) -> Unit = {},
+    onAddApkRequested: () -> Unit = {},
     onCreateProjectRequested: () -> Unit,
     onOpenFile: (FileNode) -> Unit,
     onOpenFileDiff: (filePath: String, isStaged: Boolean) -> Unit = { _, _ -> },
@@ -155,19 +157,41 @@ fun ProjectSidebar(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = proj.name,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (isSelected) ClaudeTerracotta else MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (proj.isApk) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.InstallMobile,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(13.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                }
+                                                Text(
+                                                    text = proj.name,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) ClaudeTerracotta else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
                                             Text(
                                                 text = proj.path,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { onProjectActions(proj) },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.MoreVert,
+                                                contentDescription = "Project actions",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(16.dp)
                                             )
                                         }
                                         if (proj.isCustom) {
@@ -189,7 +213,8 @@ fun ProjectSidebar(
                                 },
                                 onClick = {
                                     projectsDropdownExpanded = false
-                                    onSelectProject(proj)
+                                    // An APK has no code to open: show its install/details sheet instead.
+                                    if (proj.isApk) onProjectActions(proj) else onSelectProject(proj)
                                 }
                             )
                         }
@@ -214,6 +239,16 @@ fun ProjectSidebar(
                         onClick = {
                             projectsDropdownExpanded = false
                             onCreateProjectRequested()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("+ Add APK…", color = MaterialTheme.colorScheme.primary) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.InstallMobile, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        onClick = {
+                            projectsDropdownExpanded = false
+                            onAddApkRequested()
                         }
                     )
                 }

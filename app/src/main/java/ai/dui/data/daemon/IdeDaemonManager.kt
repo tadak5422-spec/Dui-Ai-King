@@ -133,8 +133,11 @@ object IdeDaemonManager {
                 ?.putString("active_proj_name", project.name)
                 ?.putString("active_proj_path", project.path)
                 ?.apply()
-            scope.launch {
-                IdeApiClient.addSavedProject(project.path, project.name)
+            // A chat workspace is not a project: opening a conversation must not add it to Projects.
+            if (!project.fromChat && !project.isApk) {
+                scope.launch {
+                    IdeApiClient.addSavedProject(project.path, project.name, project.kind)
+                }
             }
         } else {
             prefs?.edit()
@@ -232,6 +235,35 @@ object IdeDaemonManager {
         _openTabs.value = updated
         if (_activeTabPath.value == path) {
             _activeTabPath.value = updated.firstOrNull()?.path
+        }
+    }
+
+    /**
+     * Closes every tab that belongs to [projectPath] (a deleted project must not stay editable, or a save
+     * could recreate its folder). Returns true when at least one tab was closed.
+     */
+    fun closeTabsUnder(projectPath: String): Boolean {
+        val root = projectPath.trimEnd('/')
+        if (root.isBlank()) return false
+        val before = _openTabs.value
+        val updated = before.filterNot { tab ->
+            tab.path == root || tab.path.startsWith("$root/") ||
+                tab.diffFile?.let { it == root || it.startsWith("$root/") } == true
+        }
+        if (updated.size == before.size) return false
+        _openTabs.value = updated
+        if (updated.none { it.path == _activeTabPath.value }) {
+            _activeTabPath.value = updated.firstOrNull()?.path
+        }
+        return true
+    }
+
+    /** Drops a project from the list at once (the next load reads the bridge again). */
+    fun removeProjectFromList(path: String) {
+        val root = path.trimEnd('/')
+        _projects.value = _projects.value.filterNot { it.path.trimEnd('/') == root }
+        if (_activeProject.value?.path?.trimEnd('/') == root) {
+            setActiveProject(null)
         }
     }
 

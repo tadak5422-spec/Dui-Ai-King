@@ -102,6 +102,9 @@ fun IdeScreen(
     var isWordWrap by remember { mutableStateOf(false) }
     var showNewProjectDialog by remember { mutableStateOf(false) }
     var showFileManager by remember { mutableStateOf(false) }
+    var fileManagerStartPath by remember { mutableStateOf<String?>(null) }
+    var projectActionsTarget by remember { mutableStateOf<ProjectItem?>(null) }
+    var showAddApkPicker by remember { mutableStateOf(false) }
     var saveAsDialogTab by remember { mutableStateOf<OpenTab?>(null) }
     var tabToClose by remember { mutableStateOf<OpenTab?>(null) }
     var conflictDialogTab by remember { mutableStateOf<OpenTab?>(null) }
@@ -231,10 +234,15 @@ fun IdeScreen(
             val projs = IdeDaemonManager.loadProjects(conversations)
             val current = IdeDaemonManager.activeProject.value
             if (current != null) {
-                fileTree = IdeApiClient.getFileTree(current.path)
-            } else if (projs.isNotEmpty()) {
-                IdeDaemonManager.setActiveProject(projs.first())
-                fileTree = IdeApiClient.getFileTree(projs.first().path)
+                // An APK has no file tree; it is only installed from its actions sheet.
+                fileTree = if (current.isApk) emptyList() else IdeApiClient.getFileTree(current.path)
+            } else {
+                // Only a real source project becomes active: not a chat workspace, not a lone APK.
+                val firstProject = projs.firstOrNull { !it.fromChat && !it.isApk }
+                if (firstProject != null) {
+                    IdeDaemonManager.setActiveProject(firstProject)
+                    fileTree = IdeApiClient.getFileTree(firstProject.path)
+                }
             }
         }
     }
@@ -329,7 +337,8 @@ fun IdeScreen(
                 modifier = Modifier.width(300.dp)
             ) {
                 ProjectSidebar(
-                    projects = allProjects,
+                    // Normal AI chats are not projects: only real projects and added APKs are listed.
+                    projects = allProjects.filter { !it.fromChat },
                     activeProject = activeProject,
                     fileTree = fileTree,
                     activeFilePath = activeTabPath,
@@ -338,7 +347,16 @@ fun IdeScreen(
                         viewModel?.onProjectChanged(proj.path)
                     },
                     onOpenFileManager = {
+                        fileManagerStartPath = null
                         showFileManager = true
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    onProjectActions = { proj ->
+                        projectActionsTarget = proj
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    onAddApkRequested = {
+                        showAddApkPicker = true
                         coroutineScope.launch { drawerState.close() }
                     },
                     onRemoveProject = { proj ->
@@ -1595,12 +1613,17 @@ fun IdeScreen(
 
             // Full-Screen File Manager & Project Selector Dialog
             if (showFileManager) {
-                val initialBrowsePath = remember(activeProject?.path) {
-                    val p = activeProject?.path
-                    if (!p.isNullOrBlank()) {
-                        val parent = java.io.File(p).parent
-                        if (!parent.isNullOrBlank() && parent != "/") parent else p
-                    } else "~"
+                val initialBrowsePath = remember(activeProject?.path, fileManagerStartPath) {
+                    val explicit = fileManagerStartPath
+                    if (!explicit.isNullOrBlank()) {
+                        explicit
+                    } else {
+                        val p = activeProject?.path
+                        if (!p.isNullOrBlank()) {
+                            val parent = java.io.File(p).parent
+                            if (!parent.isNullOrBlank() && parent != "/") parent else p
+                        } else "~"
+                    }
                 }
                 ai.dui.ui.files.FileExplorerDialog(
                     stateKey = "ide_projects",
@@ -1628,7 +1651,59 @@ fun IdeScreen(
                         refreshProjectsAndTree()
                     },
                     onOpenedInIde = { showFileManager = false },
-                    onDismiss = { showFileManager = false }
+                    onDismiss = { showFileManager = false; fileManagerStartPath = null }
+                )
+            }
+
+            // Project actions: details, APK install, files and permanent deletion, inside the existing Projects list.
+            projectActionsTarget?.let { proj ->
+                ProjectActionsSheet(
+                    project = proj,
+                    onDismiss = { projectActionsTarget = null },
+                    onOpen = {
+                        projectActionsTarget = null
+                        IdeDaemonManager.setActiveProject(proj)
+                        viewModel?.onProjectChanged(proj.path)
+                        refreshProjectsAndTree()
+                    },
+                    onBrowse = {
+                        projectActionsTarget = null
+                        fileManagerStartPath = if (proj.isApk) java.io.File(proj.path).parent else proj.path
+                        showFileManager = true
+                    },
+                    onChanged = { refreshProjectsAndTree() },
+                    onDeleted = {
+                        projectActionsTarget = null
+                        refreshProjectsAndTree()
+                    }
+                )
+            }
+
+            // Adding a single APK as a project: it stays where it is, no copy is made.
+            if (showAddApkPicker) {
+                ai.dui.ui.files.FileExplorerDialog(
+                    stateKey = "ide_add_apk",
+                    initialPath = "~",
+                    title = "Add an APK to Projects",
+                    allowPhoneTab = true,
+                    onPickFile = { entry ->
+                        showAddApkPicker = false
+                        coroutineScope.launch {
+                            if (!entry.name.endsWith(".apk", ignoreCase = true)) {
+                                Toast.makeText(context, "Choose an APK file", Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+                            val name = entry.name.substringBeforeLast('.')
+                            val ok = IdeApiClient.addSavedProject(entry.path, name, ProjectItem.KIND_APK)
+                            Toast.makeText(
+                                context,
+                                if (ok) "APK added to Projects" else "Could not add the APK",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            refreshProjectsAndTree()
+                        }
+                    },
+                    onDismiss = { showAddApkPicker = false }
                 )
             }
             // Save As File Manager Dialog (e.g. for externally opened files or save-as)

@@ -82,6 +82,26 @@ func (m *Manager) Delete(req DeleteRequest) (*DeleteResult, error) {
 	return res, err
 }
 
+// PurgeProject removes every checkpoint of the project at path and forgets its on/off answer.
+// It is used when a project is deleted for good: no hidden copy may survive it.
+func (m *Manager) PurgeProject(path string) (int, error) {
+	res, err := m.Delete(DeleteRequest{Project: path, All: true, Forget: true})
+	if res == nil {
+		return 0, err
+	}
+	return res.Deleted, err
+}
+
+// HasProject reports whether any checkpoint storage exists for the project at path.
+func (m *Manager) HasProject(path string) bool {
+	p, err := m.project(normPath(path), false)
+	if err != nil || p == nil {
+		return false
+	}
+	_, statErr := os.Stat(p.dir)
+	return statErr == nil
+}
+
 // dropLocked removes records and their refs (their files go at the next gc).
 func (m *Manager) dropLocked(p *project, drop []*Record) error {
 	if len(drop) == 0 {

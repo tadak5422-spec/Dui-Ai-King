@@ -121,4 +121,26 @@ object ExplorerPrefs {
         val list = (listOf(path) + recentFolders().filter { it != path }).take(8)
         prefs?.edit()?.putString("recent_folders", JSONArray(list).toString())?.apply()
     }
+
+    /** Forgets a deleted folder: its recent entry and any remembered last path inside it. */
+    fun forgetPath(path: String) {
+        val root = path.trimEnd('/')
+        if (root.isBlank()) return
+        fun inside(p: String) = p.trimEnd('/') == root || p.startsWith("$root/")
+
+        val remaining = recentFolders().filterNot { inside(it) }
+        prefs?.edit()?.putString("recent_folders", JSONArray(remaining).toString())?.apply()
+
+        val p = prefs ?: return
+        val editor = p.edit()
+        p.all.keys
+            .filter { k -> k.startsWith("last_path_") && (p.all[k] as? String)?.let { inside(it) } == true }
+            .forEach { editor.remove(it) }
+        editor.apply()
+
+        lastPaths.keys.toList().forEach { k ->
+            val value = lastPaths[k]
+            if (value != null && inside(value)) lastPaths.remove(k)
+        }
+    }
 }

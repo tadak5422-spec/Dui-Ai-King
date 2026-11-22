@@ -150,6 +150,9 @@ type ProjectSummary struct {
 	Name     string `json:"name"`
 	Path     string `json:"path"`
 	IsCustom bool   `json:"isCustom,omitempty"`
+	// Kind is "folder" for a source project and "apk" for an APK that was added on its own.
+	// Older projects have no value: they are folders.
+	Kind string `json:"kind,omitempty"`
 }
 
 // FsItemNode represents an entry in the filesystem browser (file or directory).
@@ -191,6 +194,7 @@ type FileCopyReq struct {
 type ProjectOpReq struct {
 	Path string `json:"path"`
 	Name string `json:"name,omitempty"`
+	Kind string `json:"kind,omitempty"`
 }
 
 // SkillInfo holds parsed skill frontmatter.

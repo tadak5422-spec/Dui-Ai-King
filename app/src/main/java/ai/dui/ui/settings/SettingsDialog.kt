@@ -5063,7 +5063,7 @@ private fun ProjectsBackupRestoreDialog(
         val normHome = normalizeProjectPath(homeDir, homeDir)
         allProjects.filter { proj ->
             val p = normalizeProjectPath(proj.path, normHome)
-            p.isNotBlank() && p != normHome && p != "/" && p != "/data/data/${BuildConfig.APPLICATION_ID}/files" && p != "/data/data/${BuildConfig.APPLICATION_ID}"
+            !proj.fromChat && p.isNotBlank() && p != normHome && p != "/" && p != "/data/data/${BuildConfig.APPLICATION_ID}/files" && p != "/data/data/${BuildConfig.APPLICATION_ID}"
         }.distinctBy { normalizeProjectPath(it.path, normHome) }
     }
 

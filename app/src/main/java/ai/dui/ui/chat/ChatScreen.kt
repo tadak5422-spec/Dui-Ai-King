@@ -3883,7 +3883,7 @@ fun ChatScreen(
             confirmLabel = "Use this folder",
             onConfirmFolder = { folder ->
                 showWorkspaceFolderBrowserDialog = false
-                val selectedProj = ProjectItem(File(folder).name.ifBlank { folder }, folder)
+                val selectedProj = ProjectItem(File(folder).name.ifBlank { folder }, folder, fromChat = true)
                 IdeDaemonManager.setActiveProject(selectedProj)
                 viewModel.onProjectChanged(selectedProj.path)
             },

@@ -8,9 +8,11 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gemini-server/pkg/buildinfo"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
@@ -41,11 +43,20 @@ type Broadcaster interface {
 	Broadcast(msg interface{})
 }
 
+// ProjectCheckpoints is the part of the checkpoint manager that project deletion needs:
+// the hidden per-project copies must go with the project, and deletion has to prove they are gone.
+type ProjectCheckpoints interface {
+	PurgeProject(path string) (int, error)
+	HasProject(path string) bool
+}
+
 type Handler struct {
 	Cfg        *config.Config
 	HubManager *hub.HubManager
 	Hub        Broadcaster
 	OnShutdown func()
+	// Checkpoints purges the hidden per-project copies when a project is deleted (nil: none exist).
+	Checkpoints ProjectCheckpoints
 
 	lastLoginURL   string
 	lastLoginURLMu sync.RWMutex
@@ -931,28 +942,94 @@ func (h *Handler) saveProjectsToDisk(list []models.ProjectSummary) error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
+// isAPKPath reports whether p names an Android package file.
+func isAPKPath(p string) bool { return strings.EqualFold(filepath.Ext(p), ".apk") }
+
+// projectPathKey is the identity of a project: the real path when it can be resolved, so the same
+// folder is never listed twice (symlink, trailing slash, /data/data vs /data/user/0, ...).
+func projectPathKey(p string) string {
+	clean := filepath.Clean(p)
+	if real, err := filepath.EvalSymlinks(clean); err == nil {
+		return filepath.Clean(real)
+	}
+	return clean
+}
+
+// savedProjectKind returns the stored kind, or what the path itself says for older entries.
+func savedProjectKind(p models.ProjectSummary) string {
+	kind := strings.ToLower(strings.TrimSpace(p.Kind))
+	if kind == "folder" || kind == "apk" {
+		return kind
+	}
+	if isAPKPath(p.Path) {
+		return "apk"
+	}
+	return "folder"
+}
+
+// removeSavedProjectPath removes one path from ~/.dui/projects.json, comparing the canonical path.
+func (h *Handler) removeSavedProjectPath(path string) (bool, error) {
+	return h.removeSavedProjectEntries(path, false)
+}
+
+// removeSavedProjectEntries removes a path from ~/.dui/projects.json. With nested set, entries
+// stored inside that path go too (a project folder can contain an APK that was added on its own).
+func (h *Handler) removeSavedProjectEntries(path string, nested bool) (bool, error) {
+	want := projectPathKey(path)
+	saved := h.loadSavedProjects()
+	updated := make([]models.ProjectSummary, 0, len(saved))
+	removed := false
+	for _, p := range saved {
+		key := projectPathKey(expandHome(p.Path))
+		if key == want || (nested && strings.HasPrefix(key, want+string(os.PathSeparator))) {
+			removed = true
+			continue
+		}
+		updated = append(updated, p)
+	}
+	if !removed {
+		return false, nil
+	}
+	return true, h.saveProjectsToDisk(updated)
+}
+
 func (h *Handler) ProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	seenPaths := make(map[string]bool)
 	var projects []models.ProjectSummary
 
-	// 1. Saved projects from ~/.dui/projects.json
+	// 1. Saved projects from ~/.dui/projects.json: a source folder or a single APK.
 	saved := h.loadSavedProjects()
 	for _, p := range saved {
 		clean := filepath.Clean(expandHome(p.Path))
-		if info, err := os.Stat(clean); err == nil && info.IsDir() {
-			if !seenPaths[clean] {
-				seenPaths[clean] = true
-				name := p.Name
-				if name == "" {
-					name = filepath.Base(clean)
-				}
-				projects = append(projects, models.ProjectSummary{
-					Name:     name,
-					Path:     clean,
-					IsCustom: true,
-				})
+		info, err := os.Stat(clean)
+		if err != nil {
+			continue
+		}
+		kind := savedProjectKind(p)
+		if info.IsDir() {
+			kind = "folder"
+		} else if !(kind == "apk" && isAPKPath(clean)) {
+			continue
+		}
+		key := projectPathKey(clean)
+		if seenPaths[key] {
+			continue
+		}
+		seenPaths[key] = true
+		name := p.Name
+		if name == "" {
+			if kind == "apk" {
+				name = strings.TrimSuffix(filepath.Base(clean), filepath.Ext(clean))
+			} else {
+				name = filepath.Base(clean)
 			}
 		}
+		projects = append(projects, models.ProjectSummary{
+			Name:     name,
+			Path:     clean,
+			IsCustom: true,
+			Kind:     kind,
+		})
 	}
 
 	// 2. Discover ~/projects subdirectories
@@ -965,12 +1042,14 @@ func (h *Handler) ProjectsHandler(w http.ResponseWriter, r *http.Request) {
 			p := filepath.Join(h.Cfg.ProjectsBaseDir, e.Name())
 			clean := filepath.Clean(p)
 			if info, err := os.Stat(clean); err == nil && info.IsDir() {
-				if !seenPaths[clean] {
-					seenPaths[clean] = true
+				key := projectPathKey(clean)
+				if !seenPaths[key] {
+					seenPaths[key] = true
 					projects = append(projects, models.ProjectSummary{
 						Name:     e.Name(),
 						Path:     clean,
 						IsCustom: false,
+						Kind:     "folder",
 					})
 				}
 			}
@@ -985,6 +1064,7 @@ func (h *Handler) ProjectsHandler(w http.ResponseWriter, r *http.Request) {
 				Name:     filepath.Base(clean),
 				Path:     clean,
 				IsCustom: false,
+				Kind:     "folder",
 			})
 		}
 	}
@@ -999,24 +1079,44 @@ func (h *Handler) ProjectsAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	clean := filepath.Clean(expandHome(strings.TrimSpace(req.Path)))
+	info, statErr := os.Stat(clean)
+	if statErr != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "path does not exist"})
+		return
+	}
+	kind := strings.ToLower(strings.TrimSpace(req.Kind))
+	if info.IsDir() {
+		kind = "folder"
+	} else {
+		if !isAPKPath(clean) {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "only folders and APK files can be added as projects"})
+			return
+		}
+		kind = "apk"
+	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
-		name = filepath.Base(clean)
+		if kind == "apk" {
+			name = strings.TrimSuffix(filepath.Base(clean), filepath.Ext(clean))
+		} else {
+			name = filepath.Base(clean)
+		}
 	}
 
+	key := projectPathKey(clean)
 	saved := h.loadSavedProjects()
-	var updated []models.ProjectSummary
+	updated := make([]models.ProjectSummary, 0, len(saved)+1)
 	found := false
 	for _, p := range saved {
-		if filepath.Clean(p.Path) == clean {
-			updated = append(updated, models.ProjectSummary{Name: name, Path: clean})
+		if projectPathKey(expandHome(p.Path)) == key {
+			updated = append(updated, models.ProjectSummary{Name: name, Path: clean, Kind: kind})
 			found = true
 		} else {
 			updated = append(updated, p)
 		}
 	}
 	if !found {
-		updated = append([]models.ProjectSummary{{Name: name, Path: clean}}, updated...)
+		updated = append([]models.ProjectSummary{{Name: name, Path: clean, Kind: kind}}, updated...)
 	}
 
 	if err := h.saveProjectsToDisk(updated); err != nil {
@@ -1024,7 +1124,7 @@ func (h *Handler) ProjectsAddHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true, "name": name, "path": clean})
+	writeJSON(w, http.StatusOK, map[string]interface{}{"success": true, "name": name, "path": clean, "kind": kind})
 }
 
 func (h *Handler) ProjectsRemoveHandler(w http.ResponseWriter, r *http.Request) {
@@ -1035,15 +1135,7 @@ func (h *Handler) ProjectsRemoveHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	clean := filepath.Clean(expandHome(strings.TrimSpace(req.Path)))
 
-	saved := h.loadSavedProjects()
-	var updated []models.ProjectSummary
-	for _, p := range saved {
-		if filepath.Clean(p.Path) != clean {
-			updated = append(updated, p)
-		}
-	}
-
-	if err := h.saveProjectsToDisk(updated); err != nil {
+	if _, err := h.removeSavedProjectPath(clean); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -1076,6 +1168,16 @@ func (h *Handler) CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		targetDir = filepath.Join(h.Cfg.ProjectsBaseDir, projectName)
 	}
 
+	if info, statErr := os.Stat(targetDir); statErr == nil {
+		if !info.IsDir() {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "A file already exists at " + targetDir})
+			return
+		}
+		if entries, _ := os.ReadDir(targetDir); len(entries) > 0 {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "A project already exists at " + targetDir})
+			return
+		}
+	}
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
@@ -1100,19 +1202,238 @@ func (h *Handler) CreateProjectHandler(w http.ResponseWriter, r *http.Request) {
 		_ = os.WriteFile(filepath.Join(targetDir, "README.md"), []byte("# "+projectName+"\n"), 0644)
 	}
 
-	// Auto-save to saved projects list
+	// Auto-save to saved projects list (one entry per canonical path)
 	saved := h.loadSavedProjects()
-	var updated []models.ProjectSummary
-	cleanTarget := filepath.Clean(targetDir)
+	key := projectPathKey(targetDir)
+	updated := make([]models.ProjectSummary, 0, len(saved)+1)
 	for _, p := range saved {
-		if filepath.Clean(p.Path) != cleanTarget {
+		if projectPathKey(expandHome(p.Path)) != key {
 			updated = append(updated, p)
 		}
 	}
-	updated = append([]models.ProjectSummary{{Name: projectName, Path: cleanTarget}}, updated...)
+	updated = append([]models.ProjectSummary{{Name: projectName, Path: filepath.Clean(targetDir), Kind: "folder"}}, updated...)
 	_ = h.saveProjectsToDisk(updated)
 
-	writeJSON(w, http.StatusOK, models.ProjectSummary{Name: projectName, Path: cleanTarget})
+	writeJSON(w, http.StatusOK, models.ProjectSummary{Name: projectName, Path: filepath.Clean(targetDir), Kind: "folder"})
+}
+
+// projectAPKInfo is one installable APK found inside a project.
+type projectAPKInfo struct {
+	Name     string `json:"name"`
+	Path     string `json:"path"`
+	Size     int64  `json:"size"`
+	Modified int64  `json:"modified"`
+}
+
+// ProjectsInfoHandler describes one project: size, file count, git branch and the APKs it built.
+// It is read-only and bounded, so a huge project cannot stall the bridge.
+func (h *Handler) ProjectsInfoHandler(w http.ResponseWriter, r *http.Request) {
+	var req models.ProjectOpReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Path) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid path required"})
+		return
+	}
+	clean := filepath.Clean(expandHome(strings.TrimSpace(req.Path)))
+	info, err := os.Stat(clean)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "project not found"})
+		return
+	}
+
+	kind := "folder"
+	if !info.IsDir() {
+		kind = "apk"
+	}
+	name := filepath.Base(clean)
+	if kind == "apk" {
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+	}
+
+	resp := map[string]interface{}{
+		"name":         name,
+		"path":         clean,
+		"kind":         kind,
+		"size":         info.Size(),
+		"lastModified": info.ModTime().UnixMilli(),
+		"fileCount":    0,
+		"gitBranch":    "",
+		"apks":         []projectAPKInfo{},
+		"partial":      false,
+	}
+
+	if kind == "apk" {
+		resp["fileCount"] = 1
+		resp["apks"] = []projectAPKInfo{{
+			Name: filepath.Base(clean), Path: clean, Size: info.Size(), Modified: info.ModTime().UnixMilli(),
+		}}
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
+	if b, err := os.ReadFile(filepath.Join(clean, ".git", "HEAD")); err == nil {
+		head := strings.TrimSpace(string(b))
+		switch {
+		case strings.HasPrefix(head, "ref: refs/heads/"):
+			resp["gitBranch"] = strings.TrimPrefix(head, "ref: refs/heads/")
+		case len(head) >= 7:
+			resp["gitBranch"] = "detached " + head[:7]
+		}
+	}
+
+	var size int64
+	count := 0
+	apks := make([]projectAPKInfo, 0, 4)
+	partial := false
+	deadline := time.Now().Add(6 * time.Second)
+	_ = filepath.WalkDir(clean, func(p string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			partial = true
+			return filepath.SkipAll
+		}
+		if d.IsDir() {
+			n := d.Name()
+			if p != clean && (n == ".git" || n == "node_modules" || n == ".gradle") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		fi, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		count++
+		size += fi.Size()
+		if isAPKPath(p) && len(apks) < 100 {
+			apks = append(apks, projectAPKInfo{
+				Name: filepath.Base(p), Path: p, Size: fi.Size(), Modified: fi.ModTime().UnixMilli(),
+			})
+		}
+		if count >= 300000 {
+			partial = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	sort.Slice(apks, func(i, j int) bool { return apks[i].Modified > apks[j].Modified })
+
+	resp["size"] = size
+	resp["fileCount"] = count
+	resp["apks"] = apks
+	resp["partial"] = partial
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// projectDeleteAllowed guards permanent deletion: only a project of this app may be removed,
+// never the home folder, the projects root, shared storage or a parent of any of them.
+func (h *Handler) projectDeleteAllowed(clean string) error {
+	home, _ := os.UserHomeDir()
+	base := filepath.Clean(expandHome(h.Cfg.ProjectsBaseDir))
+	blocked := []string{"/", "/data", "/data/user/0", "/sdcard", "/storage", home, base}
+	for _, b := range blocked {
+		if b != "" && clean == filepath.Clean(b) {
+			return errors.New("refusing to delete this path")
+		}
+	}
+	if strings.HasPrefix(base, clean+string(os.PathSeparator)) || strings.HasPrefix(home, clean+string(os.PathSeparator)) {
+		return errors.New("refusing to delete a parent folder")
+	}
+	if strings.HasPrefix(clean, base+string(os.PathSeparator)) {
+		return nil
+	}
+	// a project the user added from anywhere else (AndroidProjects, shared storage, ...)
+	key := projectPathKey(clean)
+	for _, p := range h.loadSavedProjects() {
+		if projectPathKey(expandHome(p.Path)) == key {
+			return nil
+		}
+	}
+	return errors.New("not a project of this app")
+}
+
+// ProjectsDeleteHandler deletes a project for good: files, the saved list entry and the hidden
+// checkpoints. It verifies each step and reports exactly what is still there, so the app never
+// shows a success it cannot prove.
+func (h *Handler) ProjectsDeleteHandler(w http.ResponseWriter, r *http.Request) {
+	var req models.ProjectOpReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Path) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "valid path required"})
+		return
+	}
+	clean := filepath.Clean(expandHome(strings.TrimSpace(req.Path)))
+	if err := h.projectDeleteAllowed(clean); err != nil {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": err.Error()})
+		return
+	}
+
+	errs := make([]string, 0, 4)
+
+	checkpointsDeleted := 0
+	if h.Checkpoints != nil {
+		n, err := h.Checkpoints.PurgeProject(clean)
+		checkpointsDeleted = n
+		if err != nil {
+			errs = append(errs, "checkpoints: "+err.Error())
+		}
+	}
+
+	filesDeleted := false
+	if _, statErr := os.Lstat(clean); statErr == nil {
+		if err := os.RemoveAll(clean); err != nil {
+			errs = append(errs, "files: "+err.Error())
+		} else {
+			filesDeleted = true
+		}
+	} else if os.IsNotExist(statErr) {
+		filesDeleted = true
+	} else {
+		errs = append(errs, "files: "+statErr.Error())
+	}
+
+	savedRemoved := false
+	if _, err := h.removeSavedProjectEntries(clean, true); err != nil {
+		errs = append(errs, "project list: "+err.Error())
+	} else {
+		savedRemoved = true
+	}
+
+	// Verification: nothing of the project may be left in app-managed storage.
+	pathGone := false
+	if _, statErr := os.Lstat(clean); os.IsNotExist(statErr) {
+		pathGone = true
+	}
+	savedGone := true
+	key := projectPathKey(clean)
+	for _, p := range h.loadSavedProjects() {
+		entry := projectPathKey(expandHome(p.Path))
+		if entry == key || strings.HasPrefix(entry, key+string(os.PathSeparator)) {
+			savedGone = false
+			break
+		}
+	}
+	checkpointsGone := true
+	if h.Checkpoints != nil {
+		checkpointsGone = !h.Checkpoints.HasProject(clean)
+	}
+
+	success := filesDeleted && savedRemoved && pathGone && savedGone && checkpointsGone && len(errs) == 0
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"success": success,
+		"deleted": map[string]interface{}{
+			"files":              filesDeleted,
+			"saved":              savedRemoved,
+			"checkpointsDeleted": checkpointsDeleted,
+			"pathGone":           pathGone,
+			"savedGone":          savedGone,
+			"checkpointsGone":    checkpointsGone,
+		},
+		"errors": errs,
+	})
 }
 
 // FsBrowseHandler handles directory browsing returning both folders and files.

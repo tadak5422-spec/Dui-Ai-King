@@ -382,7 +382,10 @@ func main() {
 	}
 
 	// Project checkpoints: a hidden copy of the project before each chat message (any agent), restore with preview
-	mux.Handle("/api/checkpoints/", checkpoint.NewManager(cfg.HomeDir))
+	checkpointMgr := checkpoint.NewManager(cfg.HomeDir)
+	mux.Handle("/api/checkpoints/", checkpointMgr)
+	// deleting a project for good also removes its hidden copies and proves they are gone
+	h.Checkpoints = checkpointMgr
 
 	// Agent memory: memory files and chat history the agents read (~/.dui/memory), shared by every agent
 	mux.Handle("/api/memory/", memory.NewManager(cfg.HomeDir))
@@ -425,6 +428,8 @@ func main() {
 	mux.HandleFunc("/api/projects/add", h.ProjectsAddHandler)
 	mux.HandleFunc("/api/projects/remove", h.ProjectsRemoveHandler)
 	mux.HandleFunc("/api/projects/create", h.CreateProjectHandler)
+	mux.HandleFunc("/api/projects/info", h.ProjectsInfoHandler)
+	mux.HandleFunc("/api/projects/delete", h.ProjectsDeleteHandler)
 	mux.HandleFunc("/api/fs/browse", h.FsBrowseHandler)
 	mux.HandleFunc("/api/fs/mkdir", h.FsMkdirHandler)
 	// Files screen (explorer): places, details, safe create / rename, batch copy / move / delete, zip, unzip, search, streaming

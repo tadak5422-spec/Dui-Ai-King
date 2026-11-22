@@ -15,8 +15,19 @@ import java.util.concurrent.TimeUnit
 data class ProjectItem(
     val name: String,
     val path: String,
-    val isCustom: Boolean = false
-)
+    val isCustom: Boolean = false,
+    /** "folder" for a source project, "apk" for an APK that was added on its own. */
+    val kind: String = KIND_FOLDER,
+    /** Only used in memory: the path comes from a chat workspace, so it is not a project of its own. */
+    val fromChat: Boolean = false
+) {
+    val isApk: Boolean get() = kind == KIND_APK
+
+    companion object {
+        const val KIND_FOLDER = "folder"
+        const val KIND_APK = "apk"
+    }
+}
 
 fun mergeProjects(
     conversations: List<ai.dui.domain.model.Conversation> = emptyList(),
@@ -26,33 +37,70 @@ fun mergeProjects(
     val list = mutableListOf<ProjectItem>()
     val seenPaths = mutableSetOf<String>()
 
-    // 1. Add conversations workspace paths (from AGY)
-    conversations.forEach { conv ->
-        if (conv.workspaceUri.isNotBlank()) {
-            val path = conv.workspaceUri.removePrefix("file://").trimEnd('/')
-            if (path.isNotBlank() && seenPaths.add(path)) {
-                val name = java.io.File(path).name.ifBlank { "Workspace" }
-                list.add(ProjectItem(name = name, path = path, isCustom = false))
-            }
-        }
-    }
+    fun key(path: String) = path.removePrefix("file://").trimEnd('/')
 
-    // 2. Add daemon & saved projects
+    // 1. Real projects first (the bridge's saved list and ~/projects), so a chat that happens to use
+    //    one of them does not hide it from the Projects list.
     daemonProjects.forEach { proj ->
-        if (proj.path.isNotBlank() && seenPaths.add(proj.path)) {
+        if (proj.path.isNotBlank() && seenPaths.add(key(proj.path))) {
             list.add(proj)
         }
     }
 
-    // 3. Add active project if not already present
+    // 2. Chat workspaces: the chat's own project picker needs them, but they are marked so the
+    //    Projects list can leave normal conversations out.
+    conversations.forEach { conv ->
+        if (conv.workspaceUri.isNotBlank()) {
+            val path = key(conv.workspaceUri)
+            if (path.isNotBlank() && seenPaths.add(path)) {
+                val name = java.io.File(path).name.ifBlank { "Workspace" }
+                list.add(ProjectItem(name = name, path = path, isCustom = false, fromChat = true))
+            }
+        }
+    }
+
+    // 3. The active project, if nothing above listed it yet. A chat workspace is never a project.
     activeProject?.let {
-        if (it.path.isNotBlank() && seenPaths.add(it.path)) {
+        if (!it.fromChat && it.path.isNotBlank() && seenPaths.add(key(it.path))) {
             list.add(it)
         }
     }
 
     return list
 }
+
+/** One installable APK inside a project (from /api/projects/info). */
+data class ProjectApkInfo(
+    val name: String,
+    val path: String,
+    val size: Long = 0,
+    val modified: Long = 0
+)
+
+/** A project's details: size, files, git branch and the APKs it built. */
+data class ProjectInfo(
+    val name: String = "",
+    val path: String = "",
+    val kind: String = ProjectItem.KIND_FOLDER,
+    val size: Long = 0,
+    val fileCount: Int = 0,
+    val lastModified: Long = 0,
+    val gitBranch: String = "",
+    val apks: List<ProjectApkInfo> = emptyList(),
+    val partial: Boolean = false
+)
+
+/** What /api/projects/delete proved after removing a project. */
+data class ProjectDeleteResult(
+    val success: Boolean = false,
+    val filesDeleted: Boolean = false,
+    val savedRemoved: Boolean = false,
+    val checkpointsDeleted: Int = 0,
+    val pathGone: Boolean = false,
+    val savedGone: Boolean = false,
+    val checkpointsGone: Boolean = false,
+    val errors: List<String> = emptyList()
+)
 
 data class FsItemNode(
     val name: String,
@@ -147,7 +195,8 @@ object IdeApiClient {
                             ProjectItem(
                                 name = obj.getString("name"),
                                 path = obj.getString("path"),
-                                isCustom = obj.optBoolean("isCustom", false)
+                                isCustom = obj.optBoolean("isCustom", false),
+                                kind = obj.optString("kind", ProjectItem.KIND_FOLDER).ifBlank { ProjectItem.KIND_FOLDER }
                             )
                         )
                     }
@@ -160,7 +209,8 @@ object IdeApiClient {
                             ProjectItem(
                                 name = obj.getString("name"),
                                 path = obj.getString("path"),
-                                isCustom = obj.optBoolean("isCustom", false)
+                                isCustom = obj.optBoolean("isCustom", false),
+                                kind = obj.optString("kind", ProjectItem.KIND_FOLDER).ifBlank { ProjectItem.KIND_FOLDER }
                             )
                         )
                     }
@@ -173,11 +223,12 @@ object IdeApiClient {
         }
     }
 
-    suspend fun addSavedProject(path: String, name: String = ""): Boolean = withContext(Dispatchers.IO) {
+    suspend fun addSavedProject(path: String, name: String = "", kind: String = ProjectItem.KIND_FOLDER): Boolean = withContext(Dispatchers.IO) {
         try {
             val payload = JSONObject().apply {
                 put("path", path)
                 put("name", name)
+                put("kind", kind)
             }.toString()
             val request = Request.Builder()
                 .url("$baseUrl/api/projects/add")
@@ -203,6 +254,84 @@ object IdeApiClient {
         } catch (e: Exception) {
             Log.e(TAG, "removeSavedProject failed: ${e.message}")
             false
+        }
+    }
+
+    /** A dedicated client for project deletion: removing a big project can take minutes. */
+    private val slowClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .readTimeout(10, TimeUnit.MINUTES)
+            .writeTimeout(10, TimeUnit.MINUTES)
+            .build()
+    }
+
+    suspend fun projectInfo(path: String): ProjectInfo? = withContext(Dispatchers.IO) {
+        try {
+            val payload = JSONObject().put("path", path).toString()
+            val request = Request.Builder()
+                .url("$baseUrl/api/projects/info")
+                .post(payload.toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val obj = JSONObject(response.body?.string().orEmpty())
+                val apksArr = obj.optJSONArray("apks") ?: JSONArray()
+                val apks = (0 until apksArr.length()).mapNotNull { i ->
+                    val a = apksArr.optJSONObject(i) ?: return@mapNotNull null
+                    ProjectApkInfo(
+                        name = a.optString("name"),
+                        path = a.optString("path"),
+                        size = a.optLong("size", 0),
+                        modified = a.optLong("modified", 0)
+                    )
+                }
+                ProjectInfo(
+                    name = obj.optString("name"),
+                    path = obj.optString("path", path),
+                    kind = obj.optString("kind", ProjectItem.KIND_FOLDER).ifBlank { ProjectItem.KIND_FOLDER },
+                    size = obj.optLong("size", 0),
+                    fileCount = obj.optInt("fileCount", 0),
+                    lastModified = obj.optLong("lastModified", 0),
+                    gitBranch = obj.optString("gitBranch"),
+                    apks = apks,
+                    partial = obj.optBoolean("partial", false)
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "projectInfo failed: ${e.message}")
+            null
+        }
+    }
+
+    /** Deletes a project for good (files, saved entry and checkpoints) and returns the bridge's proof. */
+    suspend fun deleteProject(path: String): ProjectDeleteResult? = withContext(Dispatchers.IO) {
+        try {
+            val payload = JSONObject().put("path", path).toString()
+            val request = Request.Builder()
+                .url("$baseUrl/api/projects/delete")
+                .post(payload.toRequestBody(JSON_MEDIA_TYPE))
+                .build()
+            slowClient.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                val obj = runCatching { JSONObject(body) }.getOrNull() ?: return@withContext null
+                if (!response.isSuccessful && !obj.has("success")) return@withContext null
+                val deleted = obj.optJSONObject("deleted") ?: JSONObject()
+                val errorsArr = obj.optJSONArray("errors") ?: JSONArray()
+                val errors = (0 until errorsArr.length()).mapNotNull { errorsArr.optString(it).takeIf { s -> s.isNotBlank() } }
+                ProjectDeleteResult(
+                    success = obj.optBoolean("success", false),
+                    filesDeleted = deleted.optBoolean("files", false),
+                    savedRemoved = deleted.optBoolean("saved", false),
+                    checkpointsDeleted = deleted.optInt("checkpointsDeleted", 0),
+                    pathGone = deleted.optBoolean("pathGone", false),
+                    savedGone = deleted.optBoolean("savedGone", false),
+                    checkpointsGone = deleted.optBoolean("checkpointsGone", false),
+                    errors = errors
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteProject failed: ${e.message}")
+            null
         }
     }
 
