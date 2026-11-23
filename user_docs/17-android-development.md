@@ -22,7 +22,7 @@ It is not tied to one agent: Antigravity, Claude Code and OpenCode all build app
 
 | Step | What it does |
 | :--- | :--- |
-| **1. Setup files** | Downloads the setup script and the `adev` commands. They are **not part of the app**; they come from the DuiAI plugins repository (`Santoshkurmi/dui_plugins`, folder `android-dev`). **Change** picks another repository or branch (for testing). |
+| **1. Setup files** | Downloads the setup script and the `adev` commands. They are **not part of the app**; enter a plugin repository you trust, with the scripts in the `android-dev` folder. **Change** picks another repository or branch. |
 | **2. Install** | *What will you build?*: Kotlin / Java, Flutter, React Native. Everything the choice needs is installed one part after another, with a live log and **Stop**. *Extras*: adb and CMake / Ninja. *All parts* installs, repairs or updates a single part. |
 | **3. Build a test app** | Creates and builds a hello world per framework; **Install** opens Android's installer for its APK. |
 | **4. Use it** | The terminal commands and example prompts for agents. |
@@ -81,7 +81,7 @@ Builds are slower than on a PC: the first build of a project takes several minut
 
 ## 🎓 4. The Android Development skill (recommended)
 
-A skills-only plugin that teaches agents to check what is installed, install what is missing (asking you first), create projects, build, install the APK and fix the usual errors. Install it with **Install skill** on the page, or from **Settings → Custom DuiAI Plugins → Repositories → `Santoshkurmi/dui_plugins`** → *Android Development*. Then use `/plu:` in chat to give it to an agent.
+A skills-only plugin that teaches agents to check what is installed, install what is missing (asking you first), create projects, build, install the APK and fix the usual errors. Install it with **Install skill** on the page, or from a plugin repository you added under **Settings → Custom DuiAI Plugins → Repositories** → *Android Development*. Then use `/plu:` in chat to give it to an agent.
 
 ---
 

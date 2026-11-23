@@ -115,4 +115,4 @@ SIZE="$(wc -c < "$OUT/$ZIP_NAME" | tr -d ' ')"
 echo
 echo "Bundle:  $OUT/$ZIP_NAME  ($SIZE bytes)"
 echo "SHA-256: $SHA"
-echo "Upload it to: https://github.com/Santoshkurmi/dui/releases/tag/$BUNDLE_TAG (asset name $ZIP_NAME)"
+echo "Upload it to: https://github.com/tadak5422-spec/Dui-Ai-King/releases/tag/$BUNDLE_TAG (asset name $ZIP_NAME)"

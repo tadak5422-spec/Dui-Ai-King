@@ -79,19 +79,19 @@ object PluginRepositories {
         prefs.getString("repos", null)?.let { stored ->
             runCatching { val array = JSONArray(stored); repos.addAll((0 until array.length()).map { parse(array.getString(it)) }) }
         }
-        migrateOfficialRepos()
-        // Each official repository is added once, at the top in this order; if the user removes it, it stays removed
+        migrateRemovedRepos()
+        // No repository is added here: DEFAULT_REPOS is empty in this fork.
         DEFAULT_REPOS.forEachIndexed { index, (repo, addedKey) ->
             if (prefs.getBoolean(addedKey, false)) return@forEachIndexed
-            val official = parse(repo)
-            if (repos.none { it.slug.equals(official.slug, ignoreCase = true) }) repos.add(index.coerceAtMost(repos.size), official)
+            val configured = parse(repo)
+            if (repos.none { it.slug.equals(configured.slug, ignoreCase = true) }) repos.add(index.coerceAtMost(repos.size), configured)
             prefs.edit().putBoolean(addedKey, true).apply()
             persist()
         }
     }
 
     /** Drops a dead repository left by older builds; no repository is ever added here. */
-    private fun migrateOfficialRepos() {
+    private fun migrateRemovedRepos() {
         repos.removeAll { it.slug.equals("dipeshkrydv/dui_plugins", ignoreCase = true) }
         persist()
     }

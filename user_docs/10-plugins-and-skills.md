@@ -86,7 +86,7 @@ Lists all active webview extensions:
 ### B. Repositories Tab
 Browse community and third-party plugin repositories to install pre-built add-ons with a single tap.
 
-Two official repositories are in the list by default: `dipeshkrydv/dui_plugins` and `Santoshkurmi/dui_plugins` (which has the REA reverse-engineering skill). DuiAI adds each one once; if you remove one, it stays removed until you add it again.
+No repositories are configured by default in this fork. Add a repository only when you trust its owner: plugin code runs on your device. Repositories are never added silently, and removing one keeps it removed.
 
 ### C. Installing & Updating from ZIP:
 1. Tap **Install ZIP** and pick an archive:

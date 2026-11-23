@@ -2098,11 +2098,18 @@ func (h *Handler) McpConfigHandler(w http.ResponseWriter, r *http.Request) {
 		saveContent := injectTermuxEnvIfNeeded(req.Content)
 
 		// Write to both primary (~/.gemini/config/mcp_config.json) and legacy (~/.gemini/antigravity/mcp_config.json)
-		_ = os.MkdirAll(filepath.Dir(primaryConfigPath), 0755)
-		errPrimary := os.WriteFile(primaryConfigPath, []byte(saveContent), 0644)
+		// MCP configs can hold headers/env secrets: owner-only even though the file stays plaintext for the CLI.
+		_ = os.MkdirAll(filepath.Dir(primaryConfigPath), 0700)
+		errPrimary := os.WriteFile(primaryConfigPath, []byte(saveContent), 0600)
+		if errPrimary == nil {
+			_ = os.Chmod(primaryConfigPath, 0600) // WriteFile does not change the mode of an existing file.
+		}
 
-		_ = os.MkdirAll(filepath.Dir(legacyConfigPath), 0755)
-		errLegacy := os.WriteFile(legacyConfigPath, []byte(saveContent), 0644)
+		_ = os.MkdirAll(filepath.Dir(legacyConfigPath), 0700)
+		errLegacy := os.WriteFile(legacyConfigPath, []byte(saveContent), 0600)
+		if errLegacy == nil {
+			_ = os.Chmod(legacyConfigPath, 0600)
+		}
 
 		if errPrimary != nil && errLegacy != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": errPrimary.Error()})

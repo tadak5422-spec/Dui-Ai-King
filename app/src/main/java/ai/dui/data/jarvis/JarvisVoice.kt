@@ -327,7 +327,9 @@ object JarvisVoice {
             })
         }.toString()
         val req = Request.Builder()
-            .url("https://texttospeech.googleapis.com/v1/text:synthesize?key=$key")
+            // Header instead of a ?key= query parameter: query strings end up in proxy logs and history.
+            .url("https://texttospeech.googleapis.com/v1/text:synthesize")
+            .header("X-Goog-Api-Key", key)
             .post(body.toRequestBody("application/json".toMediaType()))
             .build()
         http.newCall(req).execute().use { resp ->

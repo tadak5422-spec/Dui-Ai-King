@@ -23,8 +23,11 @@ private const val TAG = "AppUpdateManager"
  * version.json and every APK are published by the fork's CI (`.github/workflows/release.yml`).
  */
 private const val UPDATE_REPO = "tadak5422-spec/Dui-Ai-King"
-private const val UPDATE_BRANCH = "standalone"
-private const val DEFAULT_VERSION_URL = "https://raw.githubusercontent.com/$UPDATE_REPO/$UPDATE_BRANCH/version.json"
+/**
+ * version.json is published as a release asset by the release workflow with the SHA-256 of the APK built in that
+ * same job. A branch copy cannot be trusted for integrity data, so the app reads the signed-by-GitHub asset instead.
+ */
+private const val DEFAULT_VERSION_URL = "https://github.com/$UPDATE_REPO/releases/latest/download/version.json"
 
 data class AppUpdateInfo(
     val versionCode: Int,
@@ -35,8 +38,8 @@ data class AppUpdateInfo(
     val downloadUrl: String,
     val changelog: List<String>,
     val isCritical: Boolean = false,
-    /** SHA-256 of the APK when version.json publishes one; verified before the installer is opened. */
-    val sha256: String? = null
+    /** Mandatory SHA-256 of the APK, published by CI with the release; verified before the installer is opened. */
+    val sha256: String
 )
 
 sealed class DownloadState {
@@ -62,6 +65,9 @@ class AppUpdateManager(private val context: Context) {
         forceCheck: Boolean = false
     ): Result<AppUpdateInfo?> = withContext(Dispatchers.IO) {
         try {
+            if (!isAllowedVersionUrl(versionJsonUrl)) {
+                return@withContext Result.failure(Exception("Refusing update metadata from outside this fork's release channel"))
+            }
             val request = Request.Builder()
                 .url(versionJsonUrl)
                 .header("User-Agent", "DuiAI-Updater/${BuildConfig.VERSION_NAME}")
@@ -69,9 +75,16 @@ class AppUpdateManager(private val context: Context) {
                 .build()
 
             val response = httpClient.newCall(request).execute()
+            if (!isAllowedFinalUrl(response.request.url.toString())) {
+                response.close()
+                return@withContext Result.failure(Exception("Update metadata was redirected outside this fork's release channel"))
+            }
             if (!response.isSuccessful) {
+                if (response.code == 404) {
+                    // No release with a signed version.json yet: that is "no update", not a security failure.
+                    return@withContext Result.success(null)
+                }
                 val errorMsg = when (response.code) {
-                    404 -> "version.json not found on GitHub repository (HTTP 404). Please ensure version.json is pushed to the repository."
                     403 -> "GitHub rate limit exceeded or access forbidden (HTTP 403)."
                     else -> "Failed to fetch version info: HTTP ${response.code} (${response.message})"
                 }
@@ -91,12 +104,16 @@ class AppUpdateManager(private val context: Context) {
             }
             val isCritical = json.optBoolean("is_critical", false) || (BuildConfig.VERSION_CODE < minSupportedCode)
 
+            // Integrity data is mandatory: a release without a valid SHA-256 is never offered as an update.
+            val sha256 = json.optString("sha256").trim().lowercase()
+            if (!sha256.matches(Regex("^[0-9a-f]{64}$"))) {
+                return@withContext Result.failure(Exception("This release has no valid SHA-256 in version.json; update refused."))
+            }
+
             // Each release (tag v<version>) has the app as DuiAI-v<version>.apk (scripts/build_all_apks.sh).
-            // version.json may also name an explicit asset and its SHA-256; both are checked below.
             val downloadUrl = json.optString("download_url").trim().ifBlank {
                 "https://github.com/$UPDATE_REPO/releases/download/v$remoteVersionName/DuiAI-v$remoteVersionName.apk"
             }
-            val sha256 = json.optString("sha256").trim().lowercase().takeIf { it.matches(Regex("^[0-9a-f]{64}$")) }
 
             if (remoteVersionCode > BuildConfig.VERSION_CODE && downloadUrl.isNotBlank()) {
                 if (!isAllowedUpdateUrl(downloadUrl)) {
@@ -111,7 +128,8 @@ class AppUpdateManager(private val context: Context) {
 
                 val isAvailable = try {
                     httpClient.newCall(probeRequest).execute().use { probeResponse ->
-                        probeResponse.isSuccessful || probeResponse.isRedirect
+                        (probeResponse.isSuccessful || probeResponse.isRedirect) &&
+                            isAllowedFinalUrl(probeResponse.request.url.toString())
                     }
                 } catch (_: Exception) {
                     false
@@ -149,12 +167,15 @@ class AppUpdateManager(private val context: Context) {
      */
     suspend fun downloadApk(
         downloadUrl: String,
-        expectedSha256: String? = null,
+        expectedSha256: String,
         onProgress: (Float, Long, Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         try {
             if (!isAllowedUpdateUrl(downloadUrl)) {
                 return@withContext Result.failure(Exception("Refusing an update from outside this fork's release channel"))
+            }
+            if (!expectedSha256.matches(Regex("^[0-9a-f]{64}$"))) {
+                return@withContext Result.failure(Exception("Refusing an update without a valid SHA-256"))
             }
             val request = Request.Builder()
                 .url(downloadUrl)
@@ -162,6 +183,10 @@ class AppUpdateManager(private val context: Context) {
                 .build()
 
             val response = httpClient.newCall(request).execute()
+            if (!isAllowedFinalUrl(response.request.url.toString())) {
+                response.close()
+                return@withContext Result.failure(Exception("The update download was redirected outside this fork's release channel"))
+            }
             if (!response.isSuccessful) {
                 return@withContext Result.failure(Exception("Download failed: HTTP ${response.code}"))
             }
@@ -195,13 +220,11 @@ class AppUpdateManager(private val context: Context) {
                 }
             }
 
-            // An APK published with a SHA-256 is checked byte for byte before the signature is even looked at.
-            if (!expectedSha256.isNullOrBlank()) {
-                val actual = sha256(targetFile)
-                if (!actual.equals(expectedSha256, ignoreCase = true)) {
-                    targetFile.delete()
-                    return@withContext Result.failure(Exception("The downloaded update does not match the SHA-256 published with it."))
-                }
+            // Mandatory byte-for-byte check, always before the package installer or the signer check.
+            val actual = sha256(targetFile)
+            if (!actual.equals(expectedSha256, ignoreCase = true)) {
+                targetFile.delete()
+                return@withContext Result.failure(Exception("The downloaded update does not match the SHA-256 published with it."))
             }
 
             val expectedSigner = ai.dui.data.security.ApkSignatureVerifier.installedSignerSha256(context)
@@ -264,15 +287,33 @@ class AppUpdateManager(private val context: Context) {
         }
     }
 
+    /** Metadata may only be version.json published in this fork's GitHub releases, never a branch copy. */
+    private fun isAllowedVersionUrl(url: String): Boolean {
+        val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return false
+        if (!uri.scheme.equals("https", ignoreCase = true) || uri.userInfo != null) return false
+        if (uri.host?.lowercase() != "github.com") return false
+        val path = uri.path.orEmpty()
+        return path == "/$UPDATE_REPO/releases/latest/download/version.json" ||
+            (path.startsWith("/$UPDATE_REPO/releases/download/") && path.endsWith("/version.json"))
+    }
+
     /** Only this fork's GitHub release assets may ever be downloaded as an app update. */
     private fun isAllowedUpdateUrl(url: String): Boolean {
         val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return false
-        if (!uri.scheme.equals("https", ignoreCase = true)) return false
-        if (uri.userInfo != null) return false
+        if (!uri.scheme.equals("https", ignoreCase = true) || uri.userInfo != null) return false
+        return uri.host?.lowercase() == "github.com" &&
+            uri.path.orEmpty().startsWith("/$UPDATE_REPO/releases/download/")
+    }
+
+    /** OkHttp follows redirects automatically; verify the host actually fetched is still this fork's release channel. */
+    private fun isAllowedFinalUrl(url: String): Boolean {
+        val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return false
+        if (!uri.scheme.equals("https", ignoreCase = true) || uri.userInfo != null) return false
         val host = uri.host?.lowercase() ?: return false
+        val path = uri.path.orEmpty()
         return when (host) {
-            "github.com" -> uri.path.orEmpty().startsWith("/$UPDATE_REPO/releases/")
-            // GitHub redirects release downloads here; the initial URL above is the one we authorise.
+            "github.com" -> path.startsWith("/$UPDATE_REPO/releases/")
+            // GitHub serves release assets from this CDN after redirecting the github.com download URL.
             "objects.githubusercontent.com" -> true
             else -> false
         }

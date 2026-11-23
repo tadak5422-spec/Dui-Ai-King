@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gemini-server/pkg/netutil"
 )
 
 // Custom providers: Anthropic-compatible APIs (OpenRouter, Kimi, …) a chat can run on instead of the user's Claude
@@ -565,6 +567,10 @@ var (
 
 // normalizeProvider validates and cleans the optional fields of p.
 func normalizeProvider(p *Provider) error {
+	// Custom endpoints must be https:// for public hosts and must not carry credentials in the URL.
+	if err := netutil.CheckEndpoint(p.BaseURL); err != nil {
+		return err
+	}
 	if p.AuthMode != authXAPIKey {
 		p.AuthMode = authBearer
 	}

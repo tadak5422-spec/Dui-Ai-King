@@ -11,9 +11,9 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Go](https://img.shields.io/badge/Bridge-Go-00ADD8?style=flat-square&logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-GPLv3-blue?style=flat-square)](LICENSE)
-[![Releases](https://img.shields.io/github/v/release/santoshkurmi/dui?style=flat-square&label=Download)](https://github.com/santoshkurmi/dui/releases)
+[![Releases](https://img.shields.io/github/v/release/tadak5422-spec/Dui-Ai-King?style=flat-square&label=Download)](https://github.com/tadak5422-spec/Dui-Ai-King/releases)
 
-[Download](https://github.com/santoshkurmi/dui/releases) · [Website](https://santoshkurmi.github.io/dui/) · [VS Code extension](https://github.com/Santoshkurmi/dui_vscode_extension) · [Plugin SDK](extension_docs/README.md) · [User Guide](user_docs/README.md) · [WhatsApp community](https://chat.whatsapp.com/IGQX8q9zSVV0RarG70sclV?s=cl&p=a&mlu=4&ilr=4)
+[Download](https://github.com/tadak5422-spec/Dui-Ai-King/releases) · [Source](https://github.com/tadak5422-spec/Dui-Ai-King) · [upstream VS Code extension](https://github.com/Santoshkurmi/dui_vscode_extension) · [Plugin SDK](extension_docs/README.md) · [User Guide](user_docs/README.md) · [WhatsApp community](https://chat.whatsapp.com/IGQX8q9zSVV0RarG70sclV?s=cl&p=a&mlu=4&ilr=4)
 
 <br>
 
@@ -29,11 +29,11 @@
 > - **You can use both.** The new app installs next to the old one; nothing in the old one is touched. Move over whenever you're ready.
 > - **To move your setup:**
 >   1. In the old app: **Settings → Backups & Restore → Back up environment** (tick *Include SSH keys and sign-ins* to keep your logins; never share that file). It is saved to `Download/Antigem/backups`.
->   2. Install **`DuiAI-v2.x.x.apk`** from [Releases](https://github.com/santoshkurmi/dui/releases) (version 2.0.0 or newer; versions below 2.0.0 are the old app).
+>   2. Install **`DuiAI-v2.x.x.apk`** from [Releases](https://github.com/tadak5422-spec/Dui-Ai-King/releases) (version 2.0.0 or newer; versions below 2.0.0 are the old app).
 >   3. On the new app's setup screen, choose **From a ZIP file** and pick your backup. Every `com.termux` path is rewritten for `ai.dui` while it restores.
 >   4. When everything works, uninstall the old app, and delete the backup if it contains your sign-ins.
 >
-> The new app is brand new: a few packages, the Linux desktop (X11) and some `termux-*` commands are still being tested. If something breaks, please [open an issue](https://github.com/santoshkurmi/dui/issues).
+> The new app is brand new: a few packages, the Linux desktop (X11) and some `termux-*` commands are still being tested. If something breaks, please [open an issue](https://github.com/tadak5422-spec/Dui-Ai-King/issues).
 
 ---
 
@@ -219,7 +219,7 @@ Each one is a one-tap preset in **Settings → MCP Servers**, for every agent.
 - Desktop and mobile modes, a steady browser identity that keeps Google sign-in working, and built-in Eruda DevTools.
 
 ### Connect to PC (with DuiAI for VS Code)
-Use the agents running on your PC from your phone. [DuiAI for VS Code](https://github.com/Santoshkurmi/dui_vscode_extension) runs them on the PC, and the app becomes a second screen for the same chats.
+Use the agents running on your PC from your phone. The [upstream DuiAI for VS Code extension](https://github.com/Santoshkurmi/dui_vscode_extension) (a separate project, not part of this fork) runs them on the PC, and the app becomes a second screen for the same chats.
 - **Same chats on both:** start a chat in VS Code and continue it on the phone, or the other way round. Replies stream live on both, and every agent (Antigravity, Claude Code, Codex, OpenCode) works, with its subagents, images and files.
 - **Pair once, no typing of addresses:** in VS Code open **Settings → Connect phone → Start pairing**. On the phone, turn on **Settings → Connect to PC**, tap **Add a PC**, pick the PC from **Nearby PCs** and type the 6-digit code it shows. If the PC is not listed (guest Wi-Fi), type the address shown on the PC.
 - **Switch in one tap:** the PC button in the side bar lists your paired PCs; pick one, or go back to **Use this phone**. Several PCs can be paired.
@@ -242,7 +242,7 @@ Use the agents running on your PC from your phone. [DuiAI for VS Code](https://g
 
 ## Download
 
-Get the latest APK from [Releases](https://github.com/santoshkurmi/dui/releases). There is one app, with the package name `ai.dui`. It sets up its own Linux environment from the Termux packages, so it doesn't need the Termux app, and it can be installed next to it.
+Get the latest APK from [Releases](https://github.com/tadak5422-spec/Dui-Ai-King/releases). There is one app, with the package name `ai.dui`. It sets up its own Linux environment from the Termux packages, so it doesn't need the Termux app, and it can be installed next to it.
 
 **Server mode** (a mode, not another build): the bridge, the agents (`agy`, Claude Code, OpenCode, Codex), your projects and the terminal run on **your own server (a VPS)**, and the phone is only the screen. Switch it on in **Settings → Servers**. See [Server mode](#server-mode-run-it-on-a-vps) below.
 
@@ -283,9 +283,12 @@ DuiAI has the common Termux:API commands built in. It installs Termux's `termux-
 | `termux-open` / `termux-open-url` | ✅ |
 | `termux-wake-lock` / `termux-wake-unlock` | ✅ |
 
-For advanced hardware APIs (such as `termux-location`, `termux-camera-photo`, `termux-sensor`, `termux-sms-*`, `termux-wifi-*`), install the matching signed companion app:
+For advanced hardware APIs (such as `termux-location`, `termux-camera-photo`, `termux-sensor`, `termux-sms-*`, `termux-wifi-*`), install the matching signed companion app.
 
-👉 **[Download DuiAI Termux:API Companion App](https://github.com/Santoshkurmi/termux-api/releases)**
+> [!NOTE]
+> The companion APKs below are built by the upstream DuiAI project and are **not published in this fork**. Only install binaries whose source and signing key you trust; the app never downloads them automatically.
+
+👉 **[DuiAI Termux:API Companion App (upstream build)](https://github.com/Santoshkurmi/termux-api/releases)**
 
 > [!IMPORTANT]
 > The companion app must be DuiAI's build for `ai.dui`: it shares DuiAI's Linux user (`sharedUserId ai.dui`) to talk to it over UNIX sockets. Companion apps made for the old `com.termux` build, or the official Termux:API, don't work with it.
@@ -300,7 +303,7 @@ DuiAI can run a Linux desktop (XFCE or LXQt) with [Termux:X11](https://github.co
 
 Go to **Settings → Termux Support → X11 Desktop** and follow the steps: install the Termux:X11 app, the `termux-x11` command and a desktop, then tap **Start**.
 
-To set it up by hand instead, get `dui-termux-x11-sharedUid.apk` and `dui-termux-x11-*-all.deb` from the [DuiAI Termux:X11 releases](https://github.com/Santoshkurmi/termux-x11/releases/latest), install the APK, and run:
+To set it up by hand instead, get `dui-termux-x11-sharedUid.apk` and `dui-termux-x11-*-all.deb` from the [upstream DuiAI Termux:X11 releases](https://github.com/Santoshkurmi/termux-x11/releases/latest), install the APK, and run:
 
 ```bash
 pkg install x11-repo
@@ -312,7 +315,7 @@ termux-x11 :0 -xstartup "dbus-launch --exit-with-session xfce4-session"
 Then open Termux:X11. Don't install `termux-x11-nightly` from x11-repo: it only works with the official Termux:X11 app.
 
 > [!IMPORTANT]
-> **Moving from the old `com.termux` app?** Download DuiAI's Termux:X11 app and `.deb` again from the [DuiAI Termux:X11 releases](https://github.com/Santoshkurmi/termux-x11/releases/latest) and install them for `ai.dui`. Don't keep using the Termux:X11 app you installed for the old app: it only works with the old app.
+> **Moving from the old `com.termux` app?** Download DuiAI's Termux:X11 app and `.deb` again from the [upstream DuiAI Termux:X11 releases](https://github.com/Santoshkurmi/termux-x11/releases/latest) and install them for `ai.dui`. Don't keep using the Termux:X11 app you installed for the old app: it only works with the old app.
 
 ---
 
@@ -407,8 +410,9 @@ The Backups & Restore screen is for the phone's own data and is hidden in Server
 **Requirements:** JDK 17+, Android SDK (API 35, Build Tools 35+) and Go 1.23+ for the bridge.
 
 ```bash
-git clone https://github.com/santoshkurmi/dui.git
-cd dui
+git clone https://github.com/tadak5422-spec/Dui-Ai-King.git
+cd Dui-Ai-King
+git checkout standalone
 
 # Build the termux variant
 ./gradlew assembleTermuxDebug
@@ -448,10 +452,10 @@ DuiAI comes in parts that link to each other:
 
 | Project | What it is | Repository |
 |---|---|---|
-| **DuiAI** (Android app) | The coding agents, a Linux terminal, an editor and a browser on your phone. With **Connect to PC** it also uses the agents of a PC that runs DuiAI for VS Code. | [Santoshkurmi/dui](https://github.com/Santoshkurmi/dui) |
-| **DuiAI for VS Code** | The same agents and chat in a VS Code sidebar. Its **Connect phone** lets the app on your phone use them. | [Santoshkurmi/dui_vscode_extension](https://github.com/Santoshkurmi/dui_vscode_extension) · install: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=santoshkurmi.dui-vscode-extension), [Open VSX](https://open-vsx.org/extension/santoshkurmi/dui-vscode-extension) |
-| **DuiAI Browser Bridge** (Chrome extension) | Lets agents in DuiAI for VS Code use your real Chrome. Not needed by the Android app, which has its own browser. | [Santoshkurmi/dui-browser-extension](https://github.com/Santoshkurmi/dui-browser-extension) · not in the Chrome Web Store yet: installed with *Load unpacked* from DuiAI for VS Code |
-| **DuiAI mini apps** | The official mini apps (Habits, Pocket Notes, Sky, Gallery, Focus, Dev Toolbox, Explorer, Showcase), installed from **Mini Apps → Get apps**. Also the guide to building and publishing your own: real app sources using every SDK feature, signed `.agapp` packages, the catalog format and the `agapp.mjs publish` tool. | [Santoshkurmi/dui_mini_apps](https://github.com/Santoshkurmi/dui_mini_apps) |
+| **DuiAI** (Android app) | The coding agents, a Linux terminal, an editor and a browser on your phone. With **Connect to PC** it also uses the agents of a PC that runs DuiAI for VS Code. | [tadak5422-spec/Dui-Ai-King](https://github.com/tadak5422-spec/Dui-Ai-King) |
+| **DuiAI for VS Code** | The same agents and chat in a VS Code sidebar. Its **Connect phone** lets the app on your phone use them. | [upstream extension](https://github.com/Santoshkurmi/dui_vscode_extension) (not part of this fork) · install: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=santoshkurmi.dui-vscode-extension), [Open VSX](https://open-vsx.org/extension/santoshkurmi/dui-vscode-extension) |
+| **DuiAI Browser Bridge** (Chrome extension) | Lets agents in DuiAI for VS Code use your real Chrome. Not needed by the Android app, which has its own browser. | [upstream extension](https://github.com/Santoshkurmi/dui-browser-extension) (not part of this fork) · not in the Chrome Web Store yet: installed with *Load unpacked* from DuiAI for VS Code |
+| **Mini apps** | This fork ships no built-in catalog and trusts no mini-app signing key by default. Configure an HTTPS catalog URL and only install packages signed by a key you choose to trust. The upstream [mini apps project](https://github.com/Santoshkurmi/dui_mini_apps) documents the `.agapp` format and tooling. | User-configured HTTPS catalog |
 This is not polished app they are only for showcase only not for use and will be removed in future.
 ## Contributing
 

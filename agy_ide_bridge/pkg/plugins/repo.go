@@ -19,7 +19,7 @@ import (
 
 const repoIndex = "dui-plugins.json"
 
-// repoIndexAlternates are accepted too: the official repository publishes its index as antigem-plugins.json.
+// Legacy index filenames are accepted too, for user-added repositories that still publish them.
 var repoIndexAlternates = []string{"antigem-plugins.json", "antigem_plugins.json"}
 
 // Repo is a public GitHub repository of plugin folders; Ref is a branch or tag, empty for the default branch.

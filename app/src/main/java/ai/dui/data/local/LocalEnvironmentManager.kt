@@ -607,6 +607,19 @@ object LocalEnvironmentManager {
         info
     }
 
+    /** GitHub release assets are the only automatic bootstrap source; URLs from release JSON must stay on GitHub. */
+    private fun isAllowedBootstrapUrl(url: String): Boolean {
+        val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return false
+        if (!uri.scheme.equals("https", ignoreCase = true) || uri.userInfo != null) return false
+        val host = uri.host?.lowercase() ?: return false
+        val path = uri.path.orEmpty()
+        return when (host) {
+            "github.com" -> path.startsWith("/termux/termux-packages/releases/")
+            "objects.githubusercontent.com" -> true
+            else -> false
+        }
+    }
+
     private fun resolveBootstrapUrls(arch: String): List<String> {
         val urls = mutableListOf<String>()
 
@@ -629,7 +642,7 @@ object LocalEnvironmentManager {
                                 val asset = assets.getJSONObject(i)
                                 val name = asset.optString("name", "")
                                 val downloadUrl = asset.optString("browser_download_url", "")
-                                if (name == "bootstrap-$arch.zip" && downloadUrl.isNotBlank()) {
+                                if (name == "bootstrap-$arch.zip" && downloadUrl.isNotBlank() && isAllowedBootstrapUrl(downloadUrl)) {
                                     urls.add(downloadUrl)
                                 }
                             }
@@ -662,7 +675,7 @@ object LocalEnvironmentManager {
                                     val asset = assets.getJSONObject(i)
                                     val name = asset.optString("name", "")
                                     val downloadUrl = asset.optString("browser_download_url", "")
-                                    if (name == "bootstrap-$arch.zip" && downloadUrl.isNotBlank() && !urls.contains(downloadUrl)) {
+                                    if (name == "bootstrap-$arch.zip" && downloadUrl.isNotBlank() && isAllowedBootstrapUrl(downloadUrl) && !urls.contains(downloadUrl)) {
                                         urls.add(downloadUrl)
                                     }
                                 }
@@ -931,7 +944,10 @@ object LocalEnvironmentManager {
 
                 is BootstrapSource.DirectUrl -> {
                     val customUrl = source.url.trim()
-                    if (customUrl.isBlank() || !customUrl.startsWith("http")) {
+                    val customUri = runCatching { java.net.URI(customUrl) }.getOrNull()
+                    val customScheme = customUri?.scheme?.lowercase()
+                    if (customUri == null || (customScheme != "http" && customScheme != "https") ||
+                        customUri.host.isNullOrBlank() || customUri.userInfo != null) {
                         val errorMsg = "Invalid download URL. Please provide a valid http/https direct link."
                         updateInstallNotification(appContext, "Installation Failed", errorMsg, -2, ongoing = false, force = true)
                         _installerState.value = LocalInstallerState.Error(errorMessage = errorMsg, canRetry = true)

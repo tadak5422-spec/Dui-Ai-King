@@ -13,7 +13,7 @@ Only analyze apps and files you own or are allowed to analyze.
 
 1. **Settings → REA · Reverse Engineering**: get the setup files, then install the parts under *Needed for APK analysis*.
 2. **Connect REA to your agent**: in that agent's MCP settings, tap the **REA** preset and keep *On demand* ([section 5](#-5-connecting-rea-to-an-agent)). Not sure what to pick in its dialog? See [What should I choose?](#-what-should-i-choose)
-3. **Install the REA skill plugin**: tap **Install skill** on the REA page, or install **REA** from **Settings → Custom DuiAI Plugins → Repositories → `Santoshkurmi/dui_plugins`** ([section 7](#-7-the-rea-skill-plugin-recommended)).
+3. **Install the REA skill plugin**: tap **Install skill** on the REA page, after configuring a plugin repository you trust ([section 7](#-7-the-rea-skill-plugin-recommended)).
 4. **Ask with `/plu:rea:rea`** at the start of your message, for example:
    `/plu:rea:rea find the APK of com.example.app and summarize its permissions`
 
@@ -39,7 +39,7 @@ Further down: the optional **REA skill**, **Phone access** (adb), **Set up in th
 
 ## 📥 2. Getting the setup files
 
-Tap **Get setup files**. The source is shown under the text (`Santoshkurmi/dui_plugins@main` by default); **Change** lets you point at a fork for testing. When a newer version of the setup files exists, the step shows **Update** and an **Update to vX** button. Updating also refreshes the `rea-mcp` launcher if it is installed.
+Tap **Get setup files**. The source is empty by default: enter an `owner/repo@branch` you trust before downloading scripts that run on your device; **Change** lets you switch it later. When a newer version of the setup files exists, the step shows **Update** and an **Update to vX** button. Updating also refreshes the `rea-mcp` launcher if it is installed.
 
 ---
 
@@ -227,7 +227,7 @@ REA gives the agent its **tools**; the **REA skill** tells the agent **how to us
 Either way works:
 
 - **Settings → REA → REA skill for agents → Install skill** (also **Update skill** later), or
-- **Settings → Custom DuiAI Plugins → Repositories**: `Santoshkurmi/dui_plugins` is already in the list (DuiAI adds it once; add it again if you removed it). Open it and install **REA · Reverse Engineering**. Updates show up there too.
+- **Settings → Custom DuiAI Plugins → Repositories**: add a repository you trust, open it and install **REA · Reverse Engineering**. Updates show up there too.
 
 ### Using it in chat: `/plu:`
 

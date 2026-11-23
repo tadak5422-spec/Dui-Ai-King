@@ -27,7 +27,8 @@ import java.io.IOException
 val AgyLanguageService: LanguageServerServiceClient by lazy {
     val hubUrl = AuthPreferences.currentHubUrl.ifBlank { AuthPreferences.DEFAULT_HUB_URL }
     val normalizedUrl = if (!hubUrl.startsWith("http://") && !hubUrl.startsWith("https://")) {
-        "http://$hubUrl"
+        val host = hubUrl.substringBefore('/').substringBefore(':')
+        (if (AuthPreferences.isPrivateHost(host)) "http://" else "https://") + hubUrl
     } else {
         hubUrl
     }.trimEnd('/')

@@ -84,9 +84,9 @@ Files outside the app's own `data/` folder. Paths in the API are `data/…` (own
 - `storage:all`;
 - a manifest folder that is, or contains, the home folder or the root of shared storage (`~/`, `/sdcard`, `/storage`, `/`), or a folder that can't be resolved;
 - picking such a folder;
-- a manifest folder in a hidden home folder (`~/.gemini`, `~/.ssh`, …), unless the app is an official one (installed
-  from a package signed with the key of the [DuiAI mini apps](https://github.com/Santoshkurmi/dui_mini_apps)
-  repository): those get the normal switch.
+- a manifest folder in a hidden home folder (`~/.gemini`, `~/.ssh`, …), unless the mini app is signed with a signing
+  key you explicitly configured as trusted. This fork ships no built-in mini-app catalog or trusted key, so every
+  app gets the typed confirmation by default.
 
 The dialog says **Give <App> access to <scope>?**, explains that the app could read, change or delete photos, documents and downloads and send them anywhere it can reach, and asks to `Type iknowiamstupid to confirm:` (case does not matter). The button is **Give access**. In the first-launch dialog these switches start off.
 

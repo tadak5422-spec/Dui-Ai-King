@@ -81,6 +81,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import ai.dui.data.preferences.AuthPreferences
 import ai.dui.theme.ClaudeTerracotta
 import java.net.URLEncoder
 import kotlinx.coroutines.launch
@@ -106,7 +107,8 @@ private fun formatBrowserUrl(input: String): String {
         trimmed.startsWith("10.0.") ||
         trimmed.matches(Regex("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(/.*)?$")) ||
         (trimmed.contains(":") && trimmed.substringBefore(":").all { it.isLetterOrDigit() || it == '.' })) {
-        return "http://$trimmed"
+        val host = trimmed.substringBefore('/').substringBefore('?').substringBefore('#').substringBefore(':')
+        return (if (AuthPreferences.isPrivateHost(host)) "http://" else "https://") + trimmed
     }
     val encoded = try { URLEncoder.encode(trimmed, "UTF-8") } catch (_: Exception) { trimmed }
     return "https://www.google.com/search?q=$encoded"

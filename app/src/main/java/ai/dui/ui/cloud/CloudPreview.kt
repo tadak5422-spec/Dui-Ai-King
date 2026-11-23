@@ -260,6 +260,10 @@ private class SandboxClient(private val conversationId: String, private val onLo
     override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
         val url = request.url
         val host = url.host ?: return null
+        // The preview page is https://; it may call the local dev server over http://, but never a public http host.
+        if (url.scheme.equals("http", ignoreCase = true) && host !in LOCAL_HOSTS && host != PREVIEW_HOST) {
+            return page(403, "Blocked public HTTP", "Only localhost and the preview proxy may use http://.", request.isForMainFrame)
+        }
         val targetPort = when {
             host == PREVIEW_HOST -> port
             host in LOCAL_HOSTS -> if (url.port > 0) url.port else 80

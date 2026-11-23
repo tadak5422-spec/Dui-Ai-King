@@ -28,6 +28,10 @@ sealed class LocalServerStatus {
 
 object LocalServerManager {
 
+    /** Diagnostics must never contain the bridge security token, even when the full launch command is logged. */
+    private fun redactToken(command: String): String =
+        command.replace(Regex("--token\\s+\\S+"), "--token ***")
+
     private const val TAG = "LocalServerManager"
 
     private val _status = MutableStateFlow<LocalServerStatus>(LocalServerStatus.Idle)
@@ -395,7 +399,7 @@ object LocalServerManager {
 
         // If a persistent terminal session is already alive, reuse it and execute command inside it
         if (existingSession != null && !existingSession.isExited.value) {
-            Log.d(TAG, "[ServerManager] Reusing active persistent terminal session to launch: $command")
+            Log.d(TAG, "[ServerManager] Reusing active persistent terminal session to launch: ${redactToken(command)}")
             existingSession.write("\u0003")
             delay(150)
             existingSession.write("cd \$HOME && $command\n")
@@ -405,7 +409,7 @@ object LocalServerManager {
 
         Log.d(
             TAG,
-            "[ServerManager] Spawning dedicated persistent terminal session for server runner with initialCommand: $command"
+            "[ServerManager] Spawning dedicated persistent terminal session for server runner with initialCommand: ${redactToken(command)}"
         )
 
         val session = withContext(Dispatchers.Main) {

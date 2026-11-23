@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network policy for this fork.
+
+  Android's Network Security Config matches hostnames, not private IP ranges. This app must be able to use plain
+  HTTP to user-chosen LAN addresses (PC bridge, local AI servers, Termux services), so a global cleartext ban here
+  would break those features. Cleartext is therefore restricted in code instead:
+  - AuthPreferences.normalizeServerUrl() and the Go provider validation upgrade public hosts to HTTPS;
+  - the updater accepts only HTTPS URLs on this fork's GitHub release channel;
+  - the browser and preview WebViews default public names to HTTPS and never load public HTTP subresources.
+  The fixed public endpoints used automatically by the app are additionally denied cleartext at OS level below.
+  webview user-initiated http:// browsing remains possible, as in any browser.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">github.com</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+        <domain includeSubdomains="true">google.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">gstatic.com</domain>
+        <domain includeSubdomains="true">anthropic.com</domain>
+        <domain includeSubdomains="true">openai.com</domain>
+        <domain includeSubdomains="true">huggingface.co</domain>
+    </domain-config>
+</network-security-config>

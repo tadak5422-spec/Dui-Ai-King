@@ -282,8 +282,8 @@ class AuthPreferences(private val context: Context) {
             set(value) { storedSshKeyPassphrase = value }
 
         /**
-         * Turns what the user typed into a base URL: `a.xyz.com` -> `http://a.xyz.com:<defaultPort>`,
-         * `https://a.xyz.com` stays on 443, `1.2.3.4:9000` -> `http://1.2.3.4:9000`, a trailing path is kept
+         * Turns what the user typed into a base URL: `a.xyz.com` -> `https://a.xyz.com`,
+         * `localhost` -> `http://localhost:<defaultPort>`, `1.2.3.4:9000` -> `http://1.2.3.4:9000`, a trailing path is kept
          * (reverse proxy under a sub path) and a trailing slash dropped. Returns null when it is not a usable address.
          */
         fun normalizeServerUrl(raw: String, defaultPort: Int): String? {
@@ -291,7 +291,11 @@ class AuthPreferences(private val context: Context) {
             if (text.isEmpty()) return null
             val hasScheme = text.startsWith("http://", ignoreCase = true) || text.startsWith("https://", ignoreCase = true)
             if (text.contains("://") && !hasScheme) return null
-            if (!hasScheme) text = "http://$text"
+            if (!hasScheme) {
+                // A public host typed without a scheme gets HTTPS; only localhost/LAN defaults to HTTP.
+                val guessedHost = runCatching { java.net.URI("http://$text").host }.getOrNull().orEmpty()
+                text = (if (isPrivateHost(guessedHost)) "http://" else "https://") + text
+            }
             val uri = try { java.net.URI(text) } catch (_: Exception) { return null }
             val scheme = uri.scheme?.lowercase() ?: return null
             val host = uri.host?.takeIf { it.isNotBlank() } ?: return null
@@ -300,7 +304,7 @@ class AuthPreferences(private val context: Context) {
             if (scheme == "http" && !isPrivateHost(host)) return null
             val portPart = when {
                 uri.port > 0 -> ":${uri.port}"
-                !hasScheme -> ":$defaultPort"
+                !hasScheme && scheme == "http" -> ":$defaultPort"
                 else -> ""
             }
             val hostPart = if (host.contains(":") && !host.startsWith("[")) "[$host]" else host
@@ -381,8 +385,13 @@ class AuthPreferences(private val context: Context) {
     init {
         val savedHub = syncPrefs.getString("agy_hub_url", null)
         val savedBridgeHttp = syncPrefs.getString("agy_bridge_http_url", null)
-        if (!savedHub.isNullOrBlank()) currentHubUrl = migrateHubUrl(savedHub)
-        if (!savedBridgeHttp.isNullOrBlank()) currentBridgeHttpUrl = migrateBridgeUrl(savedBridgeHttp)
+        // Re-apply the endpoint policy to saved values: an old install may have a public http:// URL stored.
+        if (!savedHub.isNullOrBlank()) {
+            currentHubUrl = normalizeServerUrl(migrateHubUrl(savedHub), ai.dui.BuildConfig.HUB_PORT) ?: DEFAULT_HUB_URL
+        }
+        if (!savedBridgeHttp.isNullOrBlank()) {
+            currentBridgeHttpUrl = normalizeServerUrl(migrateBridgeUrl(savedBridgeHttp), ai.dui.BuildConfig.BRIDGE_PORT) ?: DEFAULT_BRIDGE_HTTP_URL
+        }
         val inspectorOn = syncPrefs.getBoolean("is_network_inspector_enabled", false)
         val inspectorFloating = syncPrefs.getBoolean("is_floating_network_inspector_enabled", false)
         ai.dui.data.remote.inspector.NetworkInspectorManager.isEnabled = inspectorOn
@@ -473,13 +482,19 @@ class AuthPreferences(private val context: Context) {
     val localToolsInstallDate: Flow<Long?> = context.dataStore.data.map { it[LOCAL_TOOLS_INSTALL_DATE] }
     val localToolsVersion: Flow<String?> = context.dataStore.data.map { it[LOCAL_TOOLS_VERSION] }
     val agyBridgeHttpUrl: Flow<String> = context.dataStore.data.map { 
-        val url = it[AGY_BRIDGE_HTTP_URL]?.let(::migrateBridgeUrl) ?: DEFAULT_BRIDGE_HTTP_URL
+        val url = it[AGY_BRIDGE_HTTP_URL]
+            ?.let(::migrateBridgeUrl)
+            ?.let { normalizeServerUrl(it, ai.dui.BuildConfig.BRIDGE_PORT) }
+            ?: DEFAULT_BRIDGE_HTTP_URL
         currentBridgeHttpUrl = url
         pcOverride?.bridgeUrl ?: url
     }
     val agyBridgeWsUrl: Flow<String> = agyBridgeHttpUrl.map { toWsUrl(it) }
     val agyHubUrl: Flow<String> = context.dataStore.data.map { 
-        val url = it[AGY_HUB_URL]?.let(::migrateHubUrl) ?: DEFAULT_HUB_URL
+        val url = it[AGY_HUB_URL]
+            ?.let(::migrateHubUrl)
+            ?.let { normalizeServerUrl(it, ai.dui.BuildConfig.HUB_PORT) }
+            ?: DEFAULT_HUB_URL
         currentHubUrl = url
         pcOverride?.hubUrl ?: url
     }
@@ -798,31 +813,52 @@ class AuthPreferences(private val context: Context) {
         syncPrefs.edit().putString("port_forwards_json", arr.toString()).commit()
     }
 
-    /** Named connection profiles the user saved by hand ("remote" = server mode, otherwise local). Stored as JSON on the phone. */
+    /** Named connection profiles the user saved by hand ("remote" = server mode, otherwise local). */
+    private fun readProfilesJson(): org.json.JSONArray {
+        val raw = syncPrefs.getString("profiles_json", null)?.takeIf { it.isNotBlank() } ?: return org.json.JSONArray()
+        val plain = if (SecretCipher.isEncrypted(raw)) SecretCipher.decrypt(raw) else raw
+        if (plain.isBlank()) return org.json.JSONArray()
+        val arr = runCatching { org.json.JSONArray(plain) }.getOrDefault(org.json.JSONArray())
+        // Migrate an old plaintext store immediately so profile SSH keys/passwords never stay unencrypted at rest.
+        if (!SecretCipher.isEncrypted(raw)) writeProfilesJson(arr)
+        return arr
+    }
+
+    private fun writeProfilesJson(arr: org.json.JSONArray) {
+        val encrypted = SecretCipher.encryptOrNull(arr.toString())
+        if (encrypted == null) {
+            // Fail closed: losing saved profiles is preferable to persisting plaintext credentials.
+            syncPrefs.edit().remove("profiles_json").apply()
+        } else {
+            syncPrefs.edit().putString("profiles_json", encrypted).apply()
+        }
+    }
+
     fun listProfiles(remote: Boolean): List<org.json.JSONObject> = runCatching {
-        val arr = org.json.JSONArray(syncPrefs.getString("profiles_json", "[]"))
+        val arr = readProfilesJson()
         (0 until arr.length()).map { arr.getJSONObject(it) }.filter { it.optBoolean("remote") == remote }
     }.getOrDefault(emptyList())
 
     fun saveProfile(remote: Boolean, name: String, data: org.json.JSONObject) {
-        val arr = runCatching { org.json.JSONArray(syncPrefs.getString("profiles_json", "[]")) }.getOrDefault(org.json.JSONArray())
+        val arr = readProfilesJson()
         val out = org.json.JSONArray()
         for (i in 0 until arr.length()) {
             val o = arr.getJSONObject(i)
             if (!(o.optBoolean("remote") == remote && o.optString("name") == name)) out.put(o)
         }
         out.put(data.put("name", name).put("remote", remote))
-        syncPrefs.edit().putString("profiles_json", out.toString()).apply()
+        writeProfilesJson(out)
     }
 
     fun deleteProfile(remote: Boolean, name: String) {
-        val arr = runCatching { org.json.JSONArray(syncPrefs.getString("profiles_json", "[]")) }.getOrDefault(org.json.JSONArray())
+        val arr = readProfilesJson()
         val out = org.json.JSONArray()
         for (i in 0 until arr.length()) {
             val o = arr.getJSONObject(i)
             if (!(o.optBoolean("remote") == remote && o.optString("name") == name)) out.put(o)
         }
-        syncPrefs.edit().putString("profiles_json", out.toString()).remove("profile_remote").remove("profile_local").apply()
+        writeProfilesJson(out)
+        syncPrefs.edit().remove("profile_remote").remove("profile_local").apply()
     }
 
     fun saveSshKeySync(privateKey: String, passphrase: String) {
@@ -894,24 +930,22 @@ class AuthPreferences(private val context: Context) {
     }
 
     suspend fun saveAgyHubUrl(url: String) {
-        val trimmed = url.trim()
-        if (trimmed.isNotBlank()) {
-            currentHubUrl = trimmed
-            syncPrefs.edit().putString("agy_hub_url", trimmed).apply()
-            context.dataStore.edit { prefs ->
-                prefs[AGY_HUB_URL] = trimmed
-            }
+        // Enforce the endpoint policy at the save boundary; callers cannot persist a public http:// URL by bypassing
+        // the settings-screen validation (e.g. the chat screen's direct save path).
+        val normalized = normalizeServerUrl(url, ai.dui.BuildConfig.HUB_PORT) ?: return
+        currentHubUrl = normalized
+        syncPrefs.edit().putString("agy_hub_url", normalized).apply()
+        context.dataStore.edit { prefs ->
+            prefs[AGY_HUB_URL] = normalized
         }
     }
 
     suspend fun saveAgyBridgeHttpUrl(url: String) {
-        val trimmed = url.trim()
-        if (trimmed.isNotBlank()) {
-            currentBridgeHttpUrl = trimmed
-            syncPrefs.edit().putString("agy_bridge_http_url", trimmed).apply()
-            context.dataStore.edit { prefs ->
-                prefs[AGY_BRIDGE_HTTP_URL] = trimmed
-            }
+        val normalized = normalizeServerUrl(url, ai.dui.BuildConfig.BRIDGE_PORT) ?: return
+        currentBridgeHttpUrl = normalized
+        syncPrefs.edit().putString("agy_bridge_http_url", normalized).apply()
+        context.dataStore.edit { prefs ->
+            prefs[AGY_BRIDGE_HTTP_URL] = normalized
         }
     }
 

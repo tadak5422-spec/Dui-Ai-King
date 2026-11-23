@@ -526,6 +526,19 @@ object X11DesktopManager {
 
     private fun userAgent() = "DuiAI/${BuildConfig.VERSION_NAME}"
 
+    /** A release JSON must not be able to point downloads at an arbitrary host. */
+    private fun isForkReleaseAssetUrl(url: String): Boolean {
+        val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return false
+        if (!uri.scheme.equals("https", ignoreCase = true) || uri.userInfo != null) return false
+        val host = uri.host?.lowercase() ?: return false
+        val path = uri.path.orEmpty()
+        return when (host) {
+            "github.com" -> path.startsWith("/$FORK_REPO/releases/")
+            "objects.githubusercontent.com" -> true
+            else -> false
+        }
+    }
+
     /** The companion .deb of the fork's latest release (its file name carries the version). */
     private suspend fun latestForkDebUrl(): String = withContext(Dispatchers.IO) {
         val request = Request.Builder().url(FORK_RELEASE_API)
@@ -539,14 +552,17 @@ object X11DesktopManager {
             (0 until assets.length()).map { assets.getJSONObject(it) }
                 .firstOrNull { it.optString("name").let { n -> n.startsWith(COMPANION_DUIAI) && n.endsWith("-all.deb") } }
                 ?.optString("browser_download_url")
-                ?.takeIf { it.isNotBlank() }
-                ?: throw IllegalStateException("The latest release has no $COMPANION_DUIAI .deb file.")
+                ?.takeIf { it.isNotBlank() && isForkReleaseAssetUrl(it) }
+                ?: throw IllegalStateException("The latest release has no valid $COMPANION_DUIAI .deb file.")
         }
     }
 
     private suspend fun download(url: String, target: File, onProgress: (String) -> Unit) = withContext(Dispatchers.IO) {
         val request = Request.Builder().url(url).header("User-Agent", userAgent()).build()
         http.newCall(request).execute().use { response ->
+            if (!isForkReleaseAssetUrl(response.request.url.toString())) {
+                throw IllegalStateException("Download was redirected outside this fork's releases.")
+            }
             if (!response.isSuccessful) throw IllegalStateException("Download failed (HTTP ${response.code}).")
             val body = response.body ?: throw IllegalStateException("Download failed (empty response).")
             val total = body.contentLength()

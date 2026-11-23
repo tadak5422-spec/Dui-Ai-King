@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"gemini-server/pkg/netutil"
 )
 
 // Custom providers: endpoints the user adds by URL (any OpenAI-compatible API — Ollama, LM Studio, vLLM, LiteLLM,
@@ -28,36 +29,8 @@ const (
 
 var providerIDRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,39}$`)
 
-// localHost reports whether cleartext HTTP is acceptable for host: loopback, a private LAN range, a link-local
-// address or a single-label / .local / .lan hostname. Public endpoints must use https://.
-func localHost(host string) bool {
-	h := strings.ToLower(strings.Trim(host, "[]"))
-	if h == "" || h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0.0.0.0" {
-		return true
-	}
-	if strings.HasSuffix(h, ".local") || strings.HasSuffix(h, ".lan") || strings.HasSuffix(h, ".internal") {
-		return true
-	}
-	if !strings.Contains(h, ".") && !strings.Contains(h, ":") {
-		return true
-	}
-	if ip := net.ParseIP(h); ip != nil {
-		return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
-	}
-	return false
-}
-
-// checkEndpoint accepts an http(s) URL and refuses cleartext to a public host.
-func checkEndpoint(raw string) error {
-	u, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return errors.New("the URL must start with http:// or https://")
-	}
-	if u.Scheme == "http" && !localHost(u.Hostname()) {
-		return errors.New("a public endpoint must use https:// (http:// is only for this phone or the local network)")
-	}
-	return nil
-}
+// Endpoint validation is shared with the Claude provider code in pkg/netutil so every custom endpoint rejects
+// public cleartext and credentials embedded in the URL.
 
 type CustomModel struct {
 	ID            string `json:"id"`
@@ -252,7 +225,7 @@ func validate(p *CustomProvider) error {
 	if p.Name == "" {
 		return errors.New("a name is required")
 	}
-	if err := checkEndpoint(p.BaseURL); err != nil {
+	if err := netutil.CheckEndpoint(p.BaseURL); err != nil {
 		return err
 	}
 	seen := map[string]bool{}
@@ -392,7 +365,7 @@ func (m *Manager) handleFetchModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	base := strings.TrimRight(strings.TrimSpace(req.BaseURL), "/")
-	if err := checkEndpoint(base); err != nil {
+	if err := netutil.CheckEndpoint(base); err != nil {
 		writeJSON(w, http.StatusOK, map[string]interface{}{"success": false, "error": err.Error()})
 		return
 	}
@@ -544,7 +517,7 @@ func (m *Manager) handleMcp(w http.ResponseWriter, r *http.Request, name string)
 		switch cfg["type"] {
 		case "remote":
 			u, _ := cfg["url"].(string)
-			if err := checkEndpoint(u); err != nil {
+			if err := netutil.CheckEndpoint(u); err != nil {
 				writeJSON(w, http.StatusOK, map[string]interface{}{"success": false, "error": err.Error()})
 				return
 			}

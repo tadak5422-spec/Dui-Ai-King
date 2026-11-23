@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gemini-server/pkg/netutil"
 )
 
 // ModelsMapping tells the model-list fetch how to read a provider's answer. Every field is optional: empty means
@@ -519,7 +521,13 @@ func nextPage(doc interface{}, mp *ModelsMapping, pageURL, listURL string) (stri
 		if err != nil || err2 != nil {
 			return "", mode
 		}
-		return base.ResolveReference(ref).String(), mode
+		next := base.ResolveReference(ref).String()
+		// A provider-supplied next_url must obey the same endpoint policy as the provider itself; otherwise
+		// pagination could make the bridge call an arbitrary host with the provider's key attached.
+		if err := netutil.CheckEndpoint(next); err != nil {
+			return "", mode
+		}
+		return next, mode
 	}
 	return "", mode
 }

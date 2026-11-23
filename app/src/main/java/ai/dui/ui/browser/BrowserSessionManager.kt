@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import ai.dui.data.preferences.AuthPreferences
 import ai.dui.ui.browser.mcp.BrowserAgentIndicator
 import ai.dui.ui.browser.mcp.BrowserAgentLock
 import ai.dui.ui.browser.mcp.BrowserCdp
@@ -394,7 +395,8 @@ class BrowserSessionManager private constructor() {
                 trimmed.matches(Regex("^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}(/.*)?$")) ||
                 (trimmed.contains(":") && trimmed.substringBefore(":").all { it.isLetterOrDigit() || it == '.' })
             ) {
-                return "http://$trimmed"
+                val host = trimmed.substringBefore('/').substringBefore('?').substringBefore('#').substringBefore(':')
+                return (if (AuthPreferences.isPrivateHost(host)) "http://" else "https://") + trimmed
             }
             val encoded = try { URLEncoder.encode(trimmed, "UTF-8") } catch (_: Exception) { trimmed }
             return "https://www.google.com/search?q=$encoded"
@@ -963,7 +965,9 @@ class BrowserSessionManager private constructor() {
             settings.apply {
                 javaScriptEnabled = true
                 domStorageEnabled = true
-                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                // An https page must not pull public http subresources. Local http services are reached directly,
+                // not as mixed content from a public page.
+                mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 allowFileAccess = true
                 allowContentAccess = true
                 useWideViewPort = true
@@ -1098,8 +1102,11 @@ class BrowserSessionManager private constructor() {
 
                 override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: android.net.http.SslError?) {
                     val reqUrl = error?.url ?: tab.url
-                    val isLocal = reqUrl.contains("localhost") || reqUrl.contains("127.0.0.1") || reqUrl.contains("192.168.") || reqUrl.contains("10.0.")
-                    
+                    // Parse the host instead of substring matching: `localhost.attacker.example` or `?x=10.0.` used to
+                    // auto-accept an untrusted certificate. Only genuine loopback/LAN hosts keep the dev-server exception.
+                    val host = runCatching { java.net.URI(reqUrl).host }.getOrNull().orEmpty()
+                    val isLocal = host.isNotBlank() && ai.dui.data.preferences.AuthPreferences.isPrivateHost(host)
+
                     // For local development on localhost/127.0.0.1, automatically bypass self-signed SSL errors so dev servers load seamlessly
                     if (isLocal) {
                         handler?.proceed()

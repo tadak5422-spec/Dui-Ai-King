@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -34,6 +35,17 @@ import (
 	"gemini-server/pkg/security"
 	"gemini-server/pkg/ws"
 )
+
+// Sensitive fields must never reach diagnostics: error logs may be shared by the user or collected with a bug report.
+// This covers JSON (`"api_key":"..."`), form/query values (`code=...&state=...`) and headers (`Authorization: Bearer ...`).
+var sensitiveFieldRe = regexp.MustCompile(`(?i)(token|code|state|api[_-]?key|authorization|password|passphrase|secret|headers|env)(["' ]*[:=][ ]*)([^\n&,"}\]]+)`)
+
+func redactSecrets(s string) string {
+	if s == "" {
+		return ""
+	}
+	return sensitiveFieldRe.ReplaceAllString(s, "${1}${2}***")
+}
 
 func printUsage() {
 	fmt.Println(`DuiAI Go IDE Server & AGY Hub Supervisor
@@ -599,10 +611,10 @@ func main() {
 				log.Printf("\033[1;31m═══════════════════════════════════════════════════════════════\033[0m\n")
 				log.Printf("\033[1;31m[API CRASH RECOVERED SAFELY] %s %s\033[0m\n", r.Method, r.URL.Path)
 				if r.URL.RawQuery != "" {
-					log.Printf("  \033[1;33m• Query:\033[0m    %s\n", r.URL.RawQuery)
+					log.Printf("  \033[1;33m• Query:\033[0m    %s\n", redactSecrets(r.URL.RawQuery))
 				}
 				if reqPayload != "" {
-					log.Printf("  \033[1;33m• Payload:\033[0m  %s\n", reqPayload)
+					log.Printf("  \033[1;33m• Payload:\033[0m  %s\n", redactSecrets(reqPayload))
 				}
 				log.Printf("  \033[1;31m• Reason:\033[0m   %s\n", reason)
 				log.Printf("  \033[1;36m• Code Line:\033[0m %s\n", codeLoc)
@@ -626,17 +638,17 @@ func main() {
 		if isErrorResp {
 			log.Printf("\033[1;33m[API ERROR %d] %s %s\033[0m\n", rec.statusCode, r.Method, r.URL.Path)
 			if r.URL.RawQuery != "" {
-				log.Printf("  \033[33m• Query:\033[0m   %s\n", r.URL.RawQuery)
+				log.Printf("  \033[33m• Query:\033[0m   %s\n", redactSecrets(r.URL.RawQuery))
 			}
 			if reqPayload != "" {
-				log.Printf("  \033[33m• Payload:\033[0m %s\n", reqPayload)
+				log.Printf("  \033[33m• Payload:\033[0m %s\n", redactSecrets(reqPayload))
 			}
 			if len(respStr) > 0 {
 				respSnippet := strings.TrimSpace(respStr)
 				if len(respSnippet) > 300 {
 					respSnippet = respSnippet[:300] + "... (truncated)"
 				}
-				log.Printf("  \033[31m• Error Response:\033[0m %s\n", respSnippet)
+				log.Printf("  \033[31m• Error Response:\033[0m %s\n", redactSecrets(respSnippet))
 			}
 		}
 	})

@@ -50,6 +50,15 @@ object CrashHandler {
 
     fun reportFile(context: Context): File = File(context.filesDir, "crash/last_crash.txt")
 
+    // Crash reports can be copied or turned into a public GitHub issue by the user. Strip credential-shaped values
+    // from stack traces before writing the report, so a token appearing in an exception message is never exported.
+    private val secretPattern = Regex(
+        """(?i)\b(token|code|state|api[_-]?key|key|authorization|password|passphrase|secret)\b(["' ]*[:=][ ]*|\s+)([^\s&,"'}\]]+)"""
+    )
+
+    private fun redactSecrets(text: String): String =
+        secretPattern.replace(text) { "${it.groupValues[1]}${it.groupValues[2]}***" }
+
     private fun processName(context: Context): String =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) Application.getProcessName()
         else runCatching { File("/proc/self/cmdline").readText().trimEnd('\u0000') }.getOrDefault(context.packageName)
@@ -58,6 +67,7 @@ object CrashHandler {
         val trace = runCatching {
             StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString()
         }.getOrElse { error.toString() }
+        val safeTrace = redactSecrets(trace)
         val rt = Runtime.getRuntime()
         val mb = 1024 * 1024
         val report = buildString {
@@ -70,7 +80,7 @@ object CrashHandler {
             appendLine("Thread: ${thread.name}")
             appendLine("Memory: used ${(rt.totalMemory() - rt.freeMemory()) / mb} MB of max ${rt.maxMemory() / mb} MB")
             appendLine()
-            append(trace)
+            append(safeTrace)
         }
         return if (report.length > MAX_REPORT_CHARS) report.take(MAX_REPORT_CHARS) + "\n… (cut)" else report
     }

@@ -13,6 +13,8 @@ permissions:
 
 jobs:
   build-and-release:
+    # A metadata-only version.json update can skip the release job by putting [skip ci] in the commit message.
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
 
     steps:
@@ -108,6 +110,29 @@ jobs:
         run: |
           chmod +x gradlew scripts/build_all_apks.sh
           ./scripts/build_all_apks.sh --release
+
+      - name: Publish integrity metadata (version.json with the APK's SHA-256)
+        run: |
+          set -euo pipefail
+          VERSION_NAME=$(python3 -c "import json; print(json.load(open('version.json')).get('version_name', '1.0.0'))")
+          APK="output/DuiAI-v${VERSION_NAME}.apk"
+          test -f "$APK" || { echo "Missing $APK"; exit 1; }
+          SHA=$(sha256sum "$APK" | awk '{print $1}')
+          python3 - "$SHA" <<'PY'
+          import json, sys
+          sha = sys.argv[1]
+          data = json.load(open('version.json'))
+          data['sha256'] = sha
+          name = data['version_name']
+          data['download_url'] = (
+              'https://github.com/tadak5422-spec/Dui-Ai-King/releases/download/'
+              f'v{name}/DuiAI-v{name}.apk'
+          )
+          with open('output/version.json', 'w') as f:
+              json.dump(data, f, indent=2)
+              f.write('\n')
+          PY
+          cat output/version.json
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

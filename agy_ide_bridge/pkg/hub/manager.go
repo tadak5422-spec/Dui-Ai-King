@@ -271,7 +271,8 @@ func (m *HubManager) FetchCsrfToken() string {
 	defer resp.Body.Close()
 
 	if headerToken := strings.TrimSpace(resp.Header.Get("x-codeium-csrf-token")); headerToken != "" {
-		log.Printf("[FetchCsrfToken] Found token in header: %s", headerToken)
+		// Never write the token itself to logs: they can be collected with diagnostics.
+		log.Printf("[FetchCsrfToken] Found token in header (%d bytes)", len(headerToken))
 		return headerToken
 	}
 
@@ -285,7 +286,7 @@ func (m *HubManager) FetchCsrfToken() string {
 	if match := csrfJSONPattern.FindStringSubmatch(bodyStr); len(match) > 1 {
 		token := strings.TrimSpace(match[1])
 		if token != "" {
-			log.Printf("[FetchCsrfToken] Extracted token via JSON pattern: %s", token)
+			log.Printf("[FetchCsrfToken] Extracted token via JSON pattern (%d bytes)", len(token))
 			return token
 		}
 	}
@@ -293,7 +294,7 @@ func (m *HubManager) FetchCsrfToken() string {
 	if match := csrfHTMLPattern.FindStringSubmatch(bodyStr); len(match) > 1 {
 		token := strings.TrimSpace(match[1])
 		if token != "" {
-			log.Printf("[FetchCsrfToken] Extracted token via HTML pattern: %s", token)
+			log.Printf("[FetchCsrfToken] Extracted token via HTML pattern (%d bytes)", len(token))
 			return token
 		}
 	}

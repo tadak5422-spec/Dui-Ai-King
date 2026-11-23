@@ -5,5 +5,7 @@
   "changelog": [
     "Fixed the Linux environment and STEM bundle downloads that pointed to a repository address that does not exist (HTTP 404)"
   ],
-  "is_critical": false
+  "is_critical": false,
+  "sha256": "4f0b7c6553ac9a65f684278d51f29ea924765d721bcb61f8771acb54efb3feb9",
+  "download_url": "https://github.com/tadak5422-spec/Dui-Ai-King/releases/download/v2.0.2/DuiAI-v2.0.2.apk"
 }
