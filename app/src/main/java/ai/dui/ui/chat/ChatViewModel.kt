@@ -1238,6 +1238,22 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val groupChatsByWorkspace: StateFlow<Boolean> = authPrefs.groupChatsByWorkspace
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    /** Fold runs of agent steps into pills: see [ai.dui.ui.chat.StepGroups]. */
+    val groupAgentSteps: StateFlow<Boolean> = authPrefs.groupAgentSteps
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), authPrefs.getGroupAgentStepsSync())
+
+    fun setGroupAgentSteps(enabled: Boolean) {
+        viewModelScope.launch { authPrefs.saveGroupAgentSteps(enabled) }
+    }
+
+    /** How many steps in a row fold into a pill (Group Agent Steps → Fold after). */
+    val groupStepsMin: StateFlow<Int> = authPrefs.groupStepsMin
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), authPrefs.getGroupStepsMinSync())
+
+    fun setGroupStepsMin(steps: Int) {
+        viewModelScope.launch { authPrefs.saveGroupStepsMin(steps) }
+    }
+
     val isFloatingBubbleEnabled: StateFlow<Boolean> = authPrefs.isFloatingBubbleEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), authPrefs.getFloatingBubbleEnabledSync())
 

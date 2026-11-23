@@ -29,6 +29,23 @@ private const val UPDATE_REPO = "tadak5422-spec/Dui-Ai-King"
  */
 private const val DEFAULT_VERSION_URL = "https://github.com/$UPDATE_REPO/releases/latest/download/version.json"
 
+// the updater's prefs (UpdateCheckWorker keeps its "last notified" version there too)
+private const val UPDATE_PREFS = "app_update_prefs"
+private const val KEY_BETA_UPDATES = "beta_updates"
+
+/**
+ * "Get beta updates" (Settings > About > Software Updates). Saved in the app's data, so it stays through updates.
+ * Default off: this fork's release channel is stable unless the user opts into a "beta" block in version.json.
+ */
+object BetaUpdates {
+    fun isEnabled(context: Context): Boolean =
+        context.getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE).getBoolean(KEY_BETA_UPDATES, false)
+
+    fun setEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(UPDATE_PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_BETA_UPDATES, enabled).apply()
+    }
+}
+
 data class AppUpdateInfo(
     val versionCode: Int,
     val versionName: String,
@@ -94,26 +111,22 @@ class AppUpdateManager(private val context: Context) {
             val rawJson = response.body?.string() ?: return@withContext Result.failure(Exception("Empty version response from server"))
 
             val json = JSONObject(rawJson)
-            val remoteVersionCode = json.optInt("version_code", 0)
-            val remoteVersionName = json.optString("version_name", "1.0.0")
+            val release = releaseFor(json)
+            val remoteVersionCode = release.code
+            val remoteVersionName = release.name
             val minSupportedCode = json.optInt("min_supported_version_code", 0)
-            val changelog = when (val raw = json.opt("changelog")) {
-                is org.json.JSONArray -> (0 until raw.length()).map { raw.optString(it) }
-                is String -> listOf(raw)
-                else -> listOf("General improvements and bug fixes.")
-            }
+            val changelog = release.changelog
             val isCritical = json.optBoolean("is_critical", false) || (BuildConfig.VERSION_CODE < minSupportedCode)
 
             // Integrity data is mandatory: a release without a valid SHA-256 is never offered as an update.
-            val sha256 = json.optString("sha256").trim().lowercase()
-            if (!sha256.matches(Regex("^[0-9a-f]{64}$"))) {
+            val sha256 = release.sha256
+            if (!isValidSha256(sha256)) {
                 return@withContext Result.failure(Exception("This release has no valid SHA-256 in version.json; update refused."))
             }
 
             // Each release (tag v<version>) has the app as DuiAI-v<version>.apk (scripts/build_all_apks.sh).
-            val downloadUrl = json.optString("download_url").trim().ifBlank {
-                "https://github.com/$UPDATE_REPO/releases/download/v$remoteVersionName/DuiAI-v$remoteVersionName.apk"
-            }
+            val downloadUrl = release.downloadUrl
+                ?: "https://github.com/$UPDATE_REPO/releases/download/v$remoteVersionName/DuiAI-v$remoteVersionName.apk"
 
             if (remoteVersionCode > BuildConfig.VERSION_CODE && downloadUrl.isNotBlank()) {
                 if (!isAllowedUpdateUrl(downloadUrl)) {
@@ -162,6 +175,49 @@ class AppUpdateManager(private val context: Context) {
         }
     }
 
+    /** One release in version.json: the stable one (top level) or the beta ("beta" block). */
+    private class RemoteRelease(
+        val code: Int,
+        val name: String,
+        val changelog: List<String>,
+        val sha256: String,
+        val downloadUrl: String?
+    )
+
+    /**
+     * The release this install follows in version.json. Without beta updates it reads only the top level, as every
+     * installed app always has, so it never sees a beta. With them it takes the newer (higher version_code) of the
+     * stable release and the "beta" block. A beta without a valid SHA-256 is ignored: no release is ever offered
+     * without integrity data.
+     */
+    private fun releaseFor(json: JSONObject): RemoteRelease {
+        val stable = RemoteRelease(
+            code = json.optInt("version_code", 0),
+            name = json.optString("version_name", "1.0.0"),
+            changelog = changelogOf(json),
+            sha256 = json.optString("sha256").trim().lowercase(),
+            downloadUrl = json.optString("download_url").trim().ifBlank { null }
+        )
+        if (!BetaUpdates.isEnabled(context)) return stable
+        val beta = json.optJSONObject("beta") ?: return stable
+        val candidate = RemoteRelease(
+            code = beta.optInt("version_code", 0),
+            name = beta.optString("version_name", ""),
+            changelog = changelogOf(beta),
+            sha256 = beta.optString("sha256").trim().lowercase(),
+            downloadUrl = beta.optString("download_url").trim().ifBlank { null }
+        )
+        return if (candidate.code > stable.code && candidate.name.isNotBlank() && isValidSha256(candidate.sha256)) candidate else stable
+    }
+
+    private fun changelogOf(json: JSONObject): List<String> = when (val raw = json.opt("changelog")) {
+        is org.json.JSONArray -> (0 until raw.length()).map { raw.optString(it) }
+        is String -> listOf(raw)
+        else -> listOf("General improvements and bug fixes.")
+    }
+
+    private fun isValidSha256(value: String): Boolean = value.matches(Regex("^[0-9a-f]{64}$"))
+
     /**
      * Downloads the APK file to cache directory with live progress updates.
      */
@@ -174,7 +230,7 @@ class AppUpdateManager(private val context: Context) {
             if (!isAllowedUpdateUrl(downloadUrl)) {
                 return@withContext Result.failure(Exception("Refusing an update from outside this fork's release channel"))
             }
-            if (!expectedSha256.matches(Regex("^[0-9a-f]{64}$"))) {
+            if (!isValidSha256(expectedSha256)) {
                 return@withContext Result.failure(Exception("Refusing an update without a valid SHA-256"))
             }
             val request = Request.Builder()

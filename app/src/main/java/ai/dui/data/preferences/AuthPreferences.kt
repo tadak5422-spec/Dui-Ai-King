@@ -84,6 +84,8 @@ class AuthPreferences(private val context: Context) {
         val REQUIRE_APPROVAL_FOR_FILE_EDITS = androidx.datastore.preferences.core.booleanPreferencesKey("require_approval_for_file_edits")
         val DEFAULT_APPROVAL_SCOPE = stringPreferencesKey("default_approval_scope")
         val GROUP_CHATS_BY_WORKSPACE = androidx.datastore.preferences.core.booleanPreferencesKey("group_chats_by_workspace")
+        val GROUP_AGENT_STEPS = androidx.datastore.preferences.core.booleanPreferencesKey("group_agent_steps")
+        val GROUP_STEPS_MIN = androidx.datastore.preferences.core.intPreferencesKey("group_steps_min")
         val IS_FLOATING_BUBBLE_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("is_floating_bubble_enabled")
         val AUTO_SHOW_FLOATING_BUBBLE_ON_MINIMIZE = androidx.datastore.preferences.core.booleanPreferencesKey("auto_show_floating_bubble_on_minimize")
         val IS_FLOATING_SWITCHER_ENABLED = androidx.datastore.preferences.core.booleanPreferencesKey("is_floating_switcher_enabled")
@@ -470,6 +472,27 @@ class AuthPreferences(private val context: Context) {
     }
 
     val groupChatsByWorkspace: Flow<Boolean> = context.dataStore.data.map { it[GROUP_CHATS_BY_WORKSPACE] ?: false }
+
+    /** Runs of a reply's tool steps fold into one pill (off by default in this fork); off: every step is its own tile. */
+    val groupAgentSteps: Flow<Boolean> = context.dataStore.data.map { it[GROUP_AGENT_STEPS] ?: false }
+
+    fun getGroupAgentStepsSync(): Boolean = syncPrefs.getBoolean("group_agent_steps", false)
+
+    suspend fun saveGroupAgentSteps(enabled: Boolean) {
+        syncPrefs.edit().putBoolean("group_agent_steps", enabled).apply()
+        context.dataStore.edit { it[GROUP_AGENT_STEPS] = enabled }
+    }
+
+    /** Group Agent Steps → Fold after: a run folds with at least this many steps (1–10, default 2; 1 = every run). */
+    val groupStepsMin: Flow<Int> = context.dataStore.data.map { (it[GROUP_STEPS_MIN] ?: 2).coerceIn(1, 10) }
+
+    fun getGroupStepsMinSync(): Int = syncPrefs.getInt("group_steps_min", 2).coerceIn(1, 10)
+
+    suspend fun saveGroupStepsMin(steps: Int) {
+        val n = steps.coerceIn(1, 10)
+        syncPrefs.edit().putInt("group_steps_min", n).apply()
+        context.dataStore.edit { it[GROUP_STEPS_MIN] = n }
+    }
 
     val preferredModelId: Flow<String?> = context.dataStore.data.map { it[PREFERRED_MODEL_ID] }
     val preferredModelKey: Flow<String?> = context.dataStore.data.map { it[PREFERRED_MODEL_KEY] }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -72,6 +73,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import android.util.Log
 import ai.dui.data.admin.DuiAIDeviceAdminReceiver
 import java.text.SimpleDateFormat
@@ -267,6 +269,10 @@ fun SettingsDialog(
     defaultApprovalScope: String = "PERMISSION_SCOPE_ONCE",
     groupChatsByWorkspace: Boolean = false,
     onToggleGroupChatsByWorkspace: (Boolean) -> Unit = {},
+    groupAgentSteps: Boolean = false,
+    onToggleGroupAgentSteps: (Boolean) -> Unit = {},
+    groupStepsMin: Int = 2,
+    onSetGroupStepsMin: (Int) -> Unit = {},
     globalSecuritySettings: ai.dui.data.remote.AgyHubClient.GlobalUserSettings? = null,
     globalSettingsError: String? = null,
     isGlobalSettingsLoading: Boolean = false,
@@ -475,6 +481,10 @@ fun SettingsDialog(
                         cardBorder = cardBorder,
                         onSetChatFontScale = onSetChatFontScale,
                         onToggleGroupChatsByWorkspace = onToggleGroupChatsByWorkspace,
+                        groupAgentSteps = groupAgentSteps,
+                        onToggleGroupAgentSteps = onToggleGroupAgentSteps,
+                        groupStepsMin = groupStepsMin,
+                        onSetGroupStepsMin = onSetGroupStepsMin,
                         onSetFloatingSwitcherOrientation = onSetFloatingSwitcherOrientation,
                         onSetFloatingSwitcherItems = onSetFloatingSwitcherItems,
                         onSetFloatingSwitcherAutoCollapseSec = onSetFloatingSwitcherAutoCollapseSec,
@@ -1415,6 +1425,10 @@ private fun AppearanceSubScreen(
     cardBorder: BorderStroke,
     onSetChatFontScale: (Float) -> Unit,
     onToggleGroupChatsByWorkspace: (Boolean) -> Unit,
+    groupAgentSteps: Boolean,
+    onToggleGroupAgentSteps: (Boolean) -> Unit,
+    groupStepsMin: Int,
+    onSetGroupStepsMin: (Int) -> Unit,
     onSetFloatingSwitcherOrientation: (String) -> Unit,
     onSetFloatingSwitcherItems: (List<String>) -> Unit,
     onSetFloatingSwitcherAutoCollapseSec: (Int) -> Unit,
@@ -1514,6 +1528,84 @@ private fun AppearanceSubScreen(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Group Agent Steps Switch: runs of a reply's tool steps fold into one progress pill
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = cardBg,
+            border = cardBorder,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "Group Agent Steps",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Runs of tool calls in a row fold into one pill that shows the progress; tap it to see the steps. Off: every step is its own tile.",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = groupAgentSteps,
+                        onCheckedChange = onToggleGroupAgentSteps,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = ClaudeTerracotta
+                        )
+                    )
+                }
+                // Fold after: how many steps in a row fold into a pill (1+ = every run, even a single step)
+                if (groupAgentSteps) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Fold after (steps in a row)",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        (1..6).forEach { n ->
+                            val isSelected = groupStepsMin == n
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onSetGroupStepsMin(n) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) ClaudeTerracotta else MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, if (isSelected) ClaudeTerracotta else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "$n+",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
                             }
                         }
                     }
@@ -8408,6 +8500,7 @@ private fun DiagnosticsSubScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AboutSubScreen(
     cardBg: Color,
@@ -8426,6 +8519,22 @@ private fun AboutSubScreen(
     var autoPluginUpdateChecks by remember {
         mutableStateOf(ai.dui.data.updater.PluginUpdateCheckWorker.isEnabled(context))
     }
+    var betaUpdates by remember {
+        mutableStateOf(ai.dui.data.updater.BetaUpdates.isEnabled(context))
+    }
+    val savedInterval = remember { ai.dui.data.updater.BackgroundUpdateCheck.get(context) }
+    var backgroundEveryText by remember { mutableStateOf(savedInterval.every.toString()) }
+    var backgroundUnit by remember { mutableStateOf(savedInterval.unit) }
+    var backgroundEvery by remember { mutableStateOf(savedInterval.every) }
+    val backgroundEveryValid = backgroundEveryText.toIntOrNull()?.takeIf {
+        it in 1..ai.dui.data.updater.BackgroundUpdateCheck.MAX_EVERY
+    } != null
+
+    fun saveBackgroundInterval(enabled: Boolean) =
+        ai.dui.data.updater.BackgroundUpdateCheck.set(
+            context,
+            ai.dui.data.updater.BackgroundUpdateCheck.Interval(enabled, backgroundEvery, backgroundUnit)
+        )
 
     // Bridge file tracking in public Downloads directory
     val downloadDir = remember { Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) }
@@ -8669,7 +8778,7 @@ private fun AboutSubScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "One version.json request to GitHub every 12 hours. Off by default.",
+                            text = "One version.json request to GitHub on the schedule below. Off by default.",
                             fontSize = 11.5.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -8678,7 +8787,80 @@ private fun AboutSubScreen(
                         checked = autoUpdateChecks,
                         onCheckedChange = { enabled ->
                             autoUpdateChecks = enabled
-                            ai.dui.data.updater.UpdateCheckWorker.setEnabled(context, enabled)
+                            saveBackgroundInterval(enabled)
+                        }
+                    )
+                }
+
+                if (autoUpdateChecks) {
+                    Text(
+                        text = "Check every",
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = backgroundEveryText,
+                            onValueChange = { text ->
+                                backgroundEveryText = text.filter(Char::isDigit).take(3)
+                                backgroundEveryText.toIntOrNull()
+                                    ?.takeIf { it in 1..ai.dui.data.updater.BackgroundUpdateCheck.MAX_EVERY }
+                                    ?.let {
+                                        backgroundEvery = it
+                                        saveBackgroundInterval(autoUpdateChecks)
+                                    }
+                            },
+                            singleLine = true,
+                            isError = !backgroundEveryValid,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.width(76.dp)
+                        )
+                        ai.dui.data.updater.BackgroundUpdateCheck.IntervalUnit.entries.forEach { u ->
+                            FilterChip(
+                                selected = backgroundUnit == u,
+                                onClick = {
+                                    backgroundUnit = u
+                                    saveBackgroundInterval(autoUpdateChecks)
+                                },
+                                label = { Text(u.label) }
+                            )
+                        }
+                    }
+                    if (!backgroundEveryValid) {
+                        Text(
+                            text = "Enter a number from 1 to ${ai.dui.data.updater.BackgroundUpdateCheck.MAX_EVERY}.",
+                            fontSize = 12.sp,
+                            color = ai.dui.theme.AppColors.danger
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Get beta updates",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Early versions with new features. They can have bugs. Off by default.",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = betaUpdates,
+                        onCheckedChange = { enabled ->
+                            betaUpdates = enabled
+                            ai.dui.data.updater.BetaUpdates.setEnabled(context, enabled)
                         }
                     )
                 }
