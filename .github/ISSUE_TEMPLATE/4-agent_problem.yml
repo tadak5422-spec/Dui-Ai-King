@@ -14,7 +14,7 @@ body:
     attributes:
       label: Before you start
       options:
-        - label: I searched the [existing issues](https://github.com/Santoshkurmi/dui/issues?q=is%3Aissue) and this is not a duplicate.
+        - label: I searched the [existing issues](https://github.com/tadak5422-spec/Dui-Ai-King/issues?q=is%3Aissue) and this is not a duplicate.
           required: true
         - label: I removed every API key, token and password from what I paste here.
           required: true

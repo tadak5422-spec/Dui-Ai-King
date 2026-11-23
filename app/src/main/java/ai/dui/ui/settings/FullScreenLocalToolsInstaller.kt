@@ -508,12 +508,13 @@ private fun SourcePicker(
 }
 
 /**
- * GitHub | Hugging Face: where the full rootfs is downloaded from (the same zip on both). The ↗ on each opens that
- * site's page, where the zip can be downloaded by hand and installed with "From a ZIP file".
+ * GitHub: where the full rootfs is downloaded from. The ↗ opens that release page, where the zip can be downloaded
+ * by hand and installed with "From a ZIP file".
  */
 @Composable
 private fun MirrorChooser(selected: RootfsMirror, onSelect: (RootfsMirror) -> Unit) {
     val uriHandler = LocalUriHandler.current
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
         RootfsMirror.values().forEach { mirror ->
             val isSelected = mirror == selected
@@ -548,6 +549,13 @@ private fun MirrorChooser(selected: RootfsMirror, onSelect: (RootfsMirror) -> Un
                 }
             }
         }
+    }
+    Text(
+        "The full rootfs is a large download from this fork's release channel. Its SHA-256 is checked before use; " +
+            "choose “From a ZIP file” to install entirely offline.",
+        fontSize = 11.sp,
+        color = AppColors.textSecondary
+    )
     }
 }
 

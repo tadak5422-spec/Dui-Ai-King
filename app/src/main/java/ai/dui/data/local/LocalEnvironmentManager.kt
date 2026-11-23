@@ -47,10 +47,13 @@ data class DeviceHardwareInfo(
     val supportedAbis: List<String>
 )
 
-/** Where the full rootfs zip is downloaded from (the same file on both). */
+/**
+ * Where the full rootfs zip is downloaded from. Only this fork's own release channel is listed: the original
+ * developer's GitHub and Hugging Face accounts are never contacted. The user can still install a rootfs they
+ * already have with "From a ZIP file" or a direct URL.
+ */
 enum class RootfsMirror(val label: String) {
-    GITHUB("GitHub"),
-    HUGGING_FACE("Hugging Face")
+    GITHUB("GitHub")
 }
 
 sealed class BootstrapSource {
@@ -70,25 +73,25 @@ object LocalEnvironmentManager {
     // Minimum 10 MB required for a real Termux bootstrap archive
     private const val MIN_BOOTSTRAP_SIZE_BYTES = 10 * 1024 * 1024L
 
-    const val HARDCODED_ROOTFS_URL = "https://github.com/Santoshkurmi/antigem/releases/download/rootfs-v2/bootrapz_2026-11-19.zip"
+    /**
+     * This fork's own release channel. The file is still checked against [HARDCODED_ROOTFS_SHA256], so a different
+     * file served at the same address is refused. Nothing is downloaded until the user taps Install.
+     */
+    const val HARDCODED_ROOTFS_URL = "https://github.com/tadak5422-spec/Dui-Ai-King/releases/download/rootfs-v2/bootrapz_2026-11-19.zip"
     const val HARDCODED_ROOTFS_TAG = "rootfs-v2"
     const val HARDCODED_ROOTFS_ASSET = "bootrapz_2026-11-19.zip"
     const val HARDCODED_ROOTFS_SIZE_BYTES = 400_054_861L
-    /** SHA-256 of the rootfs zip (the Hugging Face LFS oid). A mirror that serves a different file is refused. */
+    /** SHA-256 of the rootfs zip. A source that serves a different file is refused. */
     const val HARDCODED_ROOTFS_SHA256 = "1fbf9c908375184a8c33c1ea6defbe9f74291488efee74f2760a08604a6f354b"
-    const val HUGGINGFACE_ROOTFS_URL = "https://huggingface.co/datasets/santoshkurmi/rootfs-v2/resolve/main/bootrapz_2026-11-19.zip"
-    // pages where the user can download the same zip by hand (then install it with "From a ZIP file")
-    const val GITHUB_ROOTFS_PAGE = "https://github.com/Santoshkurmi/antigem/releases/tag/rootfs-v2"
-    const val HUGGINGFACE_ROOTFS_PAGE = "https://huggingface.co/datasets/santoshkurmi/rootfs-v2/tree/main"
+    // page where the user can download the same zip by hand (then install it with "From a ZIP file")
+    const val GITHUB_ROOTFS_PAGE = "https://github.com/tadak5422-spec/Dui-Ai-King/releases/tag/rootfs-v2"
 
     fun rootfsUrl(mirror: RootfsMirror): String = when (mirror) {
         RootfsMirror.GITHUB -> HARDCODED_ROOTFS_URL
-        RootfsMirror.HUGGING_FACE -> HUGGINGFACE_ROOTFS_URL
     }
 
     fun rootfsPage(mirror: RootfsMirror): String = when (mirror) {
         RootfsMirror.GITHUB -> GITHUB_ROOTFS_PAGE
-        RootfsMirror.HUGGING_FACE -> HUGGINGFACE_ROOTFS_PAGE
     }
 
     private const val NOTIFICATION_CHANNEL_ID = "dui_bootstrap_install"

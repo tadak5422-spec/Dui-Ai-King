@@ -144,7 +144,10 @@ object PcConnect {
         val p = prefs() ?: return
         val rawKey = p.getString(KEY_CLIENT_PRIVATE, null)
         if (!rawKey.isNullOrEmpty() && !SecretCipher.isEncrypted(rawKey)) {
-            p.edit().putString(KEY_CLIENT_PRIVATE, SecretCipher.encrypt(rawKey)).commit()
+            val encrypted = SecretCipher.encryptOrNull(rawKey)
+            p.edit().apply {
+                if (encrypted != null) putString(KEY_CLIENT_PRIVATE, encrypted) else remove(KEY_CLIENT_PRIVATE)
+            }.commit()
         }
         if (_pcs.value.any { it.token.isNotEmpty() } && !p.getString(KEY_PCS, "").orEmpty().contains("enc:v1:")) {
             writePcs(_pcs.value)
@@ -165,8 +168,9 @@ object PcConnect {
     }.getOrDefault(emptyList())
 
     private fun writePcs(list: List<PairedPc>) {
+        // A token that cannot be encrypted is dropped instead of being written in plaintext.
         val json = JSONArray(list.map { pc ->
-            pc.toJson().put("token", SecretCipher.encryptNonEmpty(pc.token))
+            pc.toJson().put("token", pc.token.takeIf { it.isEmpty() } ?: SecretCipher.encryptOrNull(pc.token).orEmpty())
         })
         prefs()?.edit()?.putString(KEY_PCS, json.toString())?.commit()
         _pcs.value = list

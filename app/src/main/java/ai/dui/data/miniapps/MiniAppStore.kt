@@ -18,16 +18,45 @@ import java.util.concurrent.TimeUnit
  * doesn't match is refused before the install screen. The packages themselves are installed like any other .agapp.
  */
 object MiniAppStore {
-    const val REPO = "Santoshkurmi/antigem_mini_apps"
     const val INDEX = "dui-mini-apps.json"
-    /** HEAD = the repository's default branch, whatever it is called. */
-    const val CATALOG = "https://raw.githubusercontent.com/$REPO/HEAD/$INDEX"
-    const val PAGE = "https://github.com/$REPO"
-    /** SHA-256 of the key that signs this repository's apps (the official ones). */
-    const val SIGNER = "57b8a7a0466f5dda67b1082e15305d5e3f3156e10ee9e9d0f7af6a505af53bed"
+    private const val PREFS = "mini_app_store"
+    private const val KEY_CATALOG = "catalog_url"
 
-    /** Installed from a package signed with the official key, and its files still match the signature. */
-    fun isOfficial(app: MiniApp) = app.signed && !app.tampered && app.signer.equals(SIGNER, ignoreCase = true)
+    /**
+     * No catalog is built in. The user names the catalog they trust (an https:// URL, or a local one in a debug
+     * build); nothing is fetched from the original developer's repository.
+     */
+    fun catalog(context: Context): String? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_CATALOG, null)?.takeIf { it.isNotBlank() }
+
+    /** Validates and saves [url]; throws with a readable message when it is not an allowed catalog address. */
+    fun setCatalog(context: Context, url: String): String {
+        val text = url.trim()
+        val parsed = text.toHttpUrlOrNull() ?: throw MiniAppError("TypeError", "Not a catalog URL: $text")
+        if (!allowed(parsed)) throw MiniAppError("SecurityError", "Use an https:// catalog URL (http:// is only allowed for localhost in debug builds)")
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_CATALOG, parsed.toString()).apply()
+        return parsed.toString()
+    }
+
+    fun clearCatalog(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_CATALOG).apply()
+    }
+
+    /** The repository page to open for a catalog: a GitHub raw URL maps to its repository, anything else to itself. */
+    fun page(catalogUrl: String): String {
+        val u = catalogUrl.toHttpUrlOrNull() ?: return catalogUrl
+        val parts = u.pathSegments
+        return if (u.host.equals("raw.githubusercontent.com", ignoreCase = true) && parts.size >= 2)
+            "https://github.com/${parts[0]}/${parts[1]}"
+        else catalogUrl
+    }
+
+    /**
+     * No developer key is trusted implicitly. A package is only "official" when its signer matches the fingerprint
+     * the catalog published for it, which [MiniAppInstaller] verifies at install time.
+     */
+    fun isOfficial(app: MiniApp) = false
 
     class Entry(
         val id: String, val name: String, val version: String, val versionCode: Long, val description: String,
@@ -46,10 +75,10 @@ object MiniAppStore {
     /** https only; debug builds also take a catalog on this computer through adb reverse (testing a repo before pushing). */
     fun allowed(url: HttpUrl): Boolean = url.isHttps || (BuildConfig.DEBUG && (url.host == "127.0.0.1" || url.host == "localhost"))
 
-    suspend fun load(url: String = CATALOG): Catalog = withContext(Dispatchers.IO) {
+    suspend fun load(url: String): Catalog = withContext(Dispatchers.IO) {
         val u = url.toHttpUrlOrNull()?.takeIf(::allowed) ?: throw MiniAppError("TypeError", "Not a catalog URL: $url")
         client.newCall(Request.Builder().url(u).header("Cache-Control", "no-cache").build()).execute().use { r ->
-            if (r.code == 404) throw MiniAppError("NotFoundError", "The catalog isn't published yet (no $INDEX in $REPO)")
+            if (r.code == 404) throw MiniAppError("NotFoundError", "The catalog isn't published yet (no $INDEX at this address)")
             if (!r.isSuccessful) throw MiniAppError("NetworkError", "The catalog answered ${r.code}")
             val body = r.body?.string() ?: throw MiniAppError("NetworkError", "Empty catalog")
             val o = runCatching { JSONObject(body) }.getOrElse { throw MiniAppError("DataError", "The catalog isn't valid JSON") }

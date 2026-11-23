@@ -235,7 +235,12 @@ object AndroidDevManager {
     // ---------------- setup files (downloaded, never bundled) ----------------
 
     fun setSource(source: String) {
-        val value = source.trim().ifBlank { DEFAULT_SOURCE }
+        val value = source.trim()
+        if (value.isBlank()) {
+            prefs.edit().remove("source").apply()
+            _state.update { it.copy(source = "", filesUpdate = null) }
+            return
+        }
         val parsed = PluginRepositories.parse(value)
         val label = if (parsed.ref.isBlank()) "${parsed.slug}@main" else parsed.label
         prefs.edit().putString("source", label).apply()
@@ -243,7 +248,9 @@ object AndroidDevManager {
     }
 
     private fun rawUrl(file: String): String {
-        val repo = PluginRepositories.parse(_state.value.source)
+        val source = _state.value.source
+        if (source.isBlank()) throw IllegalStateException("Choose a trusted setup repository first (owner/repo@branch)")
+        val repo = PluginRepositories.parse(source)
         val ref = repo.ref.ifBlank { "main" }
         return "https://raw.githubusercontent.com/${repo.slug}/$ref/$SCRIPTS_PATH/$file"
     }
@@ -376,14 +383,11 @@ object AndroidDevManager {
     /** Installs (or updates) the Android Development skill plugin from the source repository. */
     fun installSkillPlugin() = runTask("plugin") {
         PluginRepositories.init(appContext)
-        val wanted = PluginRepositories.parse(_state.value.source)
-        _state.update { it.copy(progress = "Adding ${wanted.label} to the plugin repositories…") }
+        val source = _state.value.source
+        if (source.isBlank()) throw IllegalStateException("Choose a trusted setup repository first (owner/repo@branch)")
+        val wanted = PluginRepositories.parse(source)
         val repo = PluginRepositories.repos.firstOrNull { it.slug.equals(wanted.slug, ignoreCase = true) }
-            ?: withContext(Dispatchers.Main) {
-                val plain = if (wanted.ref == "main") wanted.copy(ref = "") else wanted
-                PluginRepositories.add(plain)
-                plain
-            }
+            ?: throw IllegalStateException("Add ${wanted.slug} in Settings → Plugins first, then install the skill from there.")
         appendLog("Repository: ${repo.label}")
         _state.update { it.copy(progress = "Reading ${repo.label}…") }
         PluginRepositories.refresh(repo)

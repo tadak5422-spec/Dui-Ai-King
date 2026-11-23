@@ -17,7 +17,7 @@ body:
     attributes:
       label: Before you start
       options:
-        - label: I searched the [existing issues](https://github.com/Santoshkurmi/dui/issues?q=is%3Aissue) for this error.
+        - label: I searched the [existing issues](https://github.com/tadak5422-spec/Dui-Ai-King/issues?q=is%3Aissue) for this error.
           required: true
         - label: I read the notes above (official Termux not installed, correct build, arm64 phone).
           required: true

@@ -370,7 +370,7 @@ fun AppUpdateDialog(
                         onClick = {
                             val intent = android.content.Intent(
                                 android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse("https://github.com/santoshkurmi/dui")
+                                android.net.Uri.parse("https://github.com/tadak5422-spec/Dui-Ai-King")
                             ).apply {
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                             }
@@ -410,7 +410,7 @@ fun AppUpdateDialog(
                                 } else if (downloadState !is DownloadState.Downloading) {
                                     coroutineScope.launch {
                                         downloadState = DownloadState.Downloading(0f, 0L, 0L)
-                                        val result = updateManager.downloadApk(updateInfo.downloadUrl) { progress, down, total ->
+                                        val result = updateManager.downloadApk(updateInfo.downloadUrl, updateInfo.sha256) { progress, down, total ->
                                             downloadState = DownloadState.Downloading(progress, down, total)
                                         }
                                         result.onSuccess { apkFile ->

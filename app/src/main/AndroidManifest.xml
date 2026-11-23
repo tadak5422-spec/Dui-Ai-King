@@ -50,6 +50,9 @@
         android:largeHeap="true"
         android:hasFragileUserData="true"
         android:manageSpaceActivity="ai.dui.ui.settings.ManageSpaceActivity"
+        <!-- Deliberate exception: this app talks to the local Termux bridge / hub / PC over plain http on this phone
+             or the LAN. Public hosts are forced to https:// in AuthPreferences.normalizeServerUrl() and in the Go
+             bridge's endpoint validation; no developer telemetry endpoint uses this. -->
         android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -453,7 +456,7 @@
         <!-- Android drops alarms on reboot (and shifts them on clock / time-zone changes): set them again -->
         <receiver
             android:name="ai.dui.data.miniapps.MiniAppBootReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />

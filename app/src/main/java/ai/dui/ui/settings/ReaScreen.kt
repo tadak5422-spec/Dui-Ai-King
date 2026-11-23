@@ -118,17 +118,17 @@ fun ReaScreen(
             cardBg, cardBorder,
             badgeColor = if (state.filesUpdate != null) Amber else QuotaGreen
         ) {
-            Hint("REA's setup scripts (rea-setup.sh, the rea-mcp launcher and the default tool groups) are not part of the app. They are downloaded from the DuiAI plugins repository when you need them.")
+            Hint("REA's setup scripts (rea-setup.sh, the rea-mcp launcher and the default tool groups) are not part of the app. They are downloaded from the setup repository you choose below, and only when you tap the button.")
             SourceRow(state.source, enabled = !busy)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
-                    state.filesVersion == null -> Button(enabled = !busy, onClick = ReaManager::downloadSetupFiles) {
+                    state.filesVersion == null -> Button(enabled = !busy && state.source.isNotBlank(), onClick = ReaManager::downloadSetupFiles) {
                         Icon(Icons.Outlined.Download, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Get setup files")
                     }
-                    state.filesUpdate != null -> Button(enabled = !busy, onClick = ReaManager::downloadSetupFiles) {
+                    state.filesUpdate != null -> Button(enabled = !busy && state.source.isNotBlank(), onClick = ReaManager::downloadSetupFiles) {
                         Icon(Icons.Outlined.Download, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Update to v${state.filesUpdate}")
                     }
-                    else -> OutlinedButton(enabled = !busy, onClick = ReaManager::downloadSetupFiles) { Text("Download again") }
+                    else -> OutlinedButton(enabled = !busy && state.source.isNotBlank(), onClick = ReaManager::downloadSetupFiles) { Text("Download again") }
                 }
                 if (state.filesVersion != null && state.filesUpdate == null) {
                     TextButton(enabled = !busy, onClick = ReaManager::checkForUpdate) { Text("Check for update") }
@@ -258,24 +258,27 @@ private fun SourceRow(source: String, enabled: Boolean) {
     var error by remember { mutableStateOf<String?>(null) }
     if (!editing) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("From $source", fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.weight(1f))
-            TextButton(enabled = enabled, onClick = { editing = true }) { Text("Change", fontSize = 12.sp) }
+            Text(
+                if (source.isBlank()) "No setup repository chosen" else "From $source",
+                fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.weight(1f)
+            )
+            TextButton(enabled = enabled, onClick = { editing = true }) { Text(if (source.isBlank()) "Choose" else "Change", fontSize = 12.sp) }
         }
         return
     }
     OutlinedTextField(
         value = text, onValueChange = { text = it; error = null }, singleLine = true,
         label = { Text("owner/repo@branch") }, isError = error != null,
-        supportingText = { Text(error ?: "A fork of the DuiAI plugins repository, for testing changes to the setup.") },
+        supportingText = { Text(error ?: "Only add a repository whose scripts you trust: they run in your terminal.") },
         modifier = Modifier.fillMaxWidth()
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = {
+        Button(enabled = text.isNotBlank(), onClick = {
             runCatching { ReaManager.setSource(text) }
                 .onSuccess { editing = false; ReaManager.checkForUpdate() }
                 .onFailure { error = it.message }
         }) { Text("Save") }
-        TextButton(onClick = { text = ReaManager.DEFAULT_SOURCE }) { Text("Default") }
         TextButton(onClick = { editing = false; text = source }) { Text("Cancel") }
     }
 }
@@ -467,7 +470,7 @@ private fun SkillPluginCard(
     ) {
         Hint("A skills-only plugin from the DuiAI plugins repository. It teaches agents how to use REA well (installed apps, split APKs, Flutter, React Native, native code), to check that REA works and tell you what to fix, and how to install REA from the terminal if you prefer that to this page.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !busy, onClick = ReaManager::installSkillPlugin) {
+            Button(enabled = !busy && state.source.isNotBlank(), onClick = ReaManager::installSkillPlugin) {
                 Icon(Icons.Outlined.Extension, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
                 Text(if (state.pluginInstalled) "Update skill" else "Install skill")
             }
@@ -553,7 +556,11 @@ private fun SwitchRow(title: String, text: String, checked: Boolean, enabled: Bo
 private fun ManualSetupCard(state: ReaManager.State, cardBg: Color, cardBorder: BorderStroke) {
     var open by remember { mutableStateOf(false) }
     val repo = runCatching { ai.dui.ui.browser.PluginRepositories.parse(state.source) }.getOrNull()
-    val raw = "https://raw.githubusercontent.com/${repo?.slug ?: "Santoshkurmi/antigem_plugins"}/${repo?.ref?.ifBlank { "main" } ?: "main"}/rea/skills/rea/scripts"
+    if (repo == null) {
+        Hint("Choose a setup repository first (owner/repo@branch) to see the terminal commands.")
+        return
+    }
+    val raw = "https://raw.githubusercontent.com/${repo.slug}/${repo.ref.ifBlank { "main" }}/rea/skills/rea/scripts"
     val steps = listOf(
         "1. Download the setup files" to
             "mkdir -p \$PREFIX/share/dui-rea && cd \$PREFIX/share/dui-rea && for f in files.json rea-setup.sh rea-mcp rea-shell rea-filter.mjs groups.default.json; do curl -fsSLO $raw/\$f; done",

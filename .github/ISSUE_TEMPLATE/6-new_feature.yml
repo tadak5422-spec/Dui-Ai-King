@@ -15,7 +15,7 @@ body:
         - "Add X" when you have **never used X** yourself (on PC, in another app, anywhere).
         - "X has 99% on a benchmark / 10k GitHub stars, please add it". **Benchmarks and stars are not use.** Try it on your own code first.
         - "Add a native agent for provider Y" when **OpenCode already supports 200+ providers** and any OpenAI-compatible API, and **Claude Code** already runs on OpenRouter, Kimi, DeepSeek, Z.ai and any Anthropic-compatible API. Use those.
-        - A new tool or MCP that you can **already add yourself** in **Settings → MCP Servers** or as an [DuiAI plugin](https://github.com/Santoshkurmi/dui/blob/master/extension_docs/README.md).
+        - A new tool or MCP that you can **already add yourself** in **Settings → MCP Servers** or as an [DuiAI plugin](https://github.com/tadak5422-spec/Dui-Ai-King/blob/master/extension_docs/README.md).
 
         **Haven't used it yet?** Install it on your PC (or in DuiAI's terminal, or set it up with OpenCode / Claude Code / MCP Servers) and use it for a while.
         If it is still worth it after that, come back and fill this in with what you learned.
@@ -25,7 +25,7 @@ body:
     attributes:
       label: Confirm all of these (required)
       options:
-        - label: I searched the [existing issues](https://github.com/Santoshkurmi/dui/issues?q=is%3Aissue) and this has not been asked yet.
+        - label: I searched the [existing issues](https://github.com/tadak5422-spec/Dui-Ai-King/issues?q=is%3Aissue) and this has not been asked yet.
           required: true
         - label: I have **personally used** what I am asking for (on PC, in another app or in DuiAI's terminal), for real work, not only read about it.
           required: true

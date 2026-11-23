@@ -55,15 +55,10 @@ object PluginRepositories {
     const val INDEX = "dui-plugins.json"
     private const val PREFS = "plugin_repositories"
     /**
-     * The official repositories, each added once (for new and existing users) under its own "added" flag, so a
-     * repository added later still reaches users who already got the earlier ones. A removed one stays removed.
+     * No repository is added automatically. A plugin repository is a remote code source, so the user adds only the
+     * ones they trust in Settings → Plugins; a removed repository stays removed.
      */
-    private val DEFAULT_REPOS = listOf(
-        "Santoshkurmi/antigem_plugins" to "default_repo_added_santoshkurmi"
-    )
-    /** The old plugin repository was renamed; keep existing users' lists working. */
-    private const val OLD_REPO = "Santoshkurmi/dui_plugins"
-    private const val NEW_REPO = "Santoshkurmi/antigem_plugins"
+    private val DEFAULT_REPOS: List<Pair<String, String>> = emptyList()
     private val NAME = "[A-Za-z0-9_.-]+"
 
     val repos = mutableStateListOf<PluginRepo>()
@@ -95,13 +90,8 @@ object PluginRepositories {
         }
     }
 
-    /** Renames the old official repository in saved lists and drops the dead default from older builds. */
+    /** Drops a dead repository left by older builds; no repository is ever added here. */
     private fun migrateOfficialRepos() {
-        val old = repos.firstOrNull { it.slug.equals(OLD_REPO, ignoreCase = true) }
-        if (old != null) {
-            if (repos.any { it.slug.equals(NEW_REPO, ignoreCase = true) }) repos.remove(old)
-            else repos[repos.indexOf(old)] = parse(NEW_REPO)
-        }
         repos.removeAll { it.slug.equals("dipeshkrydv/dui_plugins", ignoreCase = true) }
         persist()
     }

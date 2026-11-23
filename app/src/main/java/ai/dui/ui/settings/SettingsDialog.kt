@@ -1241,7 +1241,7 @@ private fun TermuxApiSubScreen(cardBg: Color, cardBorder: BorderStroke) {
                     OutlinedButton(
                         onClick = {
                             try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/santoshkurmi/termux-api/releases")))
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/tadak5422-spec/Dui-Ai-King/releases")))
                             } catch (_: Exception) {}
                         },
                         shape = RoundedCornerShape(8.dp),
@@ -8649,7 +8649,7 @@ private fun AboutSubScreen(
                 }
 
                 Text(
-                    text = "Checks GitHub releases for new versions and downloads the matching APK directly.",
+                    text = "Checks this fork's GitHub releases and downloads the matching APK. The package name, version and signing certificate must match the installed app before the installer opens.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 16.sp
@@ -8960,7 +8960,7 @@ private fun AboutSubScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/tadak5422-spec/antigem"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/tadak5422-spec/Dui-Ai-King"))
                             context.startActivity(intent)
                         }
                 ) {
@@ -8987,7 +8987,7 @@ private fun AboutSubScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    text = "github.com/tadak5422-spec/antigem",
+                                    text = "github.com/tadak5422-spec/Dui-Ai-King",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -9008,7 +9008,7 @@ private fun AboutSubScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/tadak5422-spec/antigem/releases"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/tadak5422-spec/Dui-Ai-King/releases"))
                             context.startActivity(intent)
                         }
                 ) {

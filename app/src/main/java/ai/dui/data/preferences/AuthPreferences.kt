@@ -296,6 +296,8 @@ class AuthPreferences(private val context: Context) {
             val scheme = uri.scheme?.lowercase() ?: return null
             val host = uri.host?.takeIf { it.isNotBlank() } ?: return null
             if (uri.userInfo != null) return null
+            // Cleartext is only for this phone or the local network. A public host must be https://.
+            if (scheme == "http" && !isPrivateHost(host)) return null
             val portPart = when {
                 uri.port > 0 -> ":${uri.port}"
                 !hasScheme -> ":$defaultPort"
@@ -339,8 +341,32 @@ class AuthPreferences(private val context: Context) {
             currentRemoteMode || !isLoopbackHost(hostOf(currentBridgeHttpUrl)) || !isLoopbackHost(hostOf(currentHubUrl))
 
         fun isLoopbackHost(host: String): Boolean {
-            val h = host.lowercase()
+            val h = host.lowercase().removePrefix("[").removeSuffix("]")
             return h == "localhost" || h == "127.0.0.1" || h == "::1" || h == "0.0.0.0"
+        }
+
+        /**
+         * True for addresses where cleartext is acceptable: this phone, a private LAN range, a link-local address or
+         * a single-label / .local / .lan hostname. Everything else is a public host and must use https://.
+         */
+        fun isPrivateHost(host: String): Boolean {
+            val h = host.lowercase().removePrefix("[").removeSuffix("]")
+            if (isLoopbackHost(h)) return true
+            if (h.endsWith(".local") || h.endsWith(".lan") || h.endsWith(".internal")) return true
+            if (!h.contains('.') && !h.contains(':')) return true // "myserver", a LAN name
+            val parts = h.split('.')
+            if (parts.size == 4 && parts.all { it.toIntOrNull()?.let { n -> n in 0..255 } == true }) {
+                val a = parts[0].toInt()
+                val b = parts[1].toInt()
+                return a == 10 ||
+                    (a == 172 && b in 16..31) ||
+                    (a == 192 && b == 168) ||
+                    (a == 169 && b == 254) ||
+                    a == 127
+            }
+            // IPv6 unique-local (fc00::/7) and link-local (fe80::/10)
+            return h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe8") || h.startsWith("fe9") ||
+                h.startsWith("fea") || h.startsWith("feb")
         }
 
         fun toWsUrl(httpUrl: String): String = when {
@@ -386,13 +412,18 @@ class AuthPreferences(private val context: Context) {
         val raw = syncPrefs.getString(key, null) ?: return ""
         val plain = SecretCipher.decrypt(raw)
         if (raw.isNotEmpty() && !SecretCipher.isEncrypted(raw)) {
-            syncPrefs.edit().putString(key, SecretCipher.encryptNonEmpty(plain)).apply()
+            // Fail closed: if the Keystore cannot encrypt, remove the legacy plaintext instead of leaving it on disk.
+            val encrypted = SecretCipher.encryptOrNull(plain)
+            if (encrypted != null) syncPrefs.edit().putString(key, encrypted).apply()
+            else syncPrefs.edit().remove(key).apply()
         }
         return plain
     }
 
     private fun storeSecret(key: String, value: String) {
-        syncPrefs.edit().putString(key, SecretCipher.encryptNonEmpty(value)).apply()
+        val encrypted = SecretCipher.encryptOrNull(value)
+        if (encrypted != null) syncPrefs.edit().putString(key, encrypted).apply()
+        else syncPrefs.edit().remove(key).apply()
     }
 
     /** Encrypts token values written by older builds; repeated calls are harmless. */
@@ -403,7 +434,11 @@ class AuthPreferences(private val context: Context) {
                 context.dataStore.edit { prefs ->
                     for (key in listOf(ACCESS_TOKEN, REFRESH_TOKEN, TERMUX_SSH_PASS, SECURITY_TOKEN)) {
                         val value = prefs[key] ?: continue
-                        if (!SecretCipher.isEncrypted(value)) prefs[key] = SecretCipher.encrypt(value)
+                        if (!SecretCipher.isEncrypted(value)) {
+                            val encrypted = SecretCipher.encryptOrNull(value)
+                            // Fail closed: no plaintext token stays on disk when encryption is unavailable.
+                            if (encrypted != null) prefs[key] = encrypted else prefs.remove(key)
+                        }
                     }
                 }
             }
@@ -415,9 +450,13 @@ class AuthPreferences(private val context: Context) {
     fun saveEdgeHeaderSync(name: String, value: String) {
         currentEdgeHeaderName = name.trim().ifBlank { DEFAULT_EDGE_HEADER_NAME }
         currentEdgeHeaderValue = value.trim()
+        val encryptedValue = SecretCipher.encryptOrNull(currentEdgeHeaderValue)
         syncPrefs.edit()
             .putString("edge_header_name", currentEdgeHeaderName)
-            .putString("edge_header_value", SecretCipher.encryptNonEmpty(currentEdgeHeaderValue))
+            .apply {
+                if (encryptedValue != null) putString("edge_header_value", encryptedValue)
+                else remove("edge_header_value")
+            }
             .commit()
     }
 
@@ -628,11 +667,12 @@ class AuthPreferences(private val context: Context) {
         enabled: Boolean,
         autoExecute: Boolean
     ) {
+        val encryptedPass = SecretCipher.encryptOrNull(pass)
         context.dataStore.edit { prefs ->
             prefs[TERMUX_SSH_HOST] = host
             prefs[TERMUX_SSH_PORT] = port.toString()
             prefs[TERMUX_SSH_USER] = user
-            prefs[TERMUX_SSH_PASS] = SecretCipher.encrypt(pass)
+            if (encryptedPass != null) prefs[TERMUX_SSH_PASS] = encryptedPass else prefs.remove(TERMUX_SSH_PASS)
             prefs[IS_TERMINAL_TOOL_ENABLED] = enabled
             prefs[AUTO_EXECUTE_TERMINAL] = autoExecute
         }
@@ -651,11 +691,12 @@ class AuthPreferences(private val context: Context) {
     }
 
     suspend fun saveSshSettings(host: String, port: Int, user: String, pass: String) {
+        val encryptedPass = SecretCipher.encryptOrNull(pass)
         context.dataStore.edit { prefs ->
             prefs[TERMUX_SSH_HOST] = host
             prefs[TERMUX_SSH_PORT] = port.toString()
             prefs[TERMUX_SSH_USER] = user
-            prefs[TERMUX_SSH_PASS] = SecretCipher.encrypt(pass)
+            if (encryptedPass != null) prefs[TERMUX_SSH_PASS] = encryptedPass else prefs.remove(TERMUX_SSH_PASS)
         }
     }
 
@@ -676,10 +717,12 @@ class AuthPreferences(private val context: Context) {
     }
 
     suspend fun saveTokens(accessToken: String, refreshToken: String?, email: String? = null, expiresInSeconds: Long? = 3600) {
+        val encryptedAccess = SecretCipher.encryptOrNull(accessToken)
+        val encryptedRefresh = refreshToken?.let { SecretCipher.encryptOrNull(it) }
         context.dataStore.edit { prefs ->
-            prefs[ACCESS_TOKEN] = SecretCipher.encrypt(accessToken)
+            if (encryptedAccess != null) prefs[ACCESS_TOKEN] = encryptedAccess else prefs.remove(ACCESS_TOKEN)
             if (refreshToken != null) {
-                prefs[REFRESH_TOKEN] = SecretCipher.encrypt(refreshToken)
+                if (encryptedRefresh != null) prefs[REFRESH_TOKEN] = encryptedRefresh else prefs.remove(REFRESH_TOKEN)
             }
             if (email != null) {
                 prefs[USER_EMAIL] = email
@@ -785,9 +828,13 @@ class AuthPreferences(private val context: Context) {
     fun saveSshKeySync(privateKey: String, passphrase: String) {
         currentSshPrivateKey = privateKey.trim()
         currentSshKeyPassphrase = passphrase
+        val encryptedKey = SecretCipher.encryptOrNull(currentSshPrivateKey)
+        val encryptedPassphrase = SecretCipher.encryptOrNull(passphrase)
         syncPrefs.edit()
-            .putString("ssh_private_key", SecretCipher.encryptNonEmpty(currentSshPrivateKey))
-            .putString("ssh_key_passphrase", SecretCipher.encryptNonEmpty(passphrase))
+            .apply {
+                if (encryptedKey != null) putString("ssh_private_key", encryptedKey) else remove("ssh_private_key")
+                if (encryptedPassphrase != null) putString("ssh_key_passphrase", encryptedPassphrase) else remove("ssh_key_passphrase")
+            }
             .commit()
     }
 
@@ -1128,7 +1175,10 @@ class AuthPreferences(private val context: Context) {
         val validToken = if (clean.length == TOKEN_LENGTH) clean else generateRandomToken()
         storeSecret("security_token", validToken)
         currentSecurityToken = validToken
-        context.dataStore.edit { it[SECURITY_TOKEN] = SecretCipher.encrypt(validToken) }
+        val encrypted = SecretCipher.encryptOrNull(validToken)
+        context.dataStore.edit { prefs ->
+            if (encrypted != null) prefs[SECURITY_TOKEN] = encrypted else prefs.remove(SECURITY_TOKEN)
+        }
     }
 
     fun getDefaultBridgeBinaryPath(): String =

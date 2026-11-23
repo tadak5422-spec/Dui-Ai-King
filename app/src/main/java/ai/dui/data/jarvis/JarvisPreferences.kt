@@ -2,6 +2,7 @@ package ai.dui.data.jarvis
 
 import android.content.Context
 import android.content.SharedPreferences
+import ai.dui.data.security.SecretCipher
 import ai.dui.domain.model.AgentKind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,9 @@ object JarvisPreferences {
         val state: StateFlow<T> get() = flow
         val value: T get() = flow.value
 
+        /** Keys whose values must never be written in plaintext (TTS provider API key). */
+        private val sensitive: Boolean get() = key == "tts_api_key"
+
         fun set(v: T) {
             flow.value = v
             val e = sp?.edit() ?: return
@@ -27,7 +31,12 @@ object JarvisPreferences {
                 is Int -> e.putInt(key, v)
                 is Long -> e.putLong(key, v)
                 is Float -> e.putFloat(key, v)
-                is String -> e.putString(key, v)
+                is String -> {
+                    if (sensitive) {
+                        val encrypted = SecretCipher.encryptOrNull(v)
+                        if (encrypted != null) e.putString(key, encrypted) else e.remove(key)
+                    } else e.putString(key, v)
+                }
                 else -> {}
             }
             e.apply()
@@ -41,7 +50,20 @@ object JarvisPreferences {
                 is Int -> p.getInt(key, d)
                 is Long -> p.getLong(key, d)
                 is Float -> p.getFloat(key, d)
-                is String -> p.getString(key, d) ?: d
+                is String -> {
+                    val raw = p.getString(key, d)
+                    if (sensitive && raw != null && raw != d) {
+                        // Migrate a value written by an older build, and never keep it in plaintext if that fails.
+                        val plain = SecretCipher.decrypt(raw)
+                        if (!SecretCipher.isEncrypted(raw)) {
+                            val encrypted = SecretCipher.encryptOrNull(plain)
+                            p.edit().apply {
+                                if (encrypted != null) putString(key, encrypted) else remove(key)
+                            }.apply()
+                        }
+                        plain
+                    } else raw ?: d
+                }
                 else -> d
             } as T
         }

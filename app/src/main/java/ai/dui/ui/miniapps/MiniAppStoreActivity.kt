@@ -36,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -90,7 +91,7 @@ class MiniAppStoreActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val catalog = intent.getStringExtra(EXTRA_CATALOG)?.takeIf { BuildConfig.DEBUG } ?: MiniAppStore.CATALOG
+        val catalog = intent.getStringExtra(EXTRA_CATALOG)?.takeIf { BuildConfig.DEBUG } ?: MiniAppStore.catalog(this)
         setContent {
             val initial = remember { prefs.getThemeModeSync() }
             val mode by prefs.themeMode.collectAsState(initial = initial)
@@ -104,9 +105,10 @@ class MiniAppStoreActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StoreScreen(catalogUrl: String, onBack: () -> Unit) {
+private fun StoreScreen(initialCatalogUrl: String?, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var catalogUrl by remember { mutableStateOf(initialCatalogUrl) }
     var catalog by remember { mutableStateOf<MiniAppStore.Catalog?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -114,17 +116,21 @@ private fun StoreScreen(catalogUrl: String, onBack: () -> Unit) {
     var tick by remember { mutableIntStateOf(0) }
     var installing by remember { mutableStateOf<InstallSource?>(null) }
     var replace by remember { mutableStateOf<Pair<MiniAppStore.Entry, String>?>(null) }
+    var editingCatalog by remember { mutableStateOf(initialCatalogUrl == null) }
 
-    fun load() = scope.launch {
-        loading = true
-        runCatching { MiniAppStore.load(catalogUrl) }
-            .onSuccess { catalog = it; error = null }
-            .onFailure { error = it.message ?: "Couldn't load the catalog" }
-        withContext(Dispatchers.IO) { MiniApps.scan(context) }
-        loading = false
-        tick++
+    fun load() {
+        val url = catalogUrl ?: return
+        scope.launch {
+            loading = true
+            runCatching { MiniAppStore.load(url) }
+                .onSuccess { catalog = it; error = null }
+                .onFailure { error = it.message ?: "Couldn't load the catalog" }
+            withContext(Dispatchers.IO) { MiniApps.scan(context) }
+            loading = false
+            tick++
+        }
     }
-    LaunchedEffect(Unit) { load() }
+    LaunchedEffect(catalogUrl) { if (catalogUrl != null) load() }
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val o = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) tick++ }
@@ -138,15 +144,22 @@ private fun StoreScreen(catalogUrl: String, onBack: () -> Unit) {
                 title = {
                     Column {
                         Text("Get mini apps")
-                        Text(catalog?.name ?: MiniAppStore.REPO, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            catalog?.name ?: catalogUrl?.let { runCatching { Uri.parse(it).host }.getOrNull() } ?: "No catalog chosen",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 actions = {
-                    IconButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(MiniAppStore.PAGE))) } }) {
-                        Icon(Icons.AutoMirrored.Outlined.OpenInNew, "Open the repository")
+                    if (catalogUrl != null) {
+                        IconButton(onClick = { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(MiniAppStore.page(catalogUrl!!)))) } }) {
+                            Icon(Icons.AutoMirrored.Outlined.OpenInNew, "Open the repository")
+                        }
+                        IconButton(enabled = !loading, onClick = { load() }) { Icon(Icons.Outlined.Refresh, "Refresh") }
+                        TextButton(onClick = { editingCatalog = true }) { Text("Catalog") }
                     }
-                    IconButton(enabled = !loading, onClick = { load() }) { Icon(Icons.Outlined.Refresh, "Refresh") }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
@@ -155,6 +168,23 @@ private fun StoreScreen(catalogUrl: String, onBack: () -> Unit) {
     ) { pad ->
         val c = catalog
         when {
+            editingCatalog -> CatalogSetup(
+                initial = catalogUrl.orEmpty(),
+                canCancel = catalogUrl != null,
+                onCancel = { editingCatalog = false },
+                onSave = { text ->
+                    runCatching { MiniAppStore.setCatalog(context, text) }
+                        .onSuccess { saved ->
+                            catalogUrl = saved
+                            catalog = null
+                            error = null
+                            editingCatalog = false
+                        }
+                        .onFailure { error = it.message ?: "That is not a usable catalog URL" }
+                },
+                error = error,
+                modifier = Modifier.padding(pad)
+            )
             c == null && loading -> Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             c == null -> Column(
                 Modifier.fillMaxSize().padding(pad).padding(32.dp),
@@ -165,6 +195,7 @@ private fun StoreScreen(catalogUrl: String, onBack: () -> Unit) {
                 Text(error.orEmpty(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center, modifier = Modifier.padding(top = 8.dp))
                 Button(onClick = { load() }, modifier = Modifier.padding(top = 16.dp)) { Text("Try again") }
+                TextButton(onClick = { editingCatalog = true }, modifier = Modifier.padding(top = 4.dp)) { Text("Change catalog") }
             }
             c.apps.isEmpty() -> Box(Modifier.fillMaxSize().padding(pad).padding(32.dp), contentAlignment = Alignment.Center) {
                 Text("No apps in this catalog yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -206,6 +237,47 @@ private fun StoreScreen(catalogUrl: String, onBack: () -> Unit) {
             },
             dismissButton = { TextButton(onClick = { replace = null }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+private fun CatalogSetup(
+    initial: String,
+    canCancel: Boolean,
+    onCancel: () -> Unit,
+    onSave: (String) -> Unit,
+    error: String?,
+    modifier: Modifier = Modifier,
+) {
+    var text by remember(initial) { mutableStateOf(initial) }
+    Column(
+        modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(Icons.Outlined.CloudOff, null, Modifier.size(36.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Choose a mini app catalog", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+        Text(
+            "No catalog is built in. Enter the https:// address of a catalog (a dui-mini-apps.json that lists signed .agapp packages). Only add a catalog you trust: it decides which apps this screen offers.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+        )
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            singleLine = true,
+            label = { Text("Catalog URL") },
+            placeholder = { Text("https://example.com/dui-mini-apps.json") },
+            isError = error != null,
+            modifier = Modifier.fillMaxWidth()
+        )
+        if (error != null) {
+            Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 6.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp)) {
+            Button(enabled = text.isNotBlank(), onClick = { onSave(text) }) { Text("Save") }
+            if (canCancel) TextButton(onClick = onCancel) { Text("Cancel") }
+        }
     }
 }
 

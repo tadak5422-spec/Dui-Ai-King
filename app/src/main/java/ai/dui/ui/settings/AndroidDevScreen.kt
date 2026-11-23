@@ -108,17 +108,17 @@ fun AndroidDevScreen(
             cardBg, cardBorder,
             badgeColor = if (state.filesUpdate != null) Amber else QuotaGreen
         ) {
-            Hint("The setup script (android-setup.sh) and the adev commands are not part of the app. They are downloaded from the DuiAI plugins repository when you need them.")
+            Hint("The setup script (android-setup.sh) and the adev commands are not part of the app. They are downloaded from the setup repository you choose below, and only when you tap the button.")
             DevSourceRow(state.source, enabled = !busy)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 when {
-                    state.filesVersion == null -> Button(enabled = !busy, onClick = AndroidDevManager::downloadSetupFiles) {
+                    state.filesVersion == null -> Button(enabled = !busy && state.source.isNotBlank(), onClick = AndroidDevManager::downloadSetupFiles) {
                         Icon(Icons.Outlined.Download, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Get setup files")
                     }
-                    state.filesUpdate != null -> Button(enabled = !busy, onClick = AndroidDevManager::downloadSetupFiles) {
+                    state.filesUpdate != null -> Button(enabled = !busy && state.source.isNotBlank(), onClick = AndroidDevManager::downloadSetupFiles) {
                         Icon(Icons.Outlined.Download, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Update to v${state.filesUpdate}")
                     }
-                    else -> OutlinedButton(enabled = !busy, onClick = AndroidDevManager::downloadSetupFiles) { Text("Download again") }
+                    else -> OutlinedButton(enabled = !busy && state.source.isNotBlank(), onClick = AndroidDevManager::downloadSetupFiles) { Text("Download again") }
                 }
                 if (state.filesVersion != null && state.filesUpdate == null) {
                     TextButton(enabled = !busy, onClick = AndroidDevManager::checkForUpdate) { Text("Check for update") }
@@ -215,24 +215,27 @@ private fun DevSourceRow(source: String, enabled: Boolean) {
     var error by remember { mutableStateOf<String?>(null) }
     if (!editing) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("From $source", fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.weight(1f))
-            TextButton(enabled = enabled, onClick = { editing = true }) { Text("Change", fontSize = 12.sp) }
+            Text(
+                if (source.isBlank()) "No setup repository chosen" else "From $source",
+                fontSize = 12.sp, fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.weight(1f)
+            )
+            TextButton(enabled = enabled, onClick = { editing = true }) { Text(if (source.isBlank()) "Choose" else "Change", fontSize = 12.sp) }
         }
         return
     }
     OutlinedTextField(
         value = text, onValueChange = { text = it; error = null }, singleLine = true,
         label = { Text("owner/repo@branch") }, isError = error != null,
-        supportingText = { Text(error ?: "A fork of the DuiAI plugins repository, for testing changes to the setup.") },
+        supportingText = { Text(error ?: "Only add a repository whose scripts you trust: they run in your terminal.") },
         modifier = Modifier.fillMaxWidth()
     )
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = {
+        Button(enabled = text.isNotBlank(), onClick = {
             runCatching { AndroidDevManager.setSource(text) }
                 .onSuccess { editing = false; AndroidDevManager.checkForUpdate() }
                 .onFailure { error = it.message }
         }) { Text("Save") }
-        TextButton(onClick = { text = AndroidDevManager.DEFAULT_SOURCE }) { Text("Default") }
         TextButton(onClick = { editing = false; text = source }) { Text("Cancel") }
     }
 }
@@ -448,7 +451,7 @@ private fun SkillCard(state: AndroidDevManager.State, busy: Boolean, cardBg: Col
     ) {
         Hint("A skills-only plugin from the DuiAI plugins repository. It teaches agents to check the setup, install what is missing (asking you first), create projects with adev-new, build with adev, install the APK and fix the usual errors of building on a phone.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(enabled = !busy, onClick = AndroidDevManager::installSkillPlugin) {
+            Button(enabled = !busy && state.source.isNotBlank(), onClick = AndroidDevManager::installSkillPlugin) {
                 Icon(Icons.Outlined.Extension, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp))
                 Text(if (state.pluginInstalled) "Update skill" else "Install skill")
             }
@@ -465,7 +468,11 @@ private fun SkillCard(state: AndroidDevManager.State, busy: Boolean, cardBg: Col
 private fun TerminalCard(state: AndroidDevManager.State, cardBg: Color, cardBorder: BorderStroke) {
     var open by remember { mutableStateOf(false) }
     val repo = runCatching { ai.dui.ui.browser.PluginRepositories.parse(state.source) }.getOrNull()
-    val raw = "https://raw.githubusercontent.com/${repo?.slug ?: "Santoshkurmi/antigem_plugins"}/${repo?.ref?.ifBlank { "main" } ?: "main"}/android-dev/skills/android-dev/scripts"
+    if (repo == null) {
+        Hint("Choose a setup repository first (owner/repo@branch) to see the terminal commands.")
+        return
+    }
+    val raw = "https://raw.githubusercontent.com/${repo.slug}/${repo.ref.ifBlank { "main" }}/android-dev/skills/android-dev/scripts"
     val s = "\$PREFIX/share/dui-android/android-setup.sh"
     val steps = listOf(
         "1. Download the setup files" to

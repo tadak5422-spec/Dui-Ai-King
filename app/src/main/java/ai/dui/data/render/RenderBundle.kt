@@ -59,7 +59,8 @@ object RenderBundle {
 
     const val BUNDLE_TAG = "render-v1"
     private const val ZIP_NAME = "dui-render-bundle-v1.zip"
-    const val BUNDLE_URL = "https://github.com/Santoshkurmi/antigem/releases/download/$BUNDLE_TAG/antigem-render-bundle-v1.zip"
+    /** This fork's own release asset; the original developer's repository is never contacted. */
+    const val BUNDLE_URL = "https://github.com/tadak5422-spec/Dui-Ai-King/releases/download/$BUNDLE_TAG/antigem-render-bundle-v1.zip"
     /** SHA-256 of [ZIP_NAME] as built by scripts/render_bundle/build_render_bundle.sh: anything else is refused. */
     private const val BUNDLE_SHA256 = "c5e97bbeba24d2970c8c4a7ad502ac8c4292b9ef3db5eac64287913ce954f34a"
     /** Its size in bytes (progress when the server sends no length, and shown before downloading). */

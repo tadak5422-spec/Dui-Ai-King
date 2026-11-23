@@ -44,15 +44,18 @@ object ReaManager {
     private const val TAG = "ReaManager"
     private const val PREFS = "rea_settings"
 
-    /** Where the setup files and the skill plugin come from (owner/repo@branch). */
-    const val DEFAULT_SOURCE = "Santoshkurmi/antigem_plugins@main"
-    /** Older builds pointed at a repository that was renamed; saved sources are migrated to the new name. */
-    private const val OLD_SOURCE = "Santoshkurmi/dui_plugins"
+    /**
+     * Where the setup files and the skill plugin come from (owner/repo@branch). Empty by default: the scripts run
+     * code, so the user names the repository they trust instead of the app silently using one.
+     */
+    const val DEFAULT_SOURCE = ""
 
-    /** A saved source from an older build (or blank) → the current repository, keeping a custom branch. */
+    /** A saved source from an older build is kept only when it is still a valid owner/repo@branch. */
     fun migrateSource(saved: String?): String {
-        val value = saved?.replace(OLD_SOURCE, "Santoshkurmi/antigem_plugins")
-        return value?.takeIf { it.isNotBlank() } ?: DEFAULT_SOURCE
+        val value = saved?.trim().orEmpty()
+        return value.takeIf {
+            it.isNotBlank() && runCatching { PluginRepositories.parse(it) }.isSuccess
+        }.orEmpty()
     }
     private const val SCRIPTS_PATH = "rea/skills/rea/scripts"
     const val PLUGIN_ID = "rea"
@@ -316,9 +319,14 @@ object ReaManager {
 
     // ---------------- setup files (downloaded, never bundled) ----------------
 
-    /** The source as owner/repo@branch: what the user set, else [DEFAULT_SOURCE]. */
+    /** The source as owner/repo@branch; blank clears it (nothing is downloaded until the user names one). */
     fun setSource(source: String) {
-        val value = source.trim().ifBlank { DEFAULT_SOURCE }
+        val value = source.trim()
+        if (value.isBlank()) {
+            prefs.edit().remove("source").apply()
+            _state.update { it.copy(source = "", filesUpdate = null) }
+            return
+        }
         val parsed = PluginRepositories.parse(value)
         val label = if (parsed.ref.isBlank()) "${parsed.slug}@main" else parsed.label
         prefs.edit().putString("source", label).apply()
@@ -326,7 +334,9 @@ object ReaManager {
     }
 
     private fun rawUrl(file: String): String {
-        val repo = PluginRepositories.parse(_state.value.source)
+        val source = _state.value.source
+        if (source.isBlank()) throw IllegalStateException("Choose a trusted setup repository first (owner/repo@branch)")
+        val repo = PluginRepositories.parse(source)
         val ref = repo.ref.ifBlank { "main" }
         return "https://raw.githubusercontent.com/${repo.slug}/$ref/$SCRIPTS_PATH/$file"
     }
@@ -678,15 +688,11 @@ object ReaManager {
     /** Installs (or updates) the REA skill plugin from the source repository through the plugin repositories. */
     fun installSkillPlugin() = runTask("plugin") {
         PluginRepositories.init(appContext)
-        val wanted = PluginRepositories.parse(_state.value.source)
-        _state.update { it.copy(progress = "Adding ${wanted.label} to the plugin repositories…") }
+        val source = _state.value.source
+        if (source.isBlank()) throw IllegalStateException("Choose a trusted setup repository first (owner/repo@branch)")
+        val wanted = PluginRepositories.parse(source)
         val repo = PluginRepositories.repos.firstOrNull { it.slug.equals(wanted.slug, ignoreCase = true) }
-            ?: withContext(Dispatchers.Main) {
-                // The default branch is what Custom DuiAI Plugins shows; "main" is spelled out only when asked
-                val plain = if (wanted.ref == "main") wanted.copy(ref = "") else wanted
-                PluginRepositories.add(plain)
-                plain
-            }
+            ?: throw IllegalStateException("Add ${wanted.slug} in Settings → Plugins first, then install the skill from there.")
         appendLog("Repository: ${repo.label}")
         _state.update { it.copy(progress = "Reading ${repo.label}…") }
         PluginRepositories.refresh(repo)

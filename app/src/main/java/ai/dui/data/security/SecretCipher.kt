@@ -27,15 +27,25 @@ object SecretCipher {
 
     fun isEncrypted(value: String?): Boolean = value?.startsWith(PREFIX) == true
 
+    /**
+     * Encrypts [plain]. Throws when the Keystore is unavailable instead of returning the plaintext: a caller that
+     * cannot encrypt must not persist the value at all (secure failure, never a plaintext fallback).
+     */
     fun encrypt(plain: String): String {
         if (plain.startsWith(PREFIX)) return plain
-        return runCatching {
+        return try {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.ENCRYPT_MODE, key())
             val body = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
             PREFIX + Base64.encodeToString(cipher.iv + body, Base64.NO_WRAP)
-        }.onFailure { Log.e(TAG, "encrypt failed", it) }.getOrDefault(plain)
+        } catch (e: Exception) {
+            Log.e(TAG, "encrypt failed: ${e.javaClass.simpleName}")
+            throw IllegalStateException("Secure storage is unavailable; the value was not saved.", e)
+        }
     }
+
+    /** [encrypt] for optional values: null on failure, so the caller can skip the write instead of storing plaintext. */
+    fun encryptOrNull(plain: String): String? = runCatching { encrypt(plain) }.getOrNull()
 
     /** Empty string on failure: callers treat it as "not set" instead of using unreadable ciphertext. */
     fun decrypt(stored: String?): String {
