@@ -1,21 +1,3 @@
 [submodule "termux-am"]
 	path = termux-am
 	url = https://github.com/termux/TermuxAm.git
-[submodule "termux-api"]
-	path = termux-api
-	url = https://github.com/Santoshkurmi/termux-api.git
-[submodule "termux-x11"]
-	path = termux-x11
-	url = https://github.com/Santoshkurmi/termux-x11.git
-[submodule "dui-vscode"]
-	path = dui-vscode
-	url = https://github.com/Santoshkurmi/dui_vscode_extension.git
-[submodule "dui-chrome-extension"]
-	path = dui-chrome-extension
-	url = https://github.com/Santoshkurmi/dui-browser-extension.git
-[submodule "dui_mini_apps"]
-	path = dui_mini_apps
-	url = https://github.com/Santoshkurmi/dui_mini_apps
-[submodule "dui_plugins"]
-	path = dui_plugins
-	url = https://github.com/Santoshkurmi/dui_plugins

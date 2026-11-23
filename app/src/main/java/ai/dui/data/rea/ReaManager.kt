@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit
  * take apart APKs, Flutter and React Native apps and native code, in a proot-distro Ubuntu container of the
  * terminal.
  *
- * Nothing of REA ships in the APK: the setup scripts live in the antigem_plugins repository
+ * Nothing of REA ships in the APK: setup scripts come from the repository the user configures in Settings
  * (rea/skills/rea/scripts) and are downloaded into $PREFIX/share/dui-rea when the user asks for them. Every
  * install step runs `rea-setup.sh <step>`, the same script the REA skill plugin tells agents to run.
  *
