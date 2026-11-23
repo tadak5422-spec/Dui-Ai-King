@@ -42,6 +42,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
 
+    <!-- Deliberate cleartext exception: local Termux bridge / hub / PC connections use plain http on this phone or
+         the LAN. Public hosts must be https:// (enforced in AuthPreferences.normalizeServerUrl() and the Go bridge's
+         endpoint validation). No telemetry or developer endpoint uses cleartext. -->
     <application
         android:name=".DuiAIApplication"
         android:allowBackup="false"
@@ -50,9 +53,6 @@
         android:largeHeap="true"
         android:hasFragileUserData="true"
         android:manageSpaceActivity="ai.dui.ui.settings.ManageSpaceActivity"
-        <!-- Deliberate exception: this app talks to the local Termux bridge / hub / PC over plain http on this phone
-             or the LAN. Public hosts are forced to https:// in AuthPreferences.normalizeServerUrl() and in the Go
-             bridge's endpoint validation; no developer telemetry endpoint uses this. -->
         android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
