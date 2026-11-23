@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import ai.dui.data.agent.opencode.OpenCodeChatBackend
 import ai.dui.domain.model.AgentKind
 import ai.dui.ui.agents.AgentSheetHeader
+import ai.dui.ui.components.ModelCapabilityBadges
 import ai.dui.ui.components.OpenCodeAccent
 
 /** OpenCode's model picker: every model of the connected providers, grouped by provider, with search. */
@@ -114,6 +115,10 @@ fun OpenCodeModelSheet(backend: OpenCodeChatBackend, onOpenSettings: () -> Unit,
                                         m.description + if (m.isDefault) " · default" else "",
                                         fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f), maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
+                                    if (m.hasModalityInfo) {
+                                        Spacer(Modifier.height(4.dp))
+                                        ModelCapabilityBadges(m, OpenCodeAccent)
+                                    }
                                 }
                                 if (isOn) Icon(Icons.Outlined.Check, null, tint = OpenCodeAccent, modifier = Modifier.size(20.dp))
                             }

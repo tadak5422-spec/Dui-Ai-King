@@ -1204,6 +1204,15 @@ fun ChatInputBar(
                                         modifier = Modifier.weight(1f, fill = false)
                                     )
 
+                                    // what the model can read (text only, images, audio, video), when the server says
+                                    if (selectedModel.hasModalityInfo) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        ModelCapabilityIcons(
+                                            model = selectedModel,
+                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                        )
+                                    }
+
                                     // 5h or 7d share left (picked in the model sheet; 7d when the model has no 5h limit)
                                     val left = quota?.pillRemaining
                                     val pctText = quota?.pillText

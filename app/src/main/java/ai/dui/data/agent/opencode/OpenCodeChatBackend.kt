@@ -409,7 +409,8 @@ class OpenCodeChatBackend(
                                     isDefault = id == defaultId,
                                     key = id,
                                     baseName = names[provider] ?: provider,
-                                    supportsThinking = m.o("capabilities").bool("reasoning") == true || m.o("compatibility").str("reasoningField") != null
+                                    supportsThinking = m.o("capabilities").bool("reasoning") == true || m.o("compatibility").str("reasoningField") != null,
+                                    inputModalities = m.modelInputModalities()
                                 )
                             }
                             .sortedWith(compareBy({ !it.isDefault }, { it.baseName.lowercase() }, { it.displayName.lowercase() }))

@@ -33,6 +33,28 @@ internal fun JsonObject?.o(key: String): JsonObject? = this?.get(key) as? JsonOb
 internal fun JsonObject?.a(key: String): JsonArray? = this?.get(key) as? JsonArray
 
 /**
+ * The inputs a model accepts. OpenCode v2 reports `capabilities.input` as names (`["text","image"]`); older builds
+ * used a map of flags (`{"text":true,"image":true}`). Empty when the server does not say, so no badge is invented.
+ */
+internal fun JsonObject?.modelInputModalities(): List<String> {
+    val caps = this?.o("capabilities")
+    val names = caps.a("input") ?: this.o("modalities").a("input")
+    if (names != null) {
+        return names.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p !is JsonNull }?.contentOrNull?.lowercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+    val flags = caps.o("input") ?: this.o("modalities").o("input")
+    if (flags != null) {
+        return flags.entries
+            .filter { (it.value as? JsonPrimitive)?.booleanOrNull == true }
+            .map { it.key.lowercase() }
+            .distinct()
+    }
+    return emptyList()
+}
+
+/**
  * One OpenCode chat as the app shows it. OpenCode's v2 messages (`GET /session/{id}/message`) and its live events
  * (`/event`) describe the same thing — user prompts, assistant steps made of text / reasoning / tool parts — so both
  * are folded into the same model here and rendered into [ChatMessage]s. Consecutive assistant steps after a prompt

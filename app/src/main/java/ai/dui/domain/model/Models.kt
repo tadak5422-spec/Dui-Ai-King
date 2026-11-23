@@ -181,8 +181,23 @@ data class AiModel(
     val isDefault: Boolean = false,
     val key: String = "",
     val baseName: String = "",
-    val tier: String? = null
+    val tier: String? = null,
+    /** What the model can read, when the server says: "text", "image", "audio", "video", "pdf". Empty means unknown. */
+    val inputModalities: List<String> = emptyList()
 ) {
+    /** True when the server told us what the model accepts (otherwise the badges are simply not shown). */
+    val hasModalityInfo: Boolean get() = inputModalities.isNotEmpty()
+
+    fun accepts(modality: String): Boolean = inputModalities.any { it.equals(modality, ignoreCase = true) }
+
+    val supportsImage: Boolean get() = accepts("image")
+    val supportsAudio: Boolean get() = accepts("audio")
+    val supportsVideo: Boolean get() = accepts("video")
+    val supportsPdf: Boolean get() = accepts("pdf")
+
+    /** A model that reads text but no images, audio, video or PDFs. */
+    val isTextOnly: Boolean get() = hasModalityInfo && !supportsImage && !supportsAudio && !supportsVideo && !supportsPdf
+
     companion object {
         val DEFAULT_MODELS = emptyList<AiModel>()
 
