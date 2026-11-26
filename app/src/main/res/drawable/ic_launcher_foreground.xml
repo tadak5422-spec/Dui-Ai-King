@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dui Studio Ai "D" monogram: a cut-gem style D on the 108-unit adaptive-icon canvas (visible 18..90).
+     Also used as the still splash mark on Android versions below 12. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft glow behind the mark -->
+    <path android:pathData="M54,18a36,36 0,1 0,0 72a36,36 0,1 0,0 -72Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="54"
+                android:gradientRadius="36"
+                android:startColor="#404B9DDB"
+                android:endColor="#004B9DDB" />
+        </aapt:attr>
+    </path>
+
+    <!-- D: outer bowl and inner cutout, evenOdd makes it a ring with a straight stem -->
+    <path
+        android:fillType="evenOdd"
+        android:pathData="M32,24 H58 A30,30 0 0 1 58,84 H32 Z M44,36 H58 A18,18 0 0 1 58,72 H44 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="32"
+                android:startY="24"
+                android:endX="78"
+                android:endY="84"
+                android:startColor="#FFF8FAFF"
+                android:endColor="#FF9AA0AB" />
+        </aapt:attr>
+    </path>
+
+    <!-- Amber highlight on the stem and a small light accent on the bowl -->
+    <path android:fillColor="#80FFB74D" android:pathData="M34,30 H37 V78 H34 Z" />
+    <path android:fillColor="#FFFFB74D" android:pathData="M68,48 L74,54 L68,60 L62,54 Z" />
+</vector>
