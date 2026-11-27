@@ -97,8 +97,8 @@ object AndroidDevManager {
             chrootDescription = "Flutter's release compiler (gen_snapshot) only exists for x86-64 PCs. This runs it through Ubuntu's qemu-user with Ubuntu's x86-64 C library, so flutter build apk --release works; each release build takes a few minutes longer. Debug builds do not need it."),
         NODE("node", "Node.js 24", "Installed with nvm (the same Node.js REA uses). React Native and Expo run on it.", "≈240 MB"),
         NDK("ndk", "C/C++ (NDK)", "The Android NDK and CMake for C/C++ code: React Native's new architecture, apps and plugins with CMake. Google builds them for x86-64 PCs only, so their programs are swapped for Ubuntu's arm64 LLVM, CMake and Ninja.", "≈1.5 GB"),
-        ADB("adb", "adb", "adb in the terminal, to install and debug the apps you build on this phone. Connect it in ADB Connect.", "≈10 MB",
-            "adb and fastboot", "Ubuntu's adb and fastboot, to install and debug the apps you build on this phone; no sudo needed (USB / OTG devices too). Connect adb in ADB Connect.");
+        ADB("adb", "adb", "adb in the terminal, to install and debug the apps you build on this phone.", "≈10 MB",
+            "adb and fastboot", "Ubuntu's adb and fastboot, to install and debug the apps you build on this phone; no sudo needed (USB / OTG devices too).");
 
         val label: String get() = chrootLabel?.takeIf { ChrootSetup.install() != null } ?: termuxLabel
         val description: String get() = chrootDescription?.takeIf { ChrootSetup.install() != null } ?: termuxDescription

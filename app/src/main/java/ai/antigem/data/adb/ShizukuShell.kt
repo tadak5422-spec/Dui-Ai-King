@@ -122,10 +122,10 @@ object ShizukuShell {
         refresh()
         val s = _status.value
         return when {
-            !s.installed -> "Shizuku is not installed. Install it (${DOWNLOAD_URL}), start it, then grant AntiGem in AntiGem → Settings → ADB Connect → Shizuku."
+            !s.installed -> "Shizuku is not installed. Install it (${DOWNLOAD_URL}), start it, then grant AntiGem in Shizuku."
             !s.running -> "Shizuku is not running. Open the Shizuku app and start it (after every reboot unless the phone is rooted)."
             s.tooOld -> "This Shizuku is too old (before v11). Update Shizuku."
-            !s.granted -> "AntiGem has no Shizuku permission yet. Open AntiGem → Settings → ADB Connect → Shizuku and tap Grant."
+            !s.granted -> "AntiGem has no Shizuku permission yet. Grant it in Shizuku."
             else -> null
         }
     }

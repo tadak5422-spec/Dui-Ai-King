@@ -144,7 +144,7 @@ object RunTemplates {
         val install = "adb install -r $apk"
         val open = appId?.let { "adb shell monkey -p $it -c android.intent.category.LAUNCHER 1 >/dev/null" }
         val installOpen = listOfNotNull(install, open).joinToString(" && ")
-        val adbNote = "Needs adb connected to this phone (Settings → ADB Connect)."
+        val adbNote = "Needs adb connected to this phone."
         val list = mutableListOf(
             RunTemplate("Build debug APK", build, cwd = cwd),
             RunTemplate(

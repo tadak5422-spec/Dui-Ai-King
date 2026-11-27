@@ -126,35 +126,14 @@ object AdbConnectManager {
         _state.update {
             it.copy(
                 host = prefs.getString("host", DEFAULT_HOST) ?: DEFAULT_HOST,
-                autoReconnect = prefs.getBoolean("auto_reconnect", true),
+                autoReconnect = false, // ADB Connect screen removed in this build: never reconnect by itself
                 pairedOnce = prefs.getBoolean("paired_once", false),
                 autoWireless = prefs.getBoolean("auto_wireless", false),
                 secureSettings = hasSecureSettings()
             )
         }
-        // adbd picks a new port each time Wireless debugging turns on (also after Wi-Fi drops)
-        runCatching {
-            appContext.contentResolver.registerContentObserver(
-                Settings.Global.getUriFor(ADB_WIFI_ENABLED), false,
-                object : ContentObserver(Handler(Looper.getMainLooper())) {
-                    override fun onChange(selfChange: Boolean) {
-                        if (isWirelessDebuggingOn(appContext)) maybeAutoConnect()
-                    }
-                }
-            )
-        }.onFailure { Log.w(TAG, "Cannot watch Wireless debugging: ${it.message}") }
-        // Wireless debugging goes off when Wi-Fi drops: turn it back on when Wi-Fi is back (if the user wants that)
-        runCatching {
-            appContext.getSystemService(ConnectivityManager::class.java).registerNetworkCallback(
-                NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build(),
-                object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) {
-                        scope.launch { delay(3000); maybeTurnOnWireless() }
-                    }
-                }
-            )
-        }.onFailure { Log.w(TAG, "Cannot watch Wi-Fi: ${it.message}") }
-        if (isWirelessDebuggingOn(appContext)) maybeAutoConnect() else scope.launch { delay(2000); maybeTurnOnWireless() }
+        // ADB Connect was removed from this personal build: no Wireless-debugging observer, no network callback and
+        // no automatic reconnect/pairing. init() only keeps the context for adb calls made by other features.
     }
 
     /** Ports of this phone's Wireless debugging "connect" service (changes every time Wireless debugging turns on). */
@@ -529,7 +508,6 @@ object AdbConnectManager {
         if (pairingJob?.isActive == true) return
         _state.update { it.copy(pairing = Pairing.Searching, message = null) }
         pairingServiceRunning = true
-        ContextCompat.startForegroundService(context, Intent(context, AdbPairingService::class.java))
         pairingJob = scope.launch {
             launch {
                 delay(10 * 60_000L)
@@ -549,7 +527,6 @@ object AdbConnectManager {
         pairingJob?.cancel()
         pairingJob = null
         _state.update { if (it.pairing is Pairing.Paired) it else it.copy(pairing = Pairing.Idle) }
-        context.stopService(Intent(context, AdbPairingService::class.java))
     }
 
     /** Takes what was typed in the notification: the 6-digit code, or "port code" when no port was found. */
@@ -603,7 +580,7 @@ object AdbConnectManager {
         val device = _state.value.connectedDevice?.serial
         postResult(
             if (connected) "ADB connected" else "ADB paired",
-            if (connected) "Connected to $device. Use adb in the terminal." else "Paired. Open AntiGem → Settings → ADB Connect to connect."
+            if (connected) "Connected to $device. Use adb in the terminal." else "Paired."
         )
         if (!connected) report("Paired, but couldn't find the Wireless debugging port yet. Tap Connect.", true)
         if (pairingServiceRunning) stopPairing(context)
@@ -689,32 +666,7 @@ object AdbConnectManager {
             .setContentIntent(PendingIntent.getActivity(context, 0,
                 Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).putExtra(":settings:fragment_args_key", "toggle_adb_wireless"),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
-            .addAction(0, "Stop", servicePendingIntent(context, AdbPairingService.ACTION_STOP, 1, mutable = false))
-        if (pairing is Pairing.InProgress || pairing is Pairing.Paired) {
-            builder.setProgress(0, 0, true)
-        } else {
-            val hasPort = pairing is Pairing.Ready || (pairing as? Pairing.Failed)?.port != null
-            val label = if (hasPort) "Enter pairing code" else "Enter port and code"
-            val input = RemoteInput.Builder(KEY_PAIRING_CODE)
-                .setLabel(if (hasPort) "6-digit pairing code" else "Port and code, e.g. 37123 482916")
-                .build()
-            builder.addAction(
-                NotificationCompat.Action.Builder(0, label, servicePendingIntent(context, AdbPairingService.ACTION_CODE, 2, mutable = true))
-                    .addRemoteInput(input)
-                    .setAllowGeneratedReplies(false)
-                    .build()
-            )
-        }
         return builder.build()
-    }
-
-    private fun servicePendingIntent(context: Context, action: String, requestCode: Int, mutable: Boolean): PendingIntent {
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or when {
-            mutable && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> PendingIntent.FLAG_MUTABLE
-            mutable -> 0
-            else -> PendingIntent.FLAG_IMMUTABLE
-        }
-        return PendingIntent.getService(context, requestCode, Intent(context, AdbPairingService::class.java).setAction(action), flags)
     }
 
     private fun postResult(title: String, text: String) = runCatching {

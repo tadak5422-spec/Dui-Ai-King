@@ -35,7 +35,7 @@ import kotlinx.coroutines.delay
 
 /** Settings → X11 Desktop: installs Termux:X11, its termux-x11 command and a desktop, then starts it. */
 @Composable
-fun X11DesktopScreen(cardBg: Color, cardBorder: BorderStroke, onOpenAdbConnect: () -> Unit) {
+fun X11DesktopScreen(cardBg: Color, cardBorder: BorderStroke) {
     val context = LocalContext.current
     LaunchedEffect(Unit) {
         X11DesktopManager.init(context)
@@ -271,8 +271,7 @@ fun X11DesktopScreen(cardBg: Color, cardBorder: BorderStroke, onOpenAdbConnect: 
                     if (device != null) {
                         Button(enabled = !busy, onClick = { X11DesktopManager.disableChildProcessLimit(device.serial) }) { Text("Turn off the limit") }
                     } else {
-                        Hint("Connect the terminal's adb to this phone first.")
-                        OutlinedButton(onClick = onOpenAdbConnect) { Text("Set up ADB Connect") }
+                        Hint("adb is not connected to this phone; the limit cannot be changed here.")
                     }
                     TaskOutput(state, Task.CHILD_LIMIT)
                 }

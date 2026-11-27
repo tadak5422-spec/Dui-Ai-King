@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * android_automation_mcp: lets the model see and drive the phone through the accessibility service,
  * with a few shell-user extras (keys, install, uninstall, force stop, shell) that go through the device access mode picked
- * in Settings → ADB Connect: ADB, Shizuku or root ([DeviceAccess]). Served by AndroidLocalBridgeServer at /android.
+ * (ADB, Shizuku or root, [DeviceAccess]). Served by AndroidLocalBridgeServer at /android.
  */
 object AndroidAutomation {
 

@@ -27,9 +27,6 @@
     <!-- mini app reminders and exact-time background tasks (Android 14+ makes alarms inexact without it) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- ADB Connect: turns Wireless debugging back on by itself. Only the shell user can grant it (pm grant through adb,
-         Shizuku or root); nothing else uses it -->
-    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
     <!-- Signature-level private permissions to protect internal Termux and API receivers/services -->
     <permission
@@ -344,16 +341,6 @@
             android:noHistory="true"
             android:taskAffinity=""
             android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden" />
-
-        <!-- Holds the ADB pairing notification (code entry) while the user is in Developer options -->
-        <service
-            android:name="ai.antigem.data.adb.AdbPairingService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Wireless debugging pairing code entry" />
-        </service>
 
         <!-- Shizuku hands its binder to the app through this provider (ADB Connect → Shizuku) -->
         <provider

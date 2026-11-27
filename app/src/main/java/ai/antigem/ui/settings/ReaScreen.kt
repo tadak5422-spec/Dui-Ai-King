@@ -52,7 +52,6 @@ fun ReaScreen(
     cardBg: Color,
     cardBorder: BorderStroke,
     onOpenGroups: () -> Unit,
-    onOpenAdbConnect: () -> Unit,
     onOpenPlugins: () -> Unit
 ) {
     val context = LocalContext.current
@@ -190,9 +189,8 @@ fun ReaScreen(
 
         // Optional: adb to this phone, for REA's device tools
         InfoCard("Phone access (optional)", cardBg, cardBorder, pill = if (adb.connectedDevice != null) "Connected" to QuotaGreen else "Optional" to MaterialTheme.colorScheme.primary) {
-            Hint("REA's phone tools (installed apps, pulling APKs, logcat, screenshots, starting apps) use adb. Install adb above, then connect the terminal's adb to this phone once over Wireless debugging. Without it, agents can still read installed apps' APKs: pm path <package> gives the path.")
-            val device = adb.connectedDevice
-            if (device != null) Mono("adb connected: ${device.serial}") else OutlinedButton(onClick = onOpenAdbConnect) { Text("Set up ADB Connect") }
+            Hint("REA's phone tools (installed apps, pulling APKs, logcat, screenshots, starting apps) use adb when it is connected. Without it, agents can still read installed apps' APKs: pm path <package> gives the path.")
+            adb.connectedDevice?.let { Mono("adb connected: ${it.serial}") }
         }
 
         WebsitesCard(state, cardBg, cardBorder)

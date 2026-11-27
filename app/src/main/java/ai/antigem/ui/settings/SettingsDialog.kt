@@ -135,7 +135,6 @@ enum class SettingsSection(val title: String, val subtitle: String) {
     DIAGNOSTICS("Diagnostics & Performance", "Live network connections, active streams & thread HUD"),
     UTILITIES("Utilities", "Handy device tools"),
     GITHUB("GitHub", "Sign in with the GitHub CLI, your repositories and git credentials"),
-    ADB_CONNECT("ADB Connect", "Shell access to this phone through adb (Wireless debugging), Shizuku or root"),
     ANDROID_AUTOMATION("Android Automation", "Let AI agents see and control this phone"),
     REA("REA · Reverse Engineering", "Let agents analyze APKs, Flutter, React Native and native code"),
     REA_GROUPS("REA Tool Groups", "Which REA tools each REA MCP server shows"),
@@ -796,14 +795,9 @@ fun SettingsDialog(
                             onDismiss()
                         }
                     )
-                    SettingsSection.ADB_CONNECT -> AdbConnectScreen(
-                        cardBg = cardBg,
-                        cardBorder = cardBorder
-                    )
                     SettingsSection.ANDROID_AUTOMATION -> AndroidAutomationScreen(
                         cardBg = cardBg,
-                        cardBorder = cardBorder,
-                        onOpenAdbConnect = { currentSection = SettingsSection.ADB_CONNECT }
+                        cardBorder = cardBorder
                     )
                     SettingsSection.TERMUX_SUPPORT -> TermuxSupportMenu(
                         cardBg = cardBg,
@@ -815,20 +809,17 @@ fun SettingsDialog(
                     )
                     SettingsSection.X11_DESKTOP -> X11DesktopScreen(
                         cardBg = cardBg,
-                        cardBorder = cardBorder,
-                        onOpenAdbConnect = { currentSection = SettingsSection.ADB_CONNECT }
+                        cardBorder = cardBorder
                     )
                     SettingsSection.REA -> ReaScreen(
                         cardBg = cardBg,
                         cardBorder = cardBorder,
                         onOpenGroups = { currentSection = SettingsSection.REA_GROUPS },
-                        onOpenAdbConnect = { currentSection = SettingsSection.ADB_CONNECT },
                         onOpenPlugins = { currentSection = SettingsSection.WEBVIEW_EXTENSIONS }
                     )
                     SettingsSection.ANDROID_DEV -> AndroidDevScreen(
                         cardBg = cardBg,
                         cardBorder = cardBorder,
-                        onOpenAdbConnect = { currentSection = SettingsSection.ADB_CONNECT },
                         onOpenPlugins = { currentSection = SettingsSection.WEBVIEW_EXTENSIONS }
                     )
                     SettingsSection.REA_GROUPS -> ReaGroupsScreen(
@@ -997,7 +988,6 @@ private fun MainSettingsMenu(
                 row(SettingsSection.TERMINAL, Icons.Outlined.Terminal, c.accentIndigo,
                     if (useSshTerminal || ai.antigem.data.preferences.AuthPreferences.currentRemoteMode) "SSH" else "Local"),
                 githubRow,
-                deviceTools.adb,
                 deviceTools.automation,
                 reaRow,
                 androidDevRow,
@@ -1205,23 +1195,16 @@ private fun rememberAndroidDevRow(onNavigate: (SettingsSection) -> Unit): Settin
     }
 }
 
-/** The ADB Connect and Android Automation rows of the main settings page, with their live state. */
-private class DeviceToolRows(val adb: SettingsRowItem, val automation: SettingsRowItem)
+/** The Android Automation row of the main settings page, with its live state. ADB Connect was removed. */
+private class DeviceToolRows(val automation: SettingsRowItem)
 
 @Composable
 private fun rememberDeviceToolRows(onNavigate: (SettingsSection) -> Unit): DeviceToolRows {
     val context = LocalContext.current
     LaunchedEffect(Unit) {
-        ai.antigem.data.adb.AdbConnectManager.init(context)
         ai.antigem.data.adb.DeviceAccess.init(context)
-        ai.antigem.data.adb.AdbConnectManager.refresh()
         ai.antigem.data.adb.ShizukuShell.refresh()
     }
-    val adb by ai.antigem.data.adb.AdbConnectManager.state.collectAsState()
-    val connected = adb.connectedDevice
-    val accessMode by ai.antigem.data.adb.DeviceAccess.mode.collectAsState()
-    val shizuku by ai.antigem.data.adb.ShizukuShell.status.collectAsState()
-    val root by ai.antigem.data.adb.RootShell.state.collectAsState()
     var automationAllowed by remember { mutableStateOf(ai.antigem.data.automation.AndroidAutomation.isServiceRunning()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -1231,26 +1214,6 @@ private fun rememberDeviceToolRows(onNavigate: (SettingsSection) -> Unit): Devic
     }
     val c = ai.antigem.theme.AppColors
     return DeviceToolRows(
-        adb = SettingsRowItem(
-            Icons.Outlined.PhonelinkSetup, c.accentTeal, SettingsSection.ADB_CONNECT.title,
-            when (accessMode) {
-                ai.antigem.data.adb.DeviceAccess.Mode.ADB -> when {
-                    connected != null -> "Connected"
-                    adb.adbInstalled == false -> "Not installed"
-                    else -> null
-                }
-                ai.antigem.data.adb.DeviceAccess.Mode.SHIZUKU -> if (shizuku.ready) "Shizuku" else "Shizuku · not ready"
-                ai.antigem.data.adb.DeviceAccess.Mode.ROOT ->
-                    if (root.check == ai.antigem.data.adb.RootShell.Check.GRANTED) "Root" else "Root · not granted"
-            },
-            when (accessMode) {
-                ai.antigem.data.adb.DeviceAccess.Mode.ADB ->
-                    if (connected != null) QuotaGreen else if (adb.adbInstalled == false) c.warning else null
-                ai.antigem.data.adb.DeviceAccess.Mode.SHIZUKU -> if (shizuku.ready) QuotaGreen else c.warning
-                ai.antigem.data.adb.DeviceAccess.Mode.ROOT ->
-                    if (root.check == ai.antigem.data.adb.RootShell.Check.GRANTED) QuotaGreen else c.warning
-            }
-        ) { onNavigate(SettingsSection.ADB_CONNECT) },
         automation = SettingsRowItem(
             Icons.Outlined.TouchApp, c.accentAlt, SettingsSection.ANDROID_AUTOMATION.title,
             if (automationAllowed) "Allowed" else "Off", if (automationAllowed) QuotaGreen else null

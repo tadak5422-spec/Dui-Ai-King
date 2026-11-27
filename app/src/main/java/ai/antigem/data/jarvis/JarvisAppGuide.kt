@@ -54,8 +54,7 @@ Your own slash commands that expand into full prompts are in Settings → Slash 
 """.trim()),
             Entry("terminal", listOf("terminal", "shell", "linux", "ssh", "apt", "pkg", "command line", "font", "theme terminal"), """
 The terminal is a full Linux environment (apt/pkg, bash, Python, Node.js, Git, Go). Multiple sessions, themes, font sizes and
-quick keys. Settings → Terminal & Shell has SSH options, local tools and styling. Settings → ADB Connect links the terminal's adb
-to this phone over Wireless debugging.
+quick keys. Settings → Terminal & Shell has SSH options, local tools and styling.
 """.trim()),
             Entry("ide", listOf("ide", "editor", "code", "file", "project", "open project", "git", "commit", "push", "clone"), """
 The IDE screen is a code editor with tabs, find and replace, a file explorer and a terminal sheet. Projects are folders; the

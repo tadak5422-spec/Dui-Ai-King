@@ -60,8 +60,8 @@ object RootShell {
     fun notReadyMessage(): String? = when (_state.value.check) {
         Check.GRANTED -> null
         Check.NO_SU -> "This phone has no su (not rooted, or the root manager hides su from AntiGem)."
-        Check.DENIED -> "Root was denied to AntiGem. Allow AntiGem in the root manager (Magisk / KernelSU / APatch), then tap Check root in AntiGem → Settings → ADB Connect → Root."
-        else -> "Root hasn't been checked yet. Open AntiGem → Settings → ADB Connect → Root and tap Check root."
+        Check.DENIED -> "Root was denied to AntiGem. Allow AntiGem in the root manager (Magisk / KernelSU / APatch)."
+        else -> "Root hasn't been checked yet. Grant AntiGem in your root manager."
     }
 
     /** Starts `su -c [script]` (stdout and stderr together). */

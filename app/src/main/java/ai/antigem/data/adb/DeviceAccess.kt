@@ -28,7 +28,7 @@ import kotlin.concurrent.schedule
 import kotlin.concurrent.thread
 
 /**
- * How AntiGem gets shell-level access to this phone, picked in Settings → ADB Connect:
+ * How AntiGem gets shell-level access to this phone (ADB, Shizuku or root):
  *  - ADB: the terminal's adb, connected over Wireless debugging ([AdbConnectManager]).
  *  - Shizuku: commands run through Shizuku as the shell user, no pairing ([ShizukuShell]).
  *  - Root: commands run through the phone's su ([RootShell]).
@@ -91,8 +91,8 @@ object DeviceAccess {
         }
     }
 
-    const val ADB_NOT_READY = "ADB is not connected. Ask the user to open AntiGem → Settings → ADB Connect and connect " +
-        "(pair once, with Wireless debugging on), or to pick Shizuku or Root there."
+    const val ADB_NOT_READY = "ADB is not connected. Ask the user to connect adb over Wireless debugging " +
+        "(pair once), or to use Shizuku or Root."
 
     /** A short description of what the picked mode is, for status output. */
     fun describe(): String = when (_mode.value) {
@@ -401,7 +401,7 @@ object DeviceAccess {
         return """
             |#!$bash
             |# $name: runs commands on this Android phone as $who.
-            |# $MARKER (Settings > ADB Connect); edits are overwritten. AntiGem must be running.
+            |# $MARKER (shell access); edits are overwritten. AntiGem must be running.
             |NAME=$name
             |MODE=${mode.key}
             |CONF="${d}HOME/.config/antigem/device-access"

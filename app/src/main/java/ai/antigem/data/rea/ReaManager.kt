@@ -100,8 +100,8 @@ object ReaManager {
         LAUNCHER("launcher", "MCP launcher", "rea-mcp (the command agents start), rea-shell and the tool group filter.", "<1 MB", true),
         NATIVE("native", "Native code tools", "objdump and rizin for .so libraries (libapp.so, libflutter.so, JNI code).", "≈40 MB", false,
             chrootDescription = "objdump and rizin for .so libraries (libapp.so, libflutter.so, JNI code). Ubuntu has no rizin package, so it comes from the rizin project's own Ubuntu repository (added for you)."),
-        ADB("adb", "adb", "adb in the terminal for REA's phone tools (installed apps, logcat, screenshots). Connect it in ADB Connect.", "≈10 MB", false,
-            "adb and fastboot", "Ubuntu's adb and fastboot for REA's phone tools (installed apps, logcat, screenshots); no sudo needed. Connect adb in ADB Connect."),
+        ADB("adb", "adb", "adb in the terminal for REA's phone tools (installed apps, logcat, screenshots).", "≈10 MB", false,
+            "adb and fastboot", "Ubuntu's adb and fastboot for REA's phone tools (installed apps, logcat, screenshots); no sudo needed."),
         HERMES("hermes", "React Native (hermes-dec)", "Decompiles Hermes bytecode, the index.android.bundle of most React Native apps.", "≈40 MB", false),
         DEBUG("debug", "Debugger (gdb)", "GDB for debugging native programs in the container.", "≈70 MB", false),
         FIRMWARE("firmware", "Firmware (binwalk)", "binwalk to find and extract firmware images.", "≈30 MB", false);

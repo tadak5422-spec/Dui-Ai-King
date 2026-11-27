@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
  * and the android_automation_mcp server refuses to connect until then.
  */
 @Composable
-fun AndroidAutomationScreen(cardBg: Color, cardBorder: BorderStroke, onOpenAdbConnect: () -> Unit) {
+fun AndroidAutomationScreen(cardBg: Color, cardBorder: BorderStroke) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { AdbConnectManager.init(context); DeviceAccess.init(context); AdbConnectManager.refresh() }
@@ -64,7 +64,7 @@ fun AndroidAutomationScreen(cardBg: Color, cardBorder: BorderStroke, onOpenAdbCo
             delay(2000)
         }
     }
-    // the picked way in (Settings → ADB Connect) is usable now; ADB may also connect by itself when it's needed
+    // the configured shell access is usable now
     val accessReady = when (accessMode) {
         DeviceAccess.Mode.ADB -> adbDevice != null
         DeviceAccess.Mode.SHIZUKU -> shizuku.ready
@@ -135,7 +135,7 @@ fun AndroidAutomationScreen(cardBg: Color, cardBorder: BorderStroke, onOpenAdbCo
                         Text("Switch greyed out, or \"Restricted setting\"?", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                         Text(
                             "Android 13+ blocks this for apps installed from a file. Open App info, tap ⋮ (top right) → Allow restricted settings, " +
-                                "then turn the service on. Or set up ADB, Shizuku or root (Settings → ADB Connect) and use the Turn on with… button.",
+                                "then turn the service on. Or use the Turn on with… button if shell access is set up.",
                             fontSize = 12.sp
                         )
                         TextButton(contentPadding = PaddingValues(0.dp), onClick = {
@@ -160,14 +160,13 @@ fun AndroidAutomationScreen(cardBg: Color, cardBorder: BorderStroke, onOpenAdbCo
             )
         }
 
-        // 3. Shell access (optional): ADB, Shizuku or root, picked in ADB Connect
+        // 3. Shell access (optional): ADB, Shizuku or root (ADB Connect screen removed from this build)
         StepCard(3, "Shell access (optional)", if (accessReady) "Ready" else "Optional", cardBg, cardBorder,
             badgeColor = if (accessReady) QuotaGreen else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)) {
             Hint("Adds what accessibility can't do: pressing any key, installing, uninstalling and force-stopping apps, and running shell commands. " +
-                "It goes through the way picked in ADB Connect: ADB, Shizuku or root.")
+                "Uses the shell access already set up on this device.")
             CheckRow("${accessMode.label} ready", accessReady)
             accessDetail?.let { Text(it, fontFamily = FontFamily.Monospace, fontSize = 12.sp) }
-            if (!accessReady) OutlinedButton(onClick = onOpenAdbConnect) { Text("Open ADB Connect") }
         }
 
         // Next step

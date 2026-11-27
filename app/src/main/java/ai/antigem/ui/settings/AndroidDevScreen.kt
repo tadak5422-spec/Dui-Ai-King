@@ -42,7 +42,6 @@ import kotlinx.coroutines.delay
 fun AndroidDevScreen(
     cardBg: Color,
     cardBorder: BorderStroke,
-    onOpenAdbConnect: () -> Unit,
     onOpenPlugins: () -> Unit
 ) {
     val context = LocalContext.current
@@ -147,9 +146,8 @@ fun AndroidDevScreen(
         SkillCard(state, busy, cardBg, cardBorder, onOpenPlugins)
 
         DevInfoCard("Install on this phone", cardBg, cardBorder, pill = if (adb.connectedDevice != null) "adb connected" to QuotaGreen else "Optional" to MaterialTheme.colorScheme.primary) {
-            Hint("The Install buttons above open Android's installer. Agents can also install and start apps themselves with adb (and read logcat): install adb below, then connect the terminal's adb to this phone once over Wireless debugging.")
-            val device = adb.connectedDevice
-            if (device != null) Mono("adb connected: ${device.serial}") else OutlinedButton(onClick = onOpenAdbConnect) { Text("Set up ADB Connect") }
+            Hint("The Install buttons above open Android's installer. Agents can also install and start apps themselves with adb (and read logcat) when adb is connected.")
+            adb.connectedDevice?.let { Mono("adb connected: ${it.serial}") }
         }
 
         // Check
