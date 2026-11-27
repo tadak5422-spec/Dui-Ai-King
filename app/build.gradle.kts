@@ -11,6 +11,20 @@ val versionFile = rootProject.file("version.json")
 
 class ReleaseVersion(val code: Int, val name: String, val isBeta: Boolean)
 
+// Configuration-cache-safe onlyIf specs. A lambda here captures the Kotlin DSL script object, which Gradle cannot store.
+class SkipIfPhoneAndBridgeExists(
+  private val phoneBuild: Boolean,
+  private val bridgeExists: Boolean
+) : org.gradle.api.specs.Spec<org.gradle.api.Task> {
+  override fun isSatisfiedBy(task: org.gradle.api.Task): Boolean = !phoneBuild || !bridgeExists
+}
+
+class SkipIfPhoneBuild(
+  private val phoneBuild: Boolean
+) : org.gradle.api.specs.Spec<org.gradle.api.Task> {
+  override fun isSatisfiedBy(task: org.gradle.api.Task): Boolean = !phoneBuild
+}
+
 fun versionJsonError(message: String): Nothing = throw GradleException("version.json: $message")
 
 fun shown(value: Any?): String = if (value is String) "\"$value\"" else value.toString()
@@ -362,7 +376,7 @@ wire {
 val agyIdeBridgeRaw = layout.buildDirectory.file("intermediates/agyIdeBridge/agy_ide_bridge")
 val buildAgyIdeBridge = tasks.register<Exec>("buildAgyIdeBridge") {
   dependsOn(syncBridgeVersion) // the bridge embeds the app's version
-  onlyIf { !phoneBuild || !prebuiltBridge.exists() }
+  onlyIf(SkipIfPhoneAndBridgeExists(phoneBuild, prebuiltBridge.exists()))
   val bridgeSourceDir = layout.projectDirectory.dir("../agy_ide_bridge")
   val rawFile = agyIdeBridgeRaw.get().asFile
 
@@ -395,7 +409,7 @@ val buildAgyIdeBridge = tasks.register<Exec>("buildAgyIdeBridge") {
 val agyIdeBridgeLinuxRaw = layout.buildDirectory.file("intermediates/agyIdeBridge/agy_ide_bridge_linux")
 val buildAgyIdeBridgeLinux = tasks.register<Exec>("buildAgyIdeBridgeLinux") {
   dependsOn(syncBridgeVersion)
-  onlyIf { !phoneBuild }
+  onlyIf(SkipIfPhoneBuild(phoneBuild))
   val bridgeSourceDir = layout.projectDirectory.dir("../agy_ide_bridge")
   val rawFile = agyIdeBridgeLinuxRaw.get().asFile
 
@@ -419,7 +433,7 @@ val deleteLegacyLinuxBridgeAsset = tasks.register<Delete>("deleteLegacyLinuxBrid
 
 val compressAgyIdeBridge = tasks.register<Exec>("compressAgyIdeBridge") {
   dependsOn(buildAgyIdeBridge)
-  onlyIf { !phoneBuild || !prebuiltBridge.exists() }
+  onlyIf(SkipIfPhoneAndBridgeExists(phoneBuild, prebuiltBridge.exists()))
   val binDir = layout.projectDirectory.dir("src/main/assets/bin").asFile
   val rawFile = agyIdeBridgeRaw.get().asFile
   // declared, so Gradle knows the asset changed: without it mergeDebugAssets could package the bridge of an earlier
