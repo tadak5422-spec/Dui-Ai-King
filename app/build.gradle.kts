@@ -112,6 +112,11 @@ val targetAbi = (findProperty("abi") as String?)?.trim()?.ifEmpty { null } ?: "a
 require(targetAbi == "arm64" || targetAbi == "x86_64") { "-Pabi must be arm64 or x86_64, not $targetAbi" }
 val isX86 = targetAbi == "x86_64"
 
+// Phone builds (-Pphone=true): reuse the already-built bridge asset instead of running the Go compiler on the device.
+// The asset is gitignored, so this only helps a local working copy that already has app/src/main/assets/bin/agy_ide_bridge.xz.
+val phoneBuild = (findProperty("phone") as String?)?.trim()?.lowercase() == "true"
+val prebuiltBridge = layout.projectDirectory.file("src/main/assets/bin/agy_ide_bridge.xz").asFile
+
 // The rooted Ubuntu chroot runs a Linux build of the bridge (~4 MB), so the normal arm64 release leaves it out and the
 // chroot one carries it: `-Pchroot=true` (AntiGem-v<version>-chroot.apk). The x86_64 APK always has it (there is one
 // x86_64 APK). Without the flag debug builds have it and release builds don't; `-Pchroot=false` leaves it out of debug
@@ -357,6 +362,7 @@ wire {
 val agyIdeBridgeRaw = layout.buildDirectory.file("intermediates/agyIdeBridge/agy_ide_bridge")
 val buildAgyIdeBridge = tasks.register<Exec>("buildAgyIdeBridge") {
   dependsOn(syncBridgeVersion) // the bridge embeds the app's version
+  onlyIf { !phoneBuild || !prebuiltBridge.exists() }
   val bridgeSourceDir = layout.projectDirectory.dir("../agy_ide_bridge")
   val rawFile = agyIdeBridgeRaw.get().asFile
 
@@ -389,6 +395,7 @@ val buildAgyIdeBridge = tasks.register<Exec>("buildAgyIdeBridge") {
 val agyIdeBridgeLinuxRaw = layout.buildDirectory.file("intermediates/agyIdeBridge/agy_ide_bridge_linux")
 val buildAgyIdeBridgeLinux = tasks.register<Exec>("buildAgyIdeBridgeLinux") {
   dependsOn(syncBridgeVersion)
+  onlyIf { !phoneBuild }
   val bridgeSourceDir = layout.projectDirectory.dir("../agy_ide_bridge")
   val rawFile = agyIdeBridgeLinuxRaw.get().asFile
 
@@ -412,6 +419,7 @@ val deleteLegacyLinuxBridgeAsset = tasks.register<Delete>("deleteLegacyLinuxBrid
 
 val compressAgyIdeBridge = tasks.register<Exec>("compressAgyIdeBridge") {
   dependsOn(buildAgyIdeBridge)
+  onlyIf { !phoneBuild || !prebuiltBridge.exists() }
   val binDir = layout.projectDirectory.dir("src/main/assets/bin").asFile
   val rawFile = agyIdeBridgeRaw.get().asFile
   // declared, so Gradle knows the asset changed: without it mergeDebugAssets could package the bridge of an earlier
