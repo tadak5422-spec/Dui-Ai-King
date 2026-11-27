@@ -2056,58 +2056,6 @@ private fun AppearanceSubScreen(
             }
         }
 
-        // Gemmy: the floating cartoon buddy (on by default; first offered by the one-time "Meet Gemmy" dialog)
-        val gemmyContext = LocalContext.current
-        val gemmyPrefs = remember(gemmyContext) { ai.antigem.data.preferences.AuthPreferences(gemmyContext) }
-        val isGemmyEnabled by gemmyPrefs.isGemmyEnabled.collectAsState(initial = true)
-        val gemmyScope = rememberCoroutineScope()
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = cardBg,
-            border = cardBorder,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ai.antigem.ui.components.GemmyPreview(
-                    zoom = 0.85f,
-                    modifier = Modifier.alpha(if (isGemmyEnabled) 1f else 0.4f)
-                )
-                Column(modifier = Modifier.weight(1f).padding(start = 4.dp, end = 12.dp)) {
-                    Text(
-                        text = "Gemmy",
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "A floating cartoon buddy across the app: drag or fling it, tap, double-tap or long-press it. " +
-                            "It reacts while the agent works and rests (almost no battery) when left alone.",
-                        fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Switch(
-                    checked = isGemmyEnabled,
-                    onCheckedChange = { enable ->
-                        gemmyScope.launch {
-                            gemmyPrefs.setGemmyEnabled(enable)
-                            gemmyPrefs.setHasSeenGemmyIntro(true) // decided here: no need for the intro dialog anymore
-                        }
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = ClaudeTerracotta
-                    )
-                )
-            }
-        }
-
         // Standalone Terminal Launcher Icon & Style Settings (PackageManager as source of truth)
         val context = LocalContext.current
         val authPrefs = remember(context) { ai.antigem.data.preferences.AuthPreferences(context) }

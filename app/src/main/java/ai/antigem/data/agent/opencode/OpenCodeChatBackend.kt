@@ -34,6 +34,19 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.security.SecureRandom
 
+/** One input media type as the model picker names it ("image/png" and "image" both become "image"). */
+private fun inputMediaKind(raw: String): String {
+    val v = raw.trim().lowercase()
+    return when {
+        v.startsWith("image") -> "image"
+        v.startsWith("audio") -> "audio"
+        v.startsWith("video") -> "video"
+        v.startsWith("text") -> "text"
+        v.contains("pdf") -> "pdf"
+        else -> v
+    }
+}
+
 /** Whether OpenCode can be used, as the chat screen and the settings show it. */
 enum class OpenCodeState(val label: String) {
     CHECKING("Checking…"),
@@ -397,6 +410,19 @@ class OpenCodeChatBackend(
                                 val provider = m.str("providerID").orEmpty()
                                 val id = "$provider/${m.str("id")}"
                                 val free = m.a("cost").orEmpty().firstOrNull().obj()?.let { c -> (c.dbl("input") ?: 1.0) == 0.0 && (c.dbl("output") ?: 1.0) == 0.0 } == true
+                                // OpenCode has shipped both shapes: capabilities.input as {text:true,…} and as ["text",…].
+                                // models.dev (and custom providers) use modalities.input; attachment marks vision support.
+                                val inputModalities = buildSet {
+                                    val capInput = m.o("capabilities").o("input")
+                                    capInput?.keys?.forEach { k -> if (capInput.bool(k) == true) add(inputMediaKind(k)) }
+                                    m.o("capabilities").a("input")?.forEach { el ->
+                                        (el as? JsonPrimitive)?.content?.let { add(inputMediaKind(it)) }
+                                    }
+                                    m.o("modalities").a("input")?.forEach { el ->
+                                        (el as? JsonPrimitive)?.content?.let { add(inputMediaKind(it)) }
+                                    }
+                                    if (m.bool("attachment") == true) add("image")
+                                }
                                 AiModel(
                                     id = id,
                                     displayName = m.str("name") ?: m.str("id").orEmpty(),
@@ -410,9 +436,8 @@ class OpenCodeChatBackend(
                                     baseName = names[provider] ?: provider,
                                     supportsThinking = m.o("capabilities").bool("reasoning") == true || m.o("compatibility").str("reasoningField") != null,
                                     // OpenCode does not pass images to a model whose input lacks "image" (it tells the model it cannot read them)
-                                    supportsImages = m.o("capabilities").a("input")?.let { input ->
-                                        input.any { (it as? JsonPrimitive)?.content?.startsWith("image") == true }
-                                    }
+                                    supportsImages = if (inputModalities.isEmpty()) null else "image" in inputModalities,
+                                    inputModalities = inputModalities
                                 )
                             }
                             .sortedWith(compareBy({ !it.isDefault }, { it.baseName.lowercase() }, { it.displayName.lowercase() }))

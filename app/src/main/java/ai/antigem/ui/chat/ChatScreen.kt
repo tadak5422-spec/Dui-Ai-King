@@ -328,7 +328,6 @@ fun ChatScreen(
     val isFloatingNetworkInspectorEnabled by viewModel.isFloatingNetworkInspectorEnabled.collectAsState()
     var showNetworkInspectorDialog by remember { mutableStateOf(false) }
     val hasSeenTerminalLauncherOnboarding by viewModel.authPreferences.hasSeenTerminalLauncherOnboarding.collectAsState(initial = true)
-    val hasSeenGemmyIntro by viewModel.authPreferences.hasSeenGemmyIntro.collectAsState(initial = true)
     val isTranscribingAudio by viewModel.isTranscribingAudio.collectAsState()
     val pendingLoginUrl by viewModel.pendingLoginUrl.collectAsState()
     val agyLoginIssue by viewModel.agyLoginIssue.collectAsState()
@@ -1715,28 +1714,66 @@ fun ChatScreen(
                             ai.antigem.data.local.LocalEnvironmentManager.isInstalled(context) ||
                             systemConnectionState.status != ai.antigem.data.remote.SystemStatus.OFFLINE
                         var statusMenuOpen by remember { mutableStateOf(false) }
+                        val showChatTitle = displayedChatTitle.isNotBlank() &&
+                            displayedChatTitle != "New Chat" && displayedChatTitle != "Conversation" &&
+                            displayedChatTitle != "Antigravity Chat" && displayedChatTitle != "OpenCode Chat"
+                        // the terminal shortcut sits where the default "New Chat" title used to be
+                        val openTerminalFromTitle: () -> Unit = {
+                            val ready = useSshTerminal || AuthPreferences.currentRemoteMode ||
+                                (isLocalToolsInstalled && isLocalToolsEnabled)
+                            when {
+                                ready -> onNavigateToTerminal()
+                                isLocalToolsInstalled -> {
+                                    viewModel.setLocalToolsEnabled(true)
+                                    onNavigateToTerminal()
+                                }
+                                else -> showLocalToolsInstallDialog = true
+                            }
+                        }
 
-                        // title on the left; "◐ project" and the new-chat button on the right. Title and project shorten
-                        // with "…" and keep a gap between them and from the screen edge, so nothing runs into anything.
+                        // terminal on the left; "◐ project" and the new-chat button on the right. A named chat's title
+                        // follows the terminal icon and shortens with "…", so nothing runs into anything.
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(end = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // the real title fades in when the chat gets one (instead of jumping from "New Chat")
-                            Crossfade(
-                                targetState = displayedChatTitle,
-                                animationSpec = tween(250),
-                                label = "chat_title",
-                                modifier = Modifier.weight(1f)
-                            ) { chatTitle ->
-                                Text(
-                                    text = chatTitle,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(CircleShape)
+                                        .clickable { openTerminalFromTitle() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Terminal,
+                                        contentDescription = "Open Terminal",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
+                                if (showChatTitle) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    // the real title fades in when the chat gets one (instead of jumping from "New Chat")
+                                    Crossfade(
+                                        targetState = displayedChatTitle,
+                                        animationSpec = tween(250),
+                                        label = "chat_title",
+                                        modifier = Modifier.weight(1f)
+                                    ) { chatTitle ->
+                                        Text(
+                                            text = chatTitle,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Box {
@@ -3713,27 +3750,6 @@ fun ChatScreen(
             onDismiss = {
                 scope.launch {
                     viewModel.authPreferences.setHasSeenTerminalLauncherOnboarding(true)
-                }
-            }
-        )
-    }
-
-    // "Meet Gemmy": once the whole first-launch setup is done and the user is in chat, ask once whether to show the
-    // floating buddy (on by default, can be turned off right there). Gemmy itself only appears after this is answered.
-    val gemmyIntroDue = !hasSeenGemmyIntro && hasChosenAgents && !agentStepPending && !launcherStepPending &&
-        !isApplyingAgents && !isInFloatingWindow
-    var showGemmyIntro by remember { mutableStateOf(false) }
-    LaunchedEffect(gemmyIntroDue) {
-        if (gemmyIntroDue) delay(700) // let the chat settle after the setup steps
-        showGemmyIntro = gemmyIntroDue
-    }
-    if (showGemmyIntro && gemmyIntroDue) {
-        ai.antigem.ui.onboarding.GemmyIntroDialog(
-            onConfirm = { enabled ->
-                showGemmyIntro = false
-                scope.launch {
-                    viewModel.authPreferences.setGemmyEnabled(enabled)
-                    viewModel.authPreferences.setHasSeenGemmyIntro(true)
                 }
             }
         )

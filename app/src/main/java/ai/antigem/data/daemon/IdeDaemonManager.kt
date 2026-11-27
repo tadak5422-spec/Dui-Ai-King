@@ -47,6 +47,8 @@ enum class TabDiskUpdateResult {
 object IdeDaemonManager {
 
     private const val TAG = "IdeDaemonManager"
+    private const val DOWNLOAD_PROJECT_NAME = "Download"
+    private const val DOWNLOAD_PROJECT_PATH = "/sdcard/Download"
     private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
     private val _status = MutableStateFlow(DaemonStatus.STOPPED)
@@ -82,9 +84,13 @@ object IdeDaemonManager {
                 daemonList = res.getOrThrow().map { ProjectItem(it.name, it.path) }
             }
         }
-        val merged = mergeProjects(conversations, daemonList, _activeProject.value)
+        val merged = mergeProjects(conversations, daemonList, _activeProject.value).toMutableList()
+        // The phone's Download folder is always offered, so a fresh install starts there instead of "No Workspace".
+        if (merged.none { it.path == DOWNLOAD_PROJECT_PATH }) {
+            merged.add(0, ProjectItem(DOWNLOAD_PROJECT_NAME, DOWNLOAD_PROJECT_PATH))
+        }
         _projects.value = merged
-        if (_activeProject.value == null && merged.isNotEmpty()) {
+        if (_activeProject.value == null && merged.isNotEmpty() && !explicitNoProject) {
             _activeProject.value = merged.first()
         }
         merged
@@ -98,12 +104,19 @@ object IdeDaemonManager {
 
     private var prefs: android.content.SharedPreferences? = null
 
+    /** The user picked "General (No Workspace)": do not fall back to Download on the next project load. */
+    private var explicitNoProject = false
+
     fun init(context: Context) {
         prefs = context.applicationContext.getSharedPreferences("termux_ide_prefs", Context.MODE_PRIVATE)
+        explicitNoProject = prefs?.getBoolean("active_proj_none", false) == true
         val savedName = prefs?.getString("active_proj_name", null)
         val savedPath = prefs?.getString("active_proj_path", null)
         if (!savedName.isNullOrBlank() && !savedPath.isNullOrBlank()) {
             _activeProject.value = ProjectItem(savedName, savedPath)
+        } else if (!explicitNoProject) {
+            // Fresh install: the phone's Download folder is the default workspace.
+            _activeProject.value = ProjectItem(DOWNLOAD_PROJECT_NAME, DOWNLOAD_PROJECT_PATH)
         }
 
         // Reactively observe unified bridge system connection state (zero polling)
@@ -128,10 +141,12 @@ object IdeDaemonManager {
 
     fun setActiveProject(project: ProjectItem?) {
         _activeProject.value = project
+        explicitNoProject = project == null
         if (project != null) {
             prefs?.edit()
                 ?.putString("active_proj_name", project.name)
                 ?.putString("active_proj_path", project.path)
+                ?.remove("active_proj_none")
                 ?.apply()
             scope.launch {
                 IdeApiClient.addSavedProject(project.path, project.name)
@@ -140,6 +155,7 @@ object IdeDaemonManager {
             prefs?.edit()
                 ?.remove("active_proj_name")
                 ?.remove("active_proj_path")
+                ?.putBoolean("active_proj_none", true)
                 ?.apply()
         }
     }

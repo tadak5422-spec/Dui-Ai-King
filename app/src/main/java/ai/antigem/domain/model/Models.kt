@@ -183,7 +183,9 @@ data class AiModel(
     val baseName: String = "",
     val tier: String? = null,
     /** Whether the model reads images: false = text only (the chat warns about attached images), null = not known. */
-    val supportsImages: Boolean? = null
+    val supportsImages: Boolean? = null,
+    /** Input media the model accepts: text, image, audio, video, pdf. Empty = the provider did not say. */
+    val inputModalities: Set<String> = emptySet()
 ) {
     companion object {
         val DEFAULT_MODELS = emptyList<AiModel>()

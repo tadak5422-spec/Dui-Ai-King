@@ -2,6 +2,7 @@ package ai.antigem.ui.opencode
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,9 +17,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -114,6 +120,10 @@ fun OpenCodeModelSheet(backend: OpenCodeChatBackend, onOpenSettings: () -> Unit,
                                         m.description + if (m.isDefault) " · default" else "",
                                         fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f), maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
+                                    if (m.inputModalities.isNotEmpty()) {
+                                        Spacer(Modifier.height(3.dp))
+                                        CapabilityBadges(m.inputModalities)
+                                    }
                                 }
                                 if (isOn) Icon(Icons.Outlined.Check, null, tint = OpenCodeAccent, modifier = Modifier.size(20.dp))
                             }
@@ -126,6 +136,41 @@ fun OpenCodeModelSheet(backend: OpenCodeChatBackend, onOpenSettings: () -> Unit,
                 Icon(Icons.Outlined.Settings, null, Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
                 Text("Connect providers or add an OpenAI-compatible endpoint")
+            }
+        }
+    }
+}
+
+/** The input types the model accepts, in a fixed order; unknown capabilities show nothing. */
+@Composable
+private fun CapabilityBadges(modalities: Set<String>) {
+    val items = listOf(
+        Triple("text", "Text", Icons.Outlined.TextFields),
+        Triple("image", "Image", Icons.Outlined.Image),
+        Triple("audio", "Audio", Icons.Outlined.Audiotrack),
+        Triple("video", "Video", Icons.Outlined.Videocam),
+        Triple("pdf", "PDF", Icons.Outlined.PictureAsPdf)
+    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        items.forEach { (key, label, icon) ->
+            if (key in modalities) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = OpenCodeAccent.copy(alpha = 0.75f),
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = label,
+                        fontSize = 9.5.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                    )
+                }
             }
         }
     }

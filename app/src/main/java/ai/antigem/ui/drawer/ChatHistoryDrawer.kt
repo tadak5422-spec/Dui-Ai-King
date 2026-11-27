@@ -12,6 +12,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +27,9 @@ import kotlinx.coroutines.delay
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.AddComment
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.automirrored.filled.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.filled.Add
@@ -150,6 +154,10 @@ fun ChatHistoryDrawer(
     var showSigningInProgressDialog by remember { mutableStateOf(false) }
     var showExitConfirmDialog by remember { mutableStateOf(false) }
     var conversationToDelete by remember { mutableStateOf<Conversation?>(null) }
+    // multi-select: the checklist icon (or a long-press) turns it on; rows then toggle instead of opening
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     var isInitialGracePeriod by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
@@ -205,6 +213,18 @@ fun ChatHistoryDrawer(
     }
 
     val allFilteredIds = remember(filtered) { filtered.map { it.id }.toSet() }
+
+    // a chat that the search/filter/archive switch hides also leaves the selection
+    LaunchedEffect(allFilteredIds) {
+        if (selectedIds.isNotEmpty()) selectedIds = selectedIds.intersect(allFilteredIds)
+    }
+    // closing the drawer ends selection mode
+    LaunchedEffect(isOpen) {
+        if (!isOpen) {
+            selectionMode = false
+            selectedIds = emptySet()
+        }
+    }
 
     // Map parentConversationId -> List<Conversation> (subagents)
     // Only if parentConversationId != null and parentConversationId is found in allFilteredIds!
@@ -585,6 +605,82 @@ fun ChatHistoryDrawer(
         )
     }
 
+    if (showBulkDeleteConfirm) {
+        val count = selectedIds.size
+        AlertDialog(
+            onDismissRequest = { showBulkDeleteConfirm = false },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Delete $count conversation${if (count == 1) "" else "s"}?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "This permanently removes all messages and trajectory data of the selected chats. This cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 20.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val ids = selectedIds
+                        showBulkDeleteConfirm = false
+                        selectionMode = false
+                        selectedIds = emptySet()
+                        ids.forEach { id ->
+                            ai.antigem.data.preferences.PinnedChats.setPinned(id, false)
+                            onDeleteConversation(id)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Delete", fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showBulkDeleteConfirm = false },
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Cancel", fontSize = 13.5.sp)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = RoundedCornerShape(18.dp)
+        )
+    }
+
     if (conversationToDelete != null) {
         val targetConv = conversationToDelete!!
         AlertDialog(
@@ -703,6 +799,14 @@ fun ChatHistoryDrawer(
                         )
                     }
                 }
+                HeaderIcon(
+                    Icons.Outlined.Checklist,
+                    if (selectionMode) "Exit selection" else "Select chats",
+                    selectionMode
+                ) {
+                    selectionMode = !selectionMode
+                    if (!selectionMode) selectedIds = emptySet()
+                }
                 HeaderIcon(Icons.Default.Search, "Search", isSearchActive || searchQuery.isNotBlank()) {
                     isSearchActive = !isSearchActive
                     if (!isSearchActive) {
@@ -735,6 +839,60 @@ fun ChatHistoryDrawer(
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
                         modifier = Modifier.size(19.dp)
                     )
+                }
+            }
+
+            // ---------------- multi-select bar: count, clear, cancel and the bulk delete ----------------
+            AnimatedVisibility(
+                visible = selectionMode,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${selectedIds.size} selected",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = { selectedIds = emptySet() },
+                        enabled = selectedIds.isNotEmpty()
+                    ) {
+                        Text("Clear", fontSize = 12.5.sp)
+                    }
+                    TextButton(
+                        onClick = {
+                            selectionMode = false
+                            selectedIds = emptySet()
+                        }
+                    ) {
+                        Text("Cancel", fontSize = 12.5.sp)
+                    }
+                    Button(
+                        onClick = { showBulkDeleteConfirm = true },
+                        enabled = selectedIds.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("Delete", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
 
@@ -1074,6 +1232,15 @@ fun ChatHistoryDrawer(
                                         conv = conv,
                                         isJarvis = conv.id in jarvisIds,
                                         isSelected = isSelected,
+                                        selectionMode = selectionMode,
+                                        isMultiSelected = conv.id in selectedIds,
+                                        onToggleSelection = {
+                                            selectedIds = if (conv.id in selectedIds) selectedIds - conv.id else selectedIds + conv.id
+                                        },
+                                        onStartSelection = {
+                                            selectionMode = true
+                                            selectedIds = selectedIds + conv.id
+                                        },
                                         activeInst = activeInst,
                                         isActivelyRunning = isActivelyRunning,
                                         isScheduledOrBackground = isScheduledOrBackground,
@@ -1192,6 +1359,15 @@ fun ChatHistoryDrawer(
                                             conv = conv,
                                             isJarvis = conv.id in jarvisIds,
                                             isSelected = isSelected,
+                                            selectionMode = selectionMode,
+                                            isMultiSelected = conv.id in selectedIds,
+                                            onToggleSelection = {
+                                                selectedIds = if (conv.id in selectedIds) selectedIds - conv.id else selectedIds + conv.id
+                                            },
+                                            onStartSelection = {
+                                                selectionMode = true
+                                                selectedIds = selectedIds + conv.id
+                                            },
                                             activeInst = activeInst,
                                             isActivelyRunning = isActivelyRunning,
                                             isScheduledOrBackground = isScheduledOrBackground,
@@ -1580,6 +1756,12 @@ private fun buildVisibleChatTree(
 private fun ChatHistoryItemRow(
     conv: Conversation,
     isSelected: Boolean,
+    /** Multi-select: a checkbox leads the row and a tap toggles it instead of opening the chat. */
+    selectionMode: Boolean = false,
+    isMultiSelected: Boolean = false,
+    onToggleSelection: (() -> Unit)? = null,
+    /** Long-press: turn multi-select on with this chat already selected. */
+    onStartSelection: (() -> Unit)? = null,
     /** A Jarvis chat: marked with Jarvis' robot face instead of the chat bubble. */
     isJarvis: Boolean = false,
     activeInst: ai.antigem.data.remote.AgyActiveInstance?,
@@ -1618,19 +1800,40 @@ private fun ChatHistoryItemRow(
             )
             .clip(RoundedCornerShape(8.dp))
             .background(
-                if (isSelected) MaterialTheme.colorScheme.surfaceVariant
-                else Color.Transparent
+                when {
+                    selectionMode && isMultiSelected -> ClaudeTerracotta.copy(alpha = 0.12f)
+                    isSelected -> MaterialTheme.colorScheme.surfaceVariant
+                    else -> Color.Transparent
+                }
             )
-            .clickable {
-                Log.d("CHAT_OPEN_DEBUG", "📂 [Drawer Row] User clicked: id=${conv.id}, title='${conv.title}'")
-                onSelectConversation(conv.id)
-            }
+            .combinedClickable(
+                onClick = {
+                    if (selectionMode) {
+                        if (!conv.readOnly) onToggleSelection?.invoke()
+                    } else {
+                        Log.d("CHAT_OPEN_DEBUG", "📂 [Drawer Row] User clicked: id=${conv.id}, title='${conv.title}'")
+                        onSelectConversation(conv.id)
+                    }
+                },
+                onLongClick = {
+                    if (!conv.readOnly) onStartSelection?.invoke()
+                }
+            )
             .padding(
                 horizontal = if (isSubagent) 8.dp else 10.dp,
                 vertical = if (isSubagent) 7.dp else 9.dp
             ),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (selectionMode && !conv.readOnly) {
+            Icon(
+                imageVector = if (isMultiSelected) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
+                contentDescription = if (isMultiSelected) "Selected" else "Not selected",
+                tint = if (isMultiSelected) ClaudeTerracotta else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
         if (isSubagent) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -1829,8 +2032,8 @@ private fun ChatHistoryItemRow(
             )
         }
 
-        // a read-only chat (a Claude Code subagent) has nothing to do but open it
-        if (!conv.readOnly) Box {
+        // a read-only chat (a Claude Code subagent) has nothing to do but open it; selection mode hides the menu
+        if (!conv.readOnly && !selectionMode) Box {
             IconButton(
                 onClick = { menuExpanded = true },
                 modifier = Modifier.size(26.dp)

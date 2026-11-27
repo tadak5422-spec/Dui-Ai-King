@@ -59,6 +59,24 @@ import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
 
+/**
+ * The reply as the user sees it: the app's thinking blocks and tool-call placeholders are not part of it.
+ * Only those exact markers are removed, so HTML comments inside code blocks stay as written.
+ */
+private val COPY_THOUGHT_BLOCK = Regex("<!--\\s*thought[^>]*-->[\\s\\S]*?(<!--\\s*/thought\\s*-->|$)")
+private val COPY_THOUGHT_TAG = Regex("<thought>[\\s\\S]*?</thought>", RegexOption.IGNORE_CASE)
+private val COPY_TOOL_MARKER = Regex("<!--\\s*tool_call:[^>]*-->")
+private val COPY_ERROR_CARD = Regex("<!--\\s*error[^>]*-->[\\s\\S]*?<!--\\s*/error\\s*-->")
+
+private fun copyableReply(raw: String): String =
+    MemoryBlocks.strip(raw)
+        .replace(COPY_THOUGHT_BLOCK, "")
+        .replace(COPY_THOUGHT_TAG, "")
+        .replace(COPY_TOOL_MARKER, "")
+        .replace(COPY_ERROR_CARD, "")
+        .replace(Regex("\\n{3,}"), "\n\n")
+        .trim()
+
 @Composable
 fun MessageBubble(
     message: ChatMessage,
@@ -292,7 +310,7 @@ fun MessageBubble(
                             IconButton(
                                 onClick = {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText("Copied Response", MemoryBlocks.strip(message.content))
+                                    val clip = ClipData.newPlainText("Copied Response", copyableReply(message.content))
                                     clipboard.setPrimaryClip(clip)
                                     Toast.makeText(context, "Copied response", Toast.LENGTH_SHORT).show()
                                 },
@@ -713,7 +731,7 @@ fun AssistantMessageFooter(
             IconButton(
                 onClick = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("Copied Response", MemoryBlocks.strip(message.content))
+                    val clip = ClipData.newPlainText("Copied Response", copyableReply(message.content))
                     clipboard.setPrimaryClip(clip)
                     Toast.makeText(context, "Copied response", Toast.LENGTH_SHORT).show()
                 },
@@ -724,60 +742,6 @@ fun AssistantMessageFooter(
                     contentDescription = "Copy message",
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     modifier = Modifier.size(15.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
-
-            // the whole reply in one selection area (the feed selects one block at a time)
-            var showSelectText by remember { mutableStateOf(false) }
-            IconButton(
-                onClick = { showSelectText = true },
-                modifier = Modifier.size(28.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.SelectAll,
-                    contentDescription = "Select text",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            if (showSelectText) {
-                SelectTextSheet(content = message.content) { showSelectText = false }
-            }
-
-            if (canRetry) Spacer(modifier = Modifier.width(4.dp))
-
-            // a mistaken tap must not replace the reply: ask first
-            var confirmRetry by remember { mutableStateOf(false) }
-            if (canRetry) IconButton(
-                onClick = { confirmRetry = true },
-                modifier = Modifier.size(28.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Refresh,
-                    contentDescription = "Regenerate response",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-            if (confirmRetry) {
-                AlertDialog(
-                    onDismissRequest = { confirmRetry = false },
-                    title = { Text("Regenerate response?", fontWeight = FontWeight.Bold) },
-                    text = {
-                        Text(
-                            "The same message is sent again and this reply is replaced by a new one.",
-                            fontSize = 14.sp
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            confirmRetry = false
-                            onRetry(message)
-                        }) { Text("Regenerate", color = ClaudeTerracotta, fontWeight = FontWeight.Bold) }
-                    },
-                    dismissButton = { TextButton(onClick = { confirmRetry = false }) { Text("Cancel") } }
                 )
             }
 
