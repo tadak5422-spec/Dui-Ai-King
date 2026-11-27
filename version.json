@@ -3,8 +3,8 @@
   "version_name": "2.0.4",
   "min_supported_version_code": 2,
   "changelog": [
-    "Added Shizuku and root next to ADB: choose how agents reach your phone in Settings → ADB Connect. Agents use adb, Shizuku (rish) or root only when you ask",
-    "ADB Connect now reconnects a paired phone by itself when you open it or tap refresh",
+    "Added Shizuku and root next to ADB: agents use adb, Shizuku (rish) or root only when you ask",
+    "Improved shell access handling for adb, Shizuku and root",
     "Fixed Antigravity sign-in: when your Google account isn't allowed, the app now shows why instead of waiting forever",
     "Fixed OpenCode custom providers whose models didn't show up in the model list or in chat (newer OpenCode versions)",
     "Redesigned OpenCode's custom provider editor: full screen, fast with hundreds of models, with search, filters and select all",
