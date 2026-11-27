@@ -84,8 +84,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Agent of the conversation on screen; chat actions go to that agent's backend. */
     val activeAgent: StateFlow<AgentKind> = store.currentConversation
-        .map { it?.agent ?: AgentKind.AGY }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, AgentKind.AGY)
+        .map { it?.agent ?: AgentKind.OPENCODE }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AgentKind.OPENCODE)
 
     private val isClaudeActive get() = store.currentConversation.value?.agent == AgentKind.CLAUDE
     private val isOpenCodeActive get() = store.currentConversation.value?.agent == AgentKind.OPENCODE
@@ -117,7 +117,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val before = enabledAgents.value
         val firstChoice = !hasChosenAgents.value
         agentPrefs.setEnabled(agents)
-        if (newChatAgent.value !in agents) claudePrefs.setNewChatAgent(if (AgentKind.AGY in agents) AgentKind.AGY else agents.first())
+        if (newChatAgent.value !in agents) claudePrefs.setNewChatAgent(if (AgentKind.OPENCODE in agents) AgentKind.OPENCODE else agents.first())
         if (AgentKind.CLAUDE in agents) {
             claudeBackend.start()
             claudeAccount.refreshStatus()
@@ -172,7 +172,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun agentOf(conversationId: String): AgentKind =
         allConversations.value.find { it.id == conversationId }?.agent
             ?: store.currentConversation.value?.takeIf { it.id == conversationId }?.agent
-            ?: AgentKind.AGY
+            ?: AgentKind.OPENCODE
 
     private fun claudeNotSupported(action: String) {
         ai.antigem.ui.components.AppToastHelper.showToast("$action is not available in Claude chats yet", ai.antigem.ui.components.ChatToastType.INFO)
@@ -371,7 +371,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun onUserStartedTyping() = agyBackend.onUserStartedTyping()
     fun startNewChat() = startNewChat(
         newChatAgent.value.takeIf { it in enabledAgents.value }
-            ?: if (AgentKind.AGY in enabledAgents.value) AgentKind.AGY else enabledAgents.value.firstOrNull() ?: AgentKind.AGY
+            ?: if (AgentKind.OPENCODE in enabledAgents.value) AgentKind.OPENCODE else enabledAgents.value.firstOrNull() ?: AgentKind.OPENCODE
     )
 
     /** New chat with [agent] (e.g. `/clear` in a Claude chat), without changing the new-chat default. */
@@ -441,7 +441,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val target = findLastCallChat()
         withContext(Dispatchers.Main) {
             when {
-                target == null -> startNewChat(AgentKind.AGY)
+                target == null -> startNewChat()
                 currentConversation.value?.id != target.id -> selectConversation(target.id)
             }
         }

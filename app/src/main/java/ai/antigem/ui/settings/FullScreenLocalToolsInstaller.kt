@@ -176,15 +176,17 @@ fun FullScreenLocalToolsInstaller(
                     label = "installerBody"
                 ) { _ ->
                     when (val state = installerState) {
-                        is LocalInstallerState.Idle -> SourcePicker(
-                            selected = selectedSourceType,
-                            selectedFileName = selectedFileUri?.toString()?.substringAfterLast("/"),
-                            selectedMirror = selectedMirror,
-                            onSelectMirror = { selectedMirror = it },
-                            onSelect = { selectedSourceType = it },
-                            onPickZip = { zipPickerLauncher.launch("*/*") },
-                            onOpenChroot = { showChrootSetup = true }
-                        )
+                        is LocalInstallerState.Idle -> {
+                            // Personal build: no source chooser. Start the default environment install once, then show only progress.
+                            LaunchedEffect(Unit) { installFull() }
+                            InstallerCard {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(color = ClaudeTerracotta, strokeWidth = 2.5.dp, modifier = Modifier.size(22.dp))
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Text("Preparing Linux environment…", fontSize = 14.sp, color = AppColors.onBackground)
+                                }
+                            }
+                        }
 
                         is LocalInstallerState.Discovering -> InstallerCard {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -419,7 +421,7 @@ private fun InstallerHero(state: LocalInstallerState, mirrorChoice: Boolean = fa
         text = when (state) {
             is LocalInstallerState.Success -> "You're all set"
             is LocalInstallerState.Error -> "Setup didn't finish"
-            is LocalInstallerState.Idle -> "Set up your Linux environment"
+            is LocalInstallerState.Idle -> "Preparing your Linux environment"
             is LocalInstallerState.Discovering -> "Finding the latest release"
             is LocalInstallerState.AwaitingConfirmation -> "Ready to install"
             is LocalInstallerState.Downloading,
@@ -444,7 +446,7 @@ private fun InstallerHero(state: LocalInstallerState, mirrorChoice: Boolean = fa
             } else {
                 "You can try again, or install from a ZIP file instead."
             }
-            is LocalInstallerState.Idle -> "Dui Studio Ai runs its terminal, IDE and agents on a local Linux system. Choose how to install it."
+            is LocalInstallerState.Idle -> "Dui Studio Ai is preparing its local Linux system. This happens once."
             is LocalInstallerState.Discovering -> "Checking for the latest verified archive."
             is LocalInstallerState.AwaitingConfirmation -> "Review the details and confirm."
             else -> "This takes a few minutes. You can keep using the app meanwhile."

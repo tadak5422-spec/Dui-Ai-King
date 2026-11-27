@@ -54,32 +54,18 @@ import ai.antigem.ui.components.label
 
 private data class AgentOption(val agent: AgentKind, val title: String, val description: String)
 
+// Personal build: only OpenCode is offered, so no Antigravity hub, Claude Code or Codex process is ever started.
 private val AGENT_OPTIONS = listOf(
-    AgentOption(
-        AgentKind.AGY,
-        "Antigravity",
-        "Google's coding agent through the agy hub: Gemini and Claude models on your Google plan."
-    ),
-    AgentOption(
-        AgentKind.CLAUDE,
-        "Claude Code",
-        "Anthropic's Claude Code CLI on this device: your Claude subscription or Anthropic Console account."
-    ),
     AgentOption(
         AgentKind.OPENCODE,
         "OpenCode",
         "Open-source coding agent: 200+ providers with your own keys, any OpenAI-compatible API, and free models."
-    ),
-    AgentOption(
-        AgentKind.CODEX,
-        "Codex",
-        "OpenAI's Codex CLI on this device: sign in with your ChatGPT account (or an API key)."
     )
 )
 
 /**
- * The agents to run: tap to turn each on or off (at least one stays on). With several on, the new-chat screen
- * lets you pick the agent per chat; they share the chat list, status and accounts.
+ * The agents to run: tap to turn each on or off (at least one stays on). In this personal build the only option is
+ * OpenCode, which keeps the bridge running with --no-hub and avoids the Antigravity service entirely.
  */
 @Composable
 fun AgentSelector(selected: Set<AgentKind>, onSelect: (Set<AgentKind>) -> Unit, modifier: Modifier = Modifier, allowEmpty: Boolean = false) {

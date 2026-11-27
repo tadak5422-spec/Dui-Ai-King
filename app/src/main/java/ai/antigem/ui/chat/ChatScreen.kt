@@ -2847,7 +2847,7 @@ fun ChatScreen(
 
                 val pendingQuestion = remember(messages, isClaudeChat, isOpenCodeChat, isCodexChat) {
                     ai.antigem.ui.agents.findPendingQuestion(
-                        currentConv?.agent ?: ai.antigem.domain.model.AgentKind.AGY,
+                        currentConv?.agent ?: ai.antigem.domain.model.AgentKind.OPENCODE,
                         messages
                     )
                 }
