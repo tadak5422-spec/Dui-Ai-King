@@ -1,5 +1,7 @@
 package ai.antigem.ui.settings
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,6 +93,32 @@ fun FullScreenLocalToolsInstaller(
     var selectedMirror by remember { mutableStateOf(RootfsMirror.GITHUB) }
     // the site of the last full-rootfs download started here; null when the last install was something else
     var lastMirror by remember { mutableStateOf<RootfsMirror?>(null) }
+    var showInstallErrorDialog by remember { mutableStateOf(false) }
+    var installErrorReport by remember { mutableStateOf("") }
+
+    // Any installer failure opens a dialog with a report the user can copy and send.
+    LaunchedEffect(installerState) {
+        val state = installerState
+        if (state is LocalInstallerState.Error) {
+            val hw = LocalEnvironmentManager.getDeviceHardwareInfo()
+            val source = when (selectedSourceType) {
+                0 -> "Full download${lastMirror?.let { " (${it.label})" }.orEmpty()}"
+                1 -> "Minimal"
+                else -> "ZIP: ${selectedFileUri?.toString() ?: "none"}"
+            }
+            installErrorReport = buildString {
+                appendLine("Dui Studio Ai — local environment install error")
+                appendLine("Time: ${System.currentTimeMillis()}")
+                appendLine("Source: $source")
+                appendLine("Device: ${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE} · ${hw.arch}")
+                appendLine("Error: ${state.errorMessage}")
+                appendLine()
+                appendLine("--- Installer log ---")
+                if (installerLogs.isEmpty()) appendLine("(no log)") else installerLogs.forEach { appendLine(it) }
+            }
+            showInstallErrorDialog = true
+        }
+    }
 
     val zipPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -236,6 +264,10 @@ fun FullScreenLocalToolsInstaller(
                                 lineHeight = 18.sp,
                                 color = AppColors.onBackground
                             )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            TextButton(onClick = { showInstallErrorDialog = true }) {
+                                Text("View / copy error details", fontSize = 13.sp)
+                            }
                         }
                     }
                 }
@@ -314,6 +346,44 @@ fun FullScreenLocalToolsInstaller(
                     }
                 }
             }
+        }
+
+        if (showInstallErrorDialog) {
+            AlertDialog(
+                onDismissRequest = { showInstallErrorDialog = false },
+                title = { Text("Install error detected") },
+                text = {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        Text(
+                            text = "Copy this report and send it:",
+                            fontSize = 13.sp,
+                            color = AppColors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = installErrorReport,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            lineHeight = 15.sp,
+                            color = AppColors.editorText
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                        clipboard?.setPrimaryClip(ClipData.newPlainText("Dui Studio Ai install error", installErrorReport))
+                        showInstallErrorDialog = false
+                    }) {
+                        Text("Copy report")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showInstallErrorDialog = false }) {
+                        Text("Close")
+                    }
+                }
+            )
         }
     }
 }
